@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Л-КОРП</title>
+  <meta name="theme-color" content="#1f4e8c">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="stylesheet" href="style.css">
+  <script src="config.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="logo">ЛК</span> Л-КОРП</div>
+    <div class="who" id="who" hidden>
+      <span id="whoName"></span><span class="dot"> · </span><span id="whoRole" class="role"></span>
+      <button class="link" id="logout">Вийти</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Вхід -->
+    <section id="login" class="card narrow" hidden>
+      <h1>Вхід</h1>
+      <div id="googleBox" hidden>
+        <p class="muted">Офіс — через Google-акаунт фірми</p>
+        <div id="googleBtn"></div>
+        <div class="or">або</div>
+      </div>
+      <form id="codeForm" autocomplete="off">
+        <label for="code">Код входу</label>
+        <input id="code" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" placeholder="6 цифр" required>
+        <button class="primary" type="submit">Увійти</button>
+        <p class="muted small">Код одноразовий, його дає керівник. Після входу програма пам'ятає вас 30 днів.</p>
+      </form>
+      <p id="loginMsg" class="msg" role="alert"></p>
+    </section>
+
+    <!-- Кабінет -->
+    <section id="home" hidden>
+      <h1 id="homeTitle">Кабінет</h1>
+      <p class="muted" id="homeHint"></p>
+      <div class="tiles" id="tiles"></div>
+    </section>
+
+    <!-- Перегляд аркуша (поки лише читання) -->
+    <section id="view" hidden>
+      <button class="link back" id="back">← Назад</button>
+      <h1 id="viewTitle"></h1>
+      <div class="toolbar"><input id="search" type="search" placeholder="Пошук…"><span id="count" class="muted small"></span></div>
+      <div class="tablewrap"><table id="table"></table></div>
+    </section>
+
+    <!-- Видати код -->
+    <section id="codes" hidden>
+      <button class="link back" data-back>← Назад</button>
+      <h1>Видати код входу</h1>
+      <p class="muted">Оберіть водія (або впишіть пошту офісного працівника з «Користувачів») — програма покаже одноразовий код. Передайте його людині.</p>
+      <div class="card narrow">
+        <label for="worker">Кому</label>
+        <input id="worker" list="workers" placeholder="Прізвище, D01 або пошта">
+        <datalist id="workers"></datalist>
+        <button class="primary" id="issue">Отримати код</button>
+        <div id="issued" class="issued" hidden></div>
+      </div>
+    </section>
+
+    <p id="offline" class="banner" hidden>Немає зв'язку — показано збережене. Зміни поки не зберігаються.</p>
+  </main>
+
+  <div id="busy" class="busy" hidden><div class="spinner"></div></div>
+  <script src="app.js"></script>
+</body>
+</html>
