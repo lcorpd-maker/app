@@ -343,3 +343,35 @@ select:focus { outline: 3px solid var(--focus); outline-offset: 0; border-color:
 .stprob { margin-top: 10px; }
 .stprob summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
 .stprob textarea { width: 100%; margin: 8px 0; }
+/* Кабінет водія за прототипом дизайнера («Мій рейс») */
+.hero { background: var(--grad); color: #fff; border-radius: 22px; padding: 18px 18px 20px; display: grid; gap: 14px; margin-bottom: 16px; }
+.hero .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 15px; color: #C9D2DC; }
+.hero .st { background: rgba(212,234,252,.16); border: 1px solid rgba(212,234,252,.4); color: #fff; border-radius: 999px; padding: 3px 12px; font-size: 14px; font-weight: 600; }
+.hero .to { font-size: 15px; color: #C9D2DC; }
+.hero .city { font-size: 40px; font-weight: 800; letter-spacing: -.03em; line-height: 1.05; margin-top: 2px; overflow-wrap: anywhere; }
+.hero .when { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.road { position: relative; height: 6px; border-radius: 3px; background: rgba(255,255,255,.22); margin: 0 7px 0 0; }
+.road i { position: absolute; inset: 0 auto 0 0; width: var(--p, 0%); border-radius: 3px; background: #fff; }
+.road b { position: absolute; top: 50%; left: var(--p, 0%); width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #0C1333; border: 3.5px solid #B3A3E6; }
+.road::after { content: ""; position: absolute; right: -7px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: #fff; }
+.hero .ends { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; color: #C9D2DC; margin-top: 8px; }
+.hero .addr { background: rgba(255,255,255,.08); border-radius: 14px; padding: 12px 14px; }
+.hero .addr b { display: block; font-size: 16px; }
+.hero .addr span { font-size: 14px; color: #C9D2DC; }
+.next-action { display: grid; gap: 8px; margin-bottom: 10px; }
+.next-action .stgo { margin: 0; min-height: 64px; font-size: 19px; border-radius: 16px; }
+.next-action .stgo .ico { width: 24px; height: 24px; }
+.next-action p { font-size: 14px; color: var(--muted); text-align: center; margin: 0; }
+.quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 6px 0 14px; }
+.q { min-height: 84px; border: 1px solid var(--line); background: var(--card); border-radius: 16px; display: grid; justify-items: center; align-content: center; gap: 4px; font-weight: 600; font-size: 15px; color: var(--ink); padding: 8px 4px; }
+.q .ico { width: 28px; height: 28px; }
+.q small { font-size: 11px; font-weight: 600; color: var(--muted); }
+.q.soonq { opacity: .55; border-style: dashed; }
+.q.problem { color: var(--bad-fg); border-color: var(--bad-bd); background: var(--bad-bg); }
+.ststeps { padding: 14px 18px; margin-bottom: 14px; }
+.ststeps summary { cursor: pointer; font-weight: 700; }
+.ststeps .stlist { margin-top: 10px; }
+.stnext { padding: 16px 18px; margin-bottom: 16px; }
+.stnext h2 { margin: 0 0 6px; font-size: 17px; }
+.stnext .wrow { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
+#stProbBox { margin: 0 0 14px; }
