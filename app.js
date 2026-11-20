@@ -26,7 +26,7 @@
       T('Готівка від клієнтів', '', 'Готівка від клієнтів'), T('Клієнти', '', 'Клієнти')],
     'механік': [{ title: 'Дошка машин', hint: 'машини, документи, GPS', action: 'board' }, T('Авто', '', 'Авто'), T('Причепи', '', 'Причепи'), { title: 'Документи', hint: 'що спливає', action: 'docs' },
       T('Спідометр і пальне', '', 'Спідометр і пальне')],
-    'водій': [T('Мої рейси', '', 'Рейси'), T('Мої витрати', 'аванси й витрати', 'Рухи коштів'), T('Заправки й спідометр', '', 'Спідометр і пальне'),
+    'водій': [{ title: 'Моя машина', hint: 'прийняти / здати', action: 'truck' }, T('Мої рейси', '', 'Рейси'), T('Мої витрати', 'аванси й витрати', 'Рухи коштів'), T('Заправки й спідометр', '', 'Спідометр і пальне'),
       T('Моя зарплата', 'нарахування', 'Нарахування'), T('Звіт по рейсу', 'з телефона', null, 'етап 5')]
   };
   const HINT = {
@@ -35,20 +35,21 @@
     'логіст': 'Поки — перегляд даних. Робочі екрани логіста — етап 3.',
     'бухгалтер': 'Поки — перегляд даних. Рахунки й акти — етап 8.',
     'механік': 'Поки — перегляд даних. Облік техніки — етап 9.',
-    'водій': 'Тут ваші рейси, витрати й зарплата. Внесення з телефона — етап 5.'
+    'водій': 'Почніть з «Моя машина»: відмітьте, яку машину ви прийняли. Тут же ваші рейси, витрати й зарплата.'
   };
 
   /* ── Сервер ── */
   async function api(action, data = {}) {
     if (!CFG.API_URL) throw new Error('Програму ще не підключено до сервера (немає API_URL у config.js)');
     // кожне «Зберегти» має свій opId: якщо зв'язок обірвався і запит повторено, сервер не створить дубль (ADR-038)
-    if (action === 'save' && !data.opId) data = { ...data, opId: (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2)) };
+    const ONCE = action === 'save' || action === 'truck.take' || action === 'truck.give';
+    if (ONCE && !data.opId) data = { ...data, opId: (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2)) };
     const body = JSON.stringify({ action, token: store.get('token'), ...data });
     const send = () => fetch(CFG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body });
     let res;
     try { res = await send(); }
     catch (e) {
-      if (action === 'save') { try { await new Promise(r => setTimeout(r, 1500)); res = await send(); } catch (e2) { res = null; } }   // повтор — той самий opId
+      if (ONCE) { try { await new Promise(r => setTimeout(r, 1500)); res = await send(); } catch (e2) { res = null; } }   // повтор — той самий opId
       if (!res) { $('offline').hidden = false; throw new Error('Немає зв\'язку з сервером'); }
     }
     $('offline').hidden = true;
@@ -62,7 +63,7 @@
   const busy = on => { $('busy').hidden = !on; };
 
   /* ── Екрани ── */
-  function show(id) { ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
+  function show(id) { ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
 
   function showLogin(msg) {
     $('who').hidden = true; show('login'); $('loginMsg').textContent = msg || '';
@@ -89,7 +90,7 @@
       b.innerHTML = '<b></b><span></span>';
       b.querySelector('b').textContent = t.title;
       b.querySelector('span').textContent = ok ? (t.hint || '') : 'скоро' + (t.soon ? ' · ' + t.soon : '');
-      if (ok) b.onclick = () => t.action === 'codes' ? openCodes() : t.action === 'board' ? openBoard() : t.action === 'docs' ? openDocs() : t.action === 'calc' ? openCalc() : openSheet(t);
+      if (ok) b.onclick = () => t.action === 'codes' ? openCodes() : t.action === 'board' ? openBoard() : t.action === 'docs' ? openDocs() : t.action === 'calc' ? openCalc() : t.action === 'truck' ? openTruck() : openSheet(t);
       box.appendChild(b);
     });
     show('home');
@@ -167,7 +168,7 @@
     const tb = $('bRows'); tb.innerHTML = ''; const cards = $('bCards'); cards.innerHTML = '';
     list.forEach(x => {
       const st = stateOf(x), t = x.trip || x.last;
-      const drv = x.drivers.length ? x.drivers.map(d => esc(d.name) + (d.fromTrip ? ' <span class="muted" title="за рейсом; у «Водій на авто» не вказано">?</span>' : '')).join(', ') : '<span class="muted">—</span>';
+      const drv = x.drivers.length ? x.drivers.map(d => esc(d.name) + (d.fromTrip ? ' <span class="muted" title="за рейсом; у «Водій на авто» не вказано">?</span>' : '') + (d.fromApp ? ' <span class="ok-mark" title="водій сам відмітив у програмі' + (d.since ? ' з ' + dd(d.since) : '') + '">✓</span>' : '')).join(', ') : '<span class="muted">—</span>';
       const probs = x.problems.map(p => '<span class="prob' + (p.urgent ? ' urgent' : '') + '" title="' + esc(p.t) + '">' + PROB[p.k] + '</span>').join('');
       const next = x.next ? tripText(x.next) + ' <span class="muted">' + dd(x.next.load) + (x.next.order ? ' · заявка' : '') + '</span>' : '<span class="muted">—</span>';
       const tr = tb.insertRow(); tr.className = 'brow';
@@ -282,6 +283,61 @@
       : '<p class="muted">Змін через програму ще не було.</p>') + '</section>';
     h += '</div><p class="muted small">Джерело: ' + esc(r['Джерело'] || 'база') + '. Поки лише перегляд — редагування з\'явиться разом із переходом аркуша «Рейси» на програму.</p>';
     return h;
+  }
+
+  /* ── Моя машина (етап 3): прийняти / здати ── */
+  let tk = null, tkMode = '';
+  const tkTime = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); };
+  async function openTruck(msg) {
+    show('truck'); tkMode = '';
+    if (!tk) $('tkBody').innerHTML = '<p class="muted">Завантаження…</p>';
+    try { tk = await api('truck.state'); renderTruck(msg); }
+    catch (e) { $('tkBody').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
+  }
+  function renderTruck(msg) {
+    const c = tk.current, T = {}; tk.trucks.forEach(t => T[t.id] = t);
+    let h = msg ? '<div class="cinfo">' + msg + '</div>' : '';
+    if (c && tkMode !== 'take') {
+      const t = T[c.truck] || {};
+      h += '<div class="card tkcur"><div class="muted small">Ви зараз на машині</div><div class="tkbig"><span class="plate">' + esc(c.truck) + '</span> ' + esc(t.plate || '') + '</div>' +
+        '<div class="muted">' + (c.trailer ? 'причіп ' + esc(c.trailer) + ' · ' : '') + 'прийняли ' + tkTime(c.at) + (c.odo ? ' · спідометр ' + Number(c.odo).toLocaleString('uk-UA') : '') + '</div>' +
+        '<label for="tkOdo">Спідометр при здачі, км (якщо знаєте)</label><input id="tkOdo" inputmode="numeric" placeholder="напр. 512 340">' +
+        '<label for="tkNote">Примітка (необов\'язково)</label><input id="tkNote" placeholder="напр. залишив на стоянці в Стрию">' +
+        '<button class="primary" id="tkGive">Здати машину</button>' +
+        '<button class="link" id="tkSwitch" style="margin-top:14px">Пересісти на іншу машину</button><p class="msg" id="tkMsg"></p></div>';
+    } else {
+      const sel = (c && c.truck) || tk.guess || '';
+      h += '<div class="card"><p class="muted" style="margin-top:0">' + (c ? 'Попередню машину ' + esc(c.truck) + ' програма здасть автоматично.' : 'Відмітьте машину, на яку ви сіли. Логіст і керівник одразу побачать це на дошці.') + '</p>' +
+        '<label for="tkTruck">Машина</label><select id="tkTruck"><option value="">— оберіть —</option>' +
+        tk.trucks.map(t => '<option value="' + esc(t.id) + '"' + (t.id === sel && !(c && c.truck === t.id) ? ' selected' : '') + '>' + esc(t.id) + (t.plate ? ' · ' + esc(t.plate) : '') + (t.holder ? ' (зараз: ' + esc(t.holder) + ')' : '') + '</option>').join('') + '</select>' +
+        '<p class="cnote" id="tkWarn" hidden></p>' +
+        '<label for="tkTrailer">Причіп (якщо знаєте)</label><select id="tkTrailer"><option value="">—</option>' + tk.trailers.map(p => '<option value="' + esc(p.id) + '">' + esc(p.id) + (p.plate && p.plate !== p.id ? ' · ' + esc(p.plate) : '') + '</option>').join('') + '</select>' +
+        '<label for="tkOdo">Спідометр, км (якщо знаєте)</label><input id="tkOdo" inputmode="numeric" placeholder="напр. 512 000">' +
+        '<button class="primary" id="tkTake">Прийняти машину</button>' + (c ? '<button class="link" id="tkCancel" style="margin-top:14px">Скасувати</button>' : '') + '<p class="msg" id="tkMsg"></p></div>';
+    }
+    h += '<p class="muted small">Якщо помилились — просто прийміть правильну машину: попередня здасться сама. Логіст бачить усі зміни.</p>';
+    $('tkBody').innerHTML = h;
+    const warn = () => { const t = T[$('tkTruck').value]; $('tkWarn').hidden = !(t && t.holder); if (t && t.holder) $('tkWarn').textContent = 'За програмою на цій машині зараз ' + t.holder + '. Якщо ви її справді прийняли — продовжуйте, логіст перевірить.'; };
+    if ($('tkTruck')) { $('tkTruck').onchange = warn; warn(); }
+    if ($('tkSwitch')) $('tkSwitch').onclick = () => { tkMode = 'take'; renderTruck(); };
+    if ($('tkCancel')) $('tkCancel').onclick = () => { tkMode = ''; renderTruck(); };
+    const odo = () => String($('tkOdo').value || '').replace(/[\s ]/g, '');
+    if ($('tkTake')) $('tkTake').onclick = async () => {
+      const truck = $('tkTruck').value; if (!truck) { $('tkMsg').textContent = 'Оберіть машину'; return; }
+      if (odo() && !/^\d{1,7}$/.test(odo())) { $('tkMsg').textContent = 'Спідометр — лише цифри'; return; }
+      $('tkTake').disabled = true; busy(true);
+      try { const r = await api('truck.take', { truck, trailer: $('tkTrailer').value, odo: odo() }); tk = r.state; tkMode = '';
+        renderTruck(r.already ? 'Ви вже на цій машині.' : '✔ Машину <b>' + esc(truck) + '</b> прийнято.' + (r.checks && r.checks.length ? ' Логіст перевірить: ' + esc(r.checks.join('; ')) : '')); }
+      catch (e) { $('tkMsg').textContent = e.message; $('tkTake').disabled = false; }
+      finally { busy(false); }
+    };
+    if ($('tkGive')) $('tkGive').onclick = async () => {
+      if (odo() && !/^\d{1,7}$/.test(odo())) { $('tkMsg').textContent = 'Спідометр — лише цифри'; return; }
+      $('tkGive').disabled = true; busy(true);
+      try { const r = await api('truck.give', { odo: odo(), note: $('tkNote').value }); tk = r.state; renderTruck('✔ Машину здано.' + (r.checks && r.checks.length ? ' Логіст перевірить: ' + esc(r.checks.join('; ')) : '')); }
+      catch (e) { $('tkMsg').textContent = e.message; $('tkGive').disabled = false; }
+      finally { busy(false); }
+    };
   }
 
   /* ── Документи й терміни (етап 2): що спливає по машинах, водіях і ТІР ── */
