@@ -63,18 +63,23 @@
   const busy = on => { $('busy').hidden = !on; };
 
   /* ── Екрани ── */
-  function show(id) { ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
+  let navSeq = 0;   // кожен перехід між екранами; пізня відповідь сервера не перемикає екран, якщо людина вже пішла далі
+  function show(id) { navSeq++; ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
 
   function showLogin(msg) {
     $('who').hidden = true; show('login'); $('loginMsg').textContent = msg || '';
     if (CFG.GOOGLE_CLIENT_ID) loadGoogle();
   }
 
-  function enter(out) {
+  function enter(out, quiet) {
     if (out.token) store.set('token', out.token);
+    const was = JSON.stringify({ r: me && me.role, s: sheets.map(x => x.name) });
     me = out.me; sheets = out.sheets || [];
     store.set('me', JSON.stringify({ me, sheets }));
     $('whoName').textContent = me.name; $('whoRole').textContent = me.role; $('who').hidden = false;
+    // quiet — уточнення від сервера після показу збереженого кабінету: не перемальовуємо й не повертаємо на головну,
+    // хіба що змінилися роль чи доступи і людина досі на головній
+    if (quiet && (was === JSON.stringify({ r: me.role, s: sheets.map(x => x.name) }) || $('home').hidden)) return;
     renderHome();
   }
 
@@ -97,7 +102,8 @@
     if (me.role === 'водій') {
       $('homeTitle').textContent = 'Мій рейс'; $('homeHint').textContent = '';
       $('homeWork').innerHTML = '<div id="stBox"><p class="muted">Завантаження…</p></div>';
-      api('truck.state').then(st => { tk = st; $('homeWork').innerHTML = '<div id="homeWorkCard">' + workHtml(st.planned, true) + '</div><div id="stBox"></div>' + (st.planned && st.planned.length ? '' : '<div class="card tkwork"><b>Запланованої роботи поки немає.</b><div class="muted small">Щойно логіст призначить рейс — він з\'явиться тут.</div></div>');
+      const nav = navSeq + 1;   // show('home') нижче
+      api('truck.state').then(st => { tk = st; if (nav !== navSeq) return; $('homeWork').innerHTML = '<div id="homeWorkCard">' + workHtml(st.planned, true) + '</div><div id="stBox"></div>' + (st.planned && st.planned.length ? '' : '<div class="card tkwork"><b>Запланованої роботи поки немає.</b><div class="muted small">Щойно логіст призначить рейс — він з\'явиться тут.</div></div>');
         bindWork(); if ((st.planned || []).length) loadStatus(); }).catch(e => { $('homeWork').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; });
     }
     show('home');
@@ -167,9 +173,10 @@
   function bindWork() { const c = document.querySelector('#homeWork .tkclick'); if (c) c.onclick = () => openTruck(); }
 
   async function openSheet(t) {
-    busy(true);
+    busy(true); const nav = navSeq;
     try {
       const out = await api('list', { sheet: t.sheet });
+      if (nav !== navSeq) return;
       current = { title: t.title, sheet: t.sheet, columns: out.columns, rows: out.rows };
       $('viewTitle').textContent = t.title; $('search').value = '';
       renderTable(); show('view');
@@ -311,20 +318,21 @@
   const money = v => (v === '' || v == null) ? '' : (typeof v === 'number' ? v.toLocaleString('uk-UA', { maximumFractionDigits: 2 }) : String(v));
   async function openTrip(id, from) {
     tripFrom = from || 'board';
-    show('trip'); $('tripBody').innerHTML = '<p class="muted">Завантаження рейсу ' + esc(id) + '…</p>';
+    show('trip'); const nav = navSeq; $('tripBody').innerHTML = '<p class="muted">Завантаження рейсу ' + esc(id) + '…</p>';
     const can = new Set(sheets.map(s => s.name));
     const ask = (sheet, filter) => can.has(sheet) ? api('list', { sheet, filter }).catch(() => null) : Promise.resolve(null);
     try {
       const [tr, zv, mv, jr] = await Promise.all([ask('Рейси', { 'Рейс ID': id }), ask('Заявки', { 'Рейс ID': id }),
         ask('Рухи коштів', { 'Рейс ID': id }), ask('Журнал змін', { 'Запис ID': id })]);
+      if (nav !== navSeq) return;
       const r = tr && tr.rows[0];
       if (!r) { $('tripBody').innerHTML = '<p class="msg">Рейс ' + esc(id) + ' не знайдено.</p>'; return; }
       $('tripBody').innerHTML = tripHtml(r, tr.columns, zv && zv.rows, mv && mv.rows, jr && jr.rows) + '<div id="tripSt"></div>';
-      api('trip.status', { tripId: id }).then(v => { if (!v || !v.trip || !$('tripSt')) return;
+      api('trip.status', { tripId: id }).then(v => { if (!v || !v.trip || !$('tripSt') || nav !== navSeq) return;
         const any = v.steps.some(x => x.at) || (v.problems || []).length;
         $('tripSt').innerHTML = '<section class="card" style="margin-top:12px"><h2>Кроки рейсу (від водія)</h2>' + (any ? '<ol class="stlist">' + v.steps.map(x => '<li class="' + (x.at ? 'done' : '') + '"><span>' + (x.at ? '✓' : '○') + '</span><b>' + esc(x.step) + '</b>' + (x.at ? '<em>' + tkTime(x.at) + '</em>' : '') + '</li>').join('') + '</ol>' +
           (v.problems || []).map(p => '<p class="cnote">Проблема ' + tkTime(p.at) + ': ' + esc(p.text) + '</p>').join('') : '<p class="muted">Водій ще нічого не відмітив.</p>') + '</section>'; }).catch(() => {});
-    } catch (e) { $('tripBody').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
+    } catch (e) { if (nav === navSeq) $('tripBody').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
   }
   function tripHtml(r, cols, orders, moves, journal) {
     const has = c => cols.indexOf(c) >= 0 && r[c] !== '' && r[c] !== null && r[c] !== undefined;
@@ -365,8 +373,9 @@
   async function openTruck(msg) {
     show('truck'); tkMode = '';
     if (!tk) $('tkBody').innerHTML = '<p class="muted">Завантаження…</p>';
-    try { tk = await api('truck.state'); renderTruck(msg); }
-    catch (e) { $('tkBody').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
+    const nav = navSeq;
+    try { tk = await api('truck.state'); if (nav === navSeq) renderTruck(msg); }
+    catch (e) { if (nav === navSeq) $('tkBody').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
   }
   function renderTruck(msg) {
     const c = tk.current, T = {}; tk.trucks.forEach(t => T[t.id] = t);
@@ -683,7 +692,7 @@
     if (!store.get('token')) return showLogin();
     // одразу показуємо збережений кабінет, потім уточнюємо в сервера
     try { const c = JSON.parse(store.get('me') || 'null'); if (c) enter(c); } catch (e) {}
-    try { enter(await api('me')); }
+    try { enter(await api('me'), !!me); }
     catch (e) { if (e.code !== 'auth' && me) return; if (!me) showLogin(e.code === 'auth' ? '' : e.message); }
   })();
 })();
