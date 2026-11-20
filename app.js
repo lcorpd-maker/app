@@ -42,7 +42,7 @@
   async function api(action, data = {}) {
     if (!CFG.API_URL) throw new Error('Програму ще не підключено до сервера (немає API_URL у config.js)');
     // кожне «Зберегти» має свій opId: якщо зв'язок обірвався і запит повторено, сервер не створить дубль (ADR-038)
-    const ONCE = action === 'save' || action === 'truck.take' || action === 'truck.give';
+    const ONCE = action === 'save' || action === 'truck.take' || action === 'truck.give' || action === 'trip.status.add';
     if (ONCE && !data.opId) data = { ...data, opId: (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2)) };
     const body = JSON.stringify({ action, token: store.get('token'), ...data });
     const send = () => fetch(CFG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body });
@@ -130,7 +130,7 @@
     return '<div class="card tkwork' + (compact ? ' tkclick' : '') + '"><div class="tkwhead">На вас запланована робота</div>' + (compact ? one(list[0]) + (list.length > 1 ? '<div class="muted small">і ще ' + (list.length - 1) + ' →</div>' : '') : list.map(one).join('')) + '</div>';
   }
   /* ── Статуси рейсу (етап 3): водій натискає крок — логіст бачить на дошці й у картці рейсу ── */
-  let stCur = null;
+  let stCur = null, stPending = false;
   const ST_LABEL = { 'на завантаженні': 'Я на завантаженні', 'завантажено': 'Завантажився', 'замитнення': 'Замитнився', 'на кордоні': 'Я на кордоні / в черзі',
     'кордон пройдено': 'Перетнув кордон', 'розмитнення': 'Розмитнився', 'на розвантаженні': 'Я на розвантаженні', 'розвантажено': 'Розвантажився' };
   async function loadStatus(msg) {
@@ -150,6 +150,8 @@
     const p = ((tk && tk.planned) || []).find(x => x.id === v.trip.id) || {};
     const doneN = v.steps.filter(x => x.at).length, loaded = v.steps.some(x => x.step === 'завантажено' && x.at);
     const pct = Math.round(doneN / v.steps.length * 100);
+    const lastIdx = v.steps.reduce((m, x, i) => x.at ? i : m, -1), nextIdx = v.steps.findIndex(x => x.step === v.next);
+    const ahead = nextIdx >= 0 ? v.steps.slice(nextIdx + 1).map(x => x.step) : [];
     const chip = v.last ? v.last.event : (p.state === 'зараз' ? 'в роботі' : 'заплановано');
     const facts = ['машина ' + esc(v.trip.truck), p.cargo ? esc(p.cargo) : '', v.trip.crossing ? 'перехід ' + esc(v.trip.crossing) : '', p.adr ? '<b>АДР</b>' : ''].filter(Boolean).join(' · ');
     let h = '<article class="hero">' +
@@ -159,26 +161,45 @@
       '<div><div class="road" style="--p:' + pct + '%"><i></i><b></b></div><div class="ends"><span>' + esc(v.trip.from) + (p.load ? ', ' + dd(p.load) : '') + '</span><span>' + esc(v.trip.to) + '</span></div></div>' +
       '<div class="addr"><div><b>' + esc(v.trip.from) + ' → ' + esc(v.trip.to) + '</b><span>' + facts + '</span></div></div></article>';
     if (msg) h += '<div class="cinfo" style="margin-top:14px">' + msg + '</div>';
-    h += '<div class="next-action">' + (v.next ? '<button class="primary stgo" data-st="' + esc(v.next) + '">' + svgI('M5 12l5 5L20 7') + esc(ST_LABEL[v.next] || v.next) + '</button><p>' + esc(ST_HINT[v.next] || '') + '</p>'
+    h += '<div class="next-action">' + (v.next ? '<button class="primary stgo" data-st="' + esc(v.next) + '">' + svgI('M5 12l5 5L20 7') + esc(ST_LABEL[v.next] || v.next) + '</button><p>' + esc(ST_HINT[v.next] || '') + '</p>' + (ahead.length ? '<p><button class="link" id="stAhead">Я вже далі — відмітити інший крок</button></p><div id="stAheadBox" class="stahead" hidden><p class="muted small">Попередні кроки лишаться невідміченими — їх можна дописати потім.</p>' + ahead.map(x => '<button class="btn" data-st="' + esc(x) + '">' + esc(ST_LABEL[x] || x) + '</button>').join('') + '</div>' : '')
       : '<div class="cinfo">Усі кроки рейсу відмічено. Дякуємо!</div>') + '</div>';
-    if (v.last && v.last.canUndo) h += '<p style="text-align:center;margin:0 0 12px"><button class="link" id="stUndo">Скасувати останній крок («' + esc(v.last.event) + '»)</button></p>';
+    if (v.last && v.last.canUndo) { const left = me.role === 'водій' ? Math.max(1, 15 - Math.floor((Date.now() - new Date(v.last.at)) / 60000)) : 0;
+      h += '<button class="undo-btn" id="stUndo">' + svgI('M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3') + '<span>Скасувати «' + esc(v.last.event) + '»' + (left ? '<small>натиснули помилково? ще ' + left + ' хв</small>' : '') + '</span></button>'; }
     h += '<div class="quick">' + QUICK.map(q => '<button class="q' + (q[1] === 'problem' ? ' problem' : '') + (q[1] ? '' : ' soonq') + '" data-q="' + q[1] + '"' + (q[1] ? '' : ' disabled') + '>' + svgI(q[2]) + esc(q[0]) + (q[1] ? '' : '<small>скоро</small>') + '</button>').join('') + '</div>';
     h += '<div class="stprob" id="stProbBox" hidden><textarea id="stText" rows="3" placeholder="Що сталося? Напр.: пробите колесо, чекаємо майстра"></textarea><button class="btn" id="stProb">Надіслати логісту</button></div>';
     (v.problems || []).slice(-2).forEach(x => h += '<p class="cnote">Проблема ' + tkTime(x.at) + ': ' + esc(x.text) + '</p>');
-    h += '<details class="card ststeps"><summary>Усі кроки рейсу · ' + doneN + ' з ' + v.steps.length + '</summary><ol class="stlist">' + v.steps.map(x => '<li class="' + (x.at ? 'done' : x.step === v.next ? 'next' : '') + '"><span>' + (x.at ? '✓' : '○') + '</span><b>' + esc(x.step) + '</b>' +
-      (x.at ? '<em>' + tkTime(x.at) + '</em>' : (x.step !== v.next ? '<button class="link stany" data-st="' + esc(x.step) + '">відмітити</button>' : '')) + '</li>').join('') + '</ol></details>';
+    h += '<details class="card ststeps"><summary>Усі кроки рейсу · ' + doneN + ' з ' + v.steps.length + '</summary><ol class="stlist">' + v.steps.map((x, i) => '<li class="' + (x.at ? 'done' : x.step === v.next ? 'next' : '') + '"><span>' + (x.at ? '✓' : '○') + '</span><b>' + esc(x.step) + '</b>' +
+      (x.at ? '<em>' + tkTime(x.at) + '</em>' : (i < lastIdx ? '<button class="link stany" data-st="' + esc(x.step) + '">пропущено — відмітити</button>' : '')) + '</li>').join('') + '</ol></details>';
     const rest = ((tk && tk.planned) || []).filter(x => x.id !== v.trip.id);
     if (rest.length) h += '<section class="card stnext"><h2>Далі</h2>' + rest.map(w => '<div class="wrow"><span class="pill st-free">' + (w.order ? 'заявка' : 'далі') + '</span><div><b>' + esc(w.from) + ' → ' + esc(w.to) + '</b><div class="muted small">машина ' + esc(w.truck) + ' · завантаження ' + (dd(w.load) || '?') + (w.cargo ? ' · ' + esc(w.cargo) : '') + '</div></div></div>').join('') + '</section>';
     h += '<p class="msg" id="stMsg"></p>';
     box.innerHTML = h;
-    const send = async (event, text) => {
-      busy(true); $('stMsg').textContent = '';
-      try { const r = await api('trip.status.add', { tripId: v.trip.id, event, text }); stCur = r; renderStatus(r.already ? 'Цей крок уже відмічено.' : '✔ Відмічено: <b>' + esc(event) + '</b>. Логіст бачить.'); window.scrollTo(0, 0); }
-      catch (e) { $('stMsg').textContent = e.message; } finally { busy(false); }
+    const send = (event, text) => {
+      if (stPending) return;
+      // одразу показуємо відмітку (сервер Google відповідає 3–5 с), надсилаємо у фоні; не прийняв — повертаємо як було
+      const prev = stCur, now = new Date().toISOString(), o = JSON.parse(JSON.stringify(v));
+      if (event === 'проблема') o.problems = (o.problems || []).concat([{ at: now, text }]);
+      else { o.steps.forEach(x => { if (x.step === event) { x.at = now; x.id = 'new'; } });
+        const li = o.steps.reduce((m, x, i) => x.at ? i : m, -1); o.next = (o.steps[li + 1] || {}).step || ''; o.last = { event, at: now, id: 'new', canUndo: false }; }
+      stCur = o; stPending = true;
+      renderStatus((event === 'проблема' ? '✔ Проблему записано' : '✔ Відмічено: <b>' + esc(event) + '</b>') + ' · <span class="muted">надсилаю логісту…</span>'); window.scrollTo(0, 0);
+      api('trip.status.add', { tripId: v.trip.id, event, text })
+        .then(r => { stPending = false; stCur = r; if ($('stBox')) renderStatus(r.already ? 'Цей крок уже був відмічений.' : (event === 'проблема' ? '✔ Логіст отримав повідомлення про проблему.' : '✔ Відмічено: <b>' + esc(event) + '</b>. Логіст бачить.')); })
+        .catch(e => { stPending = false; stCur = prev; if ($('stBox')) { renderStatus(); $('stMsg').textContent = 'Не надіслано: ' + e.message + '. Спробуйте ще раз.'; } });
     };
     box.querySelectorAll('[data-st]').forEach(b => b.onclick = e => { e.stopPropagation(); send(b.dataset.st); });
     box.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { if (b.dataset.q === 'truck') openTruck(); else if (b.dataset.q === 'problem') { $('stProbBox').hidden = !$('stProbBox').hidden; if (!$('stProbBox').hidden) $('stText').focus(); } });
-    if ($('stUndo')) $('stUndo').onclick = async () => { busy(true); try { stCur = await api('trip.status.undo', { tripId: v.trip.id, id: v.last.id }); renderStatus('Останній крок скасовано.'); } catch (e) { $('stMsg').textContent = e.message; } finally { busy(false); } };
+    if ($('stAhead')) $('stAhead').onclick = () => { $('stAheadBox').hidden = !$('stAheadBox').hidden; };
+    if ($('stUndo')) $('stUndo').onclick = () => {
+      if (stPending) return;
+      const prev = stCur, o = JSON.parse(JSON.stringify(v)), ev = v.last.event;
+      o.steps.forEach(x => { if (x.id === v.last.id) { x.at = ''; x.id = ''; } });
+      const li = o.steps.reduce((m, x, i) => x.at ? i : m, -1); o.next = (o.steps[li + 1] || {}).step || ''; o.last = null;
+      stCur = o; stPending = true; renderStatus('Скасовано: <b>' + esc(ev) + '</b> · <span class="muted">надсилаю…</span>');
+      api('trip.status.undo', { tripId: v.trip.id, id: v.last.id })
+        .then(r => { stPending = false; stCur = r; if ($('stBox')) renderStatus('Крок «' + esc(ev) + '» скасовано.'); })
+        .catch(e => { stPending = false; stCur = prev; if ($('stBox')) { renderStatus(); $('stMsg').textContent = 'Не скасовано: ' + e.message; } });
+    };
     $('stProb').onclick = () => { const t = $('stText').value.trim(); if (!t) { $('stMsg').textContent = 'Опишіть проблему'; return; } send('проблема', t); };
     if ($('homeWorkCard')) $('homeWorkCard').hidden = true;
     try { if (me && me.role === 'водій' && tk) store.set('homeDrv', JSON.stringify({ login: me.login, st: tk, sv: stCur })); } catch (e) {}
