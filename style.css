@@ -250,3 +250,16 @@ th:first-child, td:first-child { padding-left: 16px; }
 .jrow:first-of-type { border-top: 0; }
 @media (max-width: 560px) { .route { grid-template-columns: 1fr; } .route .arrow { display: none; } }
 .qrow .plate { margin-right: 6px; }
+
+/* ── документи й терміни (етап 2) ── */
+.st-bad { background: var(--bad-bg); color: var(--bad-fg); border: 1px solid var(--bad-bd); }
+.dgroup { margin-bottom: 12px; padding: 16px 18px; }
+.dgroup h2 { font-size: 17px; margin: 0 0 8px; }
+.dgroup.bad { border-color: var(--bad-bd); }
+.dgroup.warn { border-color: var(--warn-bd); }
+.drow { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.dgroup h2 + .drow { border-top: 0; }
+.dico { font-size: 20px; width: 26px; text-align: center; }
+.dmain { flex: 1; min-width: 0; }
+.dwhen { display: grid; justify-items: end; gap: 2px; text-align: right; }
+.btn { white-space: nowrap; }
