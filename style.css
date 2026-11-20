@@ -315,3 +315,10 @@ select:focus { outline: 3px solid var(--focus); outline-offset: 0; border-color:
   .cactions .primary { max-width: none; }
 }
 @media (max-width: 420px) { .cgrid { grid-template-columns: 1fr; } }
+/* Моя машина (етап 3) */
+#tkBody { max-width: 520px; }
+#tkBody label { display: block; margin: 16px 0 6px; font-weight: 600; }
+#tkBody select, #tkBody input { width: 100%; }
+.tkcur .tkbig { font-size: 26px; font-weight: 800; margin: 6px 0 4px; display: flex; align-items: center; gap: 10px; }
+#tkBody .cnote { margin-top: 10px; }
+.ok-mark { color: var(--ok-fg); font-weight: 800; }
