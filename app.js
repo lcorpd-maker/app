@@ -100,13 +100,26 @@
     });
     $('homeWork').innerHTML = ''; $('tiles').hidden = false;
     if (me.role === 'водій') {
-      $('homeTitle').textContent = 'Мій рейс'; $('homeHint').textContent = '';
-      $('homeWork').innerHTML = '<div id="stBox"><p class="muted">Завантаження…</p></div>';
+      $('homeTitle').textContent = 'Мій рейс'; $('homeHint').textContent = ''; $('tiles').hidden = true;
+      // один запит паралельно з другим і один показ екрана: без проміжних «Завантаження…» → картка → «Мій рейс»
+      let cache = null; try { cache = JSON.parse(store.get('homeDrv') || 'null'); } catch (e) {}
+      if (cache && cache.login === me.login) drawDriverHome(cache.st, cache.sv); else $('homeWork').innerHTML = '<div class="card tkwork"><p class="muted">Завантаження вашого рейсу…</p></div>';
       const nav = navSeq + 1;   // show('home') нижче
-      api('truck.state').then(st => { tk = st; if (nav !== navSeq) return; $('homeWork').innerHTML = '<div id="homeWorkCard">' + workHtml(st.planned, true) + '</div><div id="stBox"></div>' + (st.planned && st.planned.length ? '' : '<div class="card tkwork"><b>Запланованої роботи поки немає.</b><div class="muted small">Щойно логіст призначить рейс — він з\'явиться тут.</div></div>');
-        bindWork(); if ((st.planned || []).length) loadStatus(); }).catch(e => { $('homeWork').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; });
+      Promise.all([api('truck.state'), api('trip.status').catch(() => null)]).then(([st, sv]) => {
+        const fresh = JSON.stringify({ login: me.login, st, sv });
+        if (store.get('homeDrv') !== fresh) { store.set('homeDrv', fresh); if (nav === navSeq) drawDriverHome(st, sv); }
+        else { tk = st; stCur = sv; }
+      }).catch(e => { if (nav === navSeq && !cache) $('homeWork').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; });
     }
     show('home');
+  }
+  function drawDriverHome(st, sv) {
+    tk = st; stCur = sv;
+    const has = st && st.planned && st.planned.length;
+    if (has && sv && sv.trip) { $('homeWork').innerHTML = '<div id="stBox"></div>'; $('tiles').hidden = true; renderStatus(); return; }
+    // немає поточного рейсу — коротка картка роботи (або «поки немає») і звичайні плитки
+    $('homeWork').innerHTML = has ? '<div id="homeWorkCard">' + workHtml(st.planned, true) + '</div>' : '<div class="card tkwork"><b>Запланованої роботи поки немає.</b><div class="muted small">Щойно логіст призначить рейс — він з\'явиться тут.</div></div>';
+    $('tiles').hidden = false; bindWork();
   }
   /* «На вас запланована робота» — поточний і наступні рейси водія (без фрахту й клієнта) */
   function workHtml(list, compact) {
@@ -168,6 +181,7 @@
     if ($('stUndo')) $('stUndo').onclick = async () => { busy(true); try { stCur = await api('trip.status.undo', { tripId: v.trip.id, id: v.last.id }); renderStatus('Останній крок скасовано.'); } catch (e) { $('stMsg').textContent = e.message; } finally { busy(false); } };
     $('stProb').onclick = () => { const t = $('stText').value.trim(); if (!t) { $('stMsg').textContent = 'Опишіть проблему'; return; } send('проблема', t); };
     if ($('homeWorkCard')) $('homeWorkCard').hidden = true;
+    try { if (me && me.role === 'водій' && tk) store.set('homeDrv', JSON.stringify({ login: me.login, st: tk, sv: stCur })); } catch (e) {}
     if (me.role === 'водій' && $('tiles')) $('tiles').hidden = true;      // усе потрібне — у швидких кнопках «Мого рейсу»                 // рейс показано в «Мій рейс» — коротка картка роботи не потрібна
   }
   function bindWork() { const c = document.querySelector('#homeWork .tkclick'); if (c) c.onclick = () => openTruck(); }
@@ -644,7 +658,7 @@
 
   async function logout(silent) {
     if (!silent) { try { await api('logout'); } catch (e) {} }
-    store.del('token'); store.del('me'); me = null;
+    store.del('token'); store.del('me'); store.del('homeDrv'); me = null;
     showLogin(silent ? 'Сесія завершилась — увійдіть ще раз' : '');
   }
 
