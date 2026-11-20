@@ -12,19 +12,19 @@
   /* ── Розділи кабінету за ролями. sheet — аркуш бази; soon — етап, коли з'явиться повноцінний екран. ── */
   const T = (title, hint, sheet, soon) => ({ title, hint, sheet, soon });
   const TILES = {
-    'адмін': [T('Рейси', 'усі машини', 'Рейси'), T('Кругорейси', '', 'Кругорейси'), T('Заявки', 'актуальні', 'Заявки'),
+    'адмін': [{ title: 'Дошка машин', hint: 'де кожна машина зараз', action: 'board' }, T('Рейси', 'усі машини', 'Рейси'), T('Кругорейси', '', 'Кругорейси'), T('Заявки', 'актуальні', 'Заявки'),
       T('Рухи коштів', 'аванси, витрати', 'Рухи коштів'), T('Нарахування', 'зарплата за рейси', 'Нарахування'),
       T('Клієнти', '', 'Клієнти'), T('Авто', '', 'Авто'), T('Працівники', '', 'Працівники'),
       T('Документи', 'терміни', 'Терміни документів'), T('Користувачі', 'хто має доступ', 'Користувачі'),
       T('Журнал змін', 'хто що змінив', 'Журнал змін'), { title: 'Видати код', hint: 'вхід для водія', action: 'codes' }],
-    'керівник': [T('Рейси', 'усі машини', 'Рейси'), T('Кругорейси', '', 'Кругорейси'), T('Нарахування', 'зарплата', 'Нарахування'),
+    'керівник': [{ title: 'Дошка машин', hint: 'де кожна машина зараз', action: 'board' }, T('Рейси', 'усі машини', 'Рейси'), T('Кругорейси', '', 'Кругорейси'), T('Нарахування', 'зарплата', 'Нарахування'),
       T('Виплати й доплати', '', 'Виплати й доплати'), T('Рухи коштів', '', 'Рухи коштів'), T('Клієнти', '', 'Клієнти'),
       T('Документи', 'терміни', 'Терміни документів'), T('Журнал змін', '', 'Журнал змін'), { title: 'Видати код', hint: 'вхід для водія', action: 'codes' }],
-    'логіст': [T('Рейси', 'усі машини', 'Рейси'), T('Заявки', 'актуальні', 'Заявки'), T('Кругорейси', '', 'Кругорейси'),
+    'логіст': [{ title: 'Дошка машин', hint: 'де кожна машина зараз', action: 'board' }, T('Рейси', 'усі машини', 'Рейси'), T('Заявки', 'актуальні', 'Заявки'), T('Кругорейси', '', 'Кругорейси'),
       T('Клієнти', '', 'Клієнти'), T('Водій на авто', 'хто на якій машині', 'Водій на авто'), T('Відстані', '', 'Відстані')],
     'бухгалтер': [T('Рейси', 'оплати клієнтів', 'Рейси'), T('Рухи коштів', '', 'Рухи коштів'), T('Виплати й доплати', '', 'Виплати й доплати'),
       T('Готівка від клієнтів', '', 'Готівка від клієнтів'), T('Клієнти', '', 'Клієнти')],
-    'механік': [T('Авто', '', 'Авто'), T('Причепи', '', 'Причепи'), T('Документи', 'терміни', 'Терміни документів'),
+    'механік': [{ title: 'Дошка машин', hint: 'машини, документи, GPS', action: 'board' }, T('Авто', '', 'Авто'), T('Причепи', '', 'Причепи'), T('Документи', 'терміни', 'Терміни документів'),
       T('Спідометр і пальне', '', 'Спідометр і пальне')],
     'водій': [T('Мої рейси', '', 'Рейси'), T('Мої витрати', 'аванси й витрати', 'Рухи коштів'), T('Заправки й спідометр', '', 'Спідометр і пальне'),
       T('Моя зарплата', 'нарахування', 'Нарахування'), T('Звіт по рейсу', 'з телефона', null, 'етап 5')]
@@ -62,7 +62,7 @@
   const busy = on => { $('busy').hidden = !on; };
 
   /* ── Екрани ── */
-  function show(id) { ['login', 'home', 'view', 'codes'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
+  function show(id) { ['login', 'home', 'view', 'codes', 'board'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
 
   function showLogin(msg) {
     $('who').hidden = true; show('login'); $('loginMsg').textContent = msg || '';
@@ -89,7 +89,7 @@
       b.innerHTML = '<b></b><span></span>';
       b.querySelector('b').textContent = t.title;
       b.querySelector('span').textContent = ok ? (t.hint || '') : 'скоро' + (t.soon ? ' · ' + t.soon : '');
-      if (ok) b.onclick = () => t.action === 'codes' ? openCodes() : openSheet(t);
+      if (ok) b.onclick = () => t.action === 'codes' ? openCodes() : t.action === 'board' ? openBoard() : openSheet(t);
       box.appendChild(b);
     });
     show('home');
@@ -123,6 +123,77 @@
     const hr = t.createTHead().insertRow(); cols.forEach(c => { const th = document.createElement('th'); th.textContent = c; hr.appendChild(th); });
     const tb = t.createTBody();
     rows.slice(0, 300).forEach(r => { const tr = tb.insertRow(); cols.forEach(c => { tr.insertCell().textContent = fmt(r[c]); }); });
+  }
+
+  /* ── Дошка машин (етап 2, Board.gs) ── */
+  let board = null, bFilter = store.get('bFilter') || 'all';
+  const dd = s => s ? s.slice(8, 10) + '.' + s.slice(5, 7) : '';
+  const daysFrom = s => s ? Math.round((new Date(new Date().toDateString()) - new Date(s + 'T00:00:00')) / 864e5) : 0;
+  const PROB = { doc: '📄', tir: '🛃', gps: '📡', trip: '⏱', debt: '💶' };
+  async function openBoard(force) {
+    show('board'); if (!board || force) $('bRows').innerHTML = '<tr><td colspan="7" class="muted">Завантаження…</td></tr>';
+    busy(!board);
+    try { board = (await api('board')); renderBoard(); }
+    catch (e) { if (!board) $('bRows').innerHTML = '<tr><td colspan="7" class="msg">' + esc(e.message) + '</td></tr>'; else alert(e.message); }
+    finally { busy(false); }
+  }
+  function tripText(t) { return t ? esc(t.from || '?') + ' → ' + esc(t.to || '?') : ''; }
+  function stateOf(x) {
+    if (x.status === 'trip') return { cls: 'st-trip', t: 'в рейсі' + (x.trip.unload ? ' до ' + dd(x.trip.unload) : '') };
+    if (x.status === 'free') { const n = daysFrom(x.since); return { cls: n > 3 ? 'st-idle' : 'st-free', t: 'вільна з ' + dd(x.since) + (n > 0 ? ' · ' + n + ' дн' : '') }; }
+    return { cls: 'st-none', t: 'немає рейсів' };
+  }
+  function gpsText(g) {
+    if (!g) return '—';
+    if (g.standSince) return 'стоїть з ' + dd(g.standSince);
+    return (daysFrom(g.day) <= 1 ? 'вчора' : dd(g.day)) + ' ' + g.km + ' км';
+  }
+  function renderBoard() {
+    const b = board, q = $('bSearch').value.trim().toLowerCase();
+    $('bSub').textContent = 'Сьогодні ' + dd(b.today) + ' · оновлено о ' + b.updated + (b.gpsError ? ' · GPS: ' + b.gpsError : '');
+    const F = { all: ['Усі', () => true], trip: ['В рейсі', x => x.status === 'trip'], free: ['Вільні', x => x.status === 'free'],
+      prob: ['З проблемами', x => x.problems.length > 0] };
+    $('bChips').innerHTML = '';
+    Object.keys(F).forEach(k => {
+      const c = document.createElement('button'); c.className = 'chip'; c.setAttribute('aria-pressed', String(bFilter === k));
+      c.innerHTML = esc(F[k][0]) + ' <small>' + b.trucks.filter(F[k][1]).length + '</small>';
+      c.onclick = () => { bFilter = k; store.set('bFilter', k); renderBoard(); }; $('bChips').appendChild(c);
+    });
+    const hay = x => [x.id, x.plate, x.trailer, ...x.drivers.map(d => d.name), ...[x.trip, x.next, x.last].filter(Boolean).flatMap(t => [t.id, t.from, t.to, t.client || ''])].join(' ').toLowerCase();
+    const list = b.trucks.filter(F[bFilter][1]).filter(x => !q || hay(x).includes(q));
+    $('bEmpty').hidden = list.length > 0;
+    const tb = $('bRows'); tb.innerHTML = ''; const cards = $('bCards'); cards.innerHTML = '';
+    list.forEach(x => {
+      const st = stateOf(x), t = x.trip || x.last;
+      const drv = x.drivers.length ? x.drivers.map(d => esc(d.name) + (d.fromTrip ? ' <span class="muted" title="за рейсом; у «Водій на авто» не вказано">?</span>' : '')).join(', ') : '<span class="muted">—</span>';
+      const probs = x.problems.map(p => '<span class="prob' + (p.urgent ? ' urgent' : '') + '" title="' + esc(p.t) + '">' + PROB[p.k] + '</span>').join('');
+      const next = x.next ? tripText(x.next) + ' <span class="muted">' + dd(x.next.load) + (x.next.order ? ' · заявка' : '') + '</span>' : '<span class="muted">—</span>';
+      const tr = tb.insertRow(); tr.className = 'brow';
+      tr.innerHTML = '<td><span class="plate">' + esc(x.id) + '</span></td>' +
+        '<td>' + drv + (x.trailer ? '<div class="muted small">причіп ' + esc(x.trailer) + '</div>' : '') + '</td>' +
+        '<td>' + (t ? tripText(t) + '<div class="muted small">' + esc(t.id) + (t.client ? ' · ' + esc(t.client) : '') + (x.trip ? '' : ' · останній') + '</div>' : '<span class="muted">—</span>') + '</td>' +
+        '<td><span class="pill ' + st.cls + '">' + esc(st.t) + '</span></td><td>' + next + '</td><td class="small">' + esc(gpsText(x.gps)) + '</td><td class="probs">' + probs + '</td>';
+      const det = tb.insertRow(); det.className = 'bdet'; det.hidden = true;
+      det.innerHTML = '<td colspan="7">' + detail(x) + '</td>';
+      tr.onclick = () => { det.hidden = !det.hidden; tr.classList.toggle('open', !det.hidden); };
+      const c = document.createElement('details'); c.className = 'bcard';
+      c.innerHTML = '<summary><div class="bc1"><span class="plate">' + esc(x.id) + '</span><span class="pill ' + st.cls + '">' + esc(st.t) + '</span><span class="probs">' + probs + '</span></div>' +
+        '<div class="bc2">' + (t ? tripText(t) : '<span class="muted">немає рейсу</span>') + '</div><div class="muted small">' + drv + ' · GPS ' + esc(gpsText(x.gps)) + '</div></summary>' + detail(x);
+      cards.appendChild(c);
+    });
+    const w = b.waiting || []; $('bWait').hidden = !w.length; $('bWaitN').textContent = w.length;
+    $('bWaitList').innerHTML = w.map(z => '<div class="wrow"><b>' + tripText(z) + '</b> <span class="muted">' + (z.load ? 'завантаження ' + dd(z.load) : '') + (z.client ? ' · ' + esc(z.client) : '') + ' · ' + esc(z.status || 'нова') + '</span></div>').join('');
+  }
+  function detail(x) {
+    const row = (k, v) => v ? '<div><span class="muted">' + k + '</span> ' + v + '</div>' : '';
+    const t = x.trip || x.last;
+    return '<div class="bdetail">' +
+      row(x.trip ? 'Поточний рейс:' : 'Останній рейс:', t ? esc(t.id) + ' · ' + tripText(t) + ' · завантаження ' + dd(t.load) + (t.unload ? ', розвантаження ' + dd(t.unload) : ', дата розвантаження не вказана') + (t.client ? ' · ' + esc(t.client) : '') : '') +
+      row('Далі:', x.next ? esc(x.next.id) + ' · ' + tripText(x.next) + ' · ' + dd(x.next.load) + (x.next.order ? ' (заявка' + (x.next.status ? ': ' + esc(x.next.status) : '') + ')' : '') : '') +
+      row('Кругорейс:', x.circle ? esc(x.circle.id) + (x.circle.status ? ' · ' + esc(x.circle.status) : '') : '') +
+      row('Держномер:', esc(x.plate)) +
+      (x.problems.length ? '<ul class="plist">' + x.problems.map(p => '<li class="' + (p.urgent ? 'urgent' : '') + '">' + PROB[p.k] + ' ' + esc(p.t) + '</li>').join('') + '</ul>' : '<div class="muted">Проблем не знайдено.</div>') +
+      '</div>';
   }
 
   async function openCodes() {
@@ -213,6 +284,8 @@
   $('back').onclick = () => renderHome();
   document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => renderHome());
   $('search').addEventListener('input', () => renderTable());
+  $('bSearch').addEventListener('input', () => board && renderBoard());
+  $('bRefresh').onclick = () => openBoard(true);
   $('issue').onclick = issue;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
