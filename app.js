@@ -15,16 +15,16 @@
     'адмін': [{ title: 'Дошка машин', hint: 'де кожна машина зараз', action: 'board' }, T('Рейси', 'усі машини', 'Рейси'), T('Кругорейси', '', 'Кругорейси'), T('Заявки', 'актуальні', 'Заявки'),
       T('Рухи коштів', 'аванси, витрати', 'Рухи коштів'), T('Нарахування', 'зарплата за рейси', 'Нарахування'),
       T('Клієнти', '', 'Клієнти'), T('Авто', '', 'Авто'), T('Працівники', '', 'Працівники'),
-      T('Документи', 'терміни', 'Терміни документів'), T('Користувачі', 'хто має доступ', 'Користувачі'),
+      { title: 'Документи', hint: 'що спливає', action: 'docs' }, T('Користувачі', 'хто має доступ', 'Користувачі'),
       T('Журнал змін', 'хто що змінив', 'Журнал змін'), { title: 'Видати код', hint: 'вхід для водія', action: 'codes' }],
     'керівник': [{ title: 'Дошка машин', hint: 'де кожна машина зараз', action: 'board' }, T('Рейси', 'усі машини', 'Рейси'), T('Кругорейси', '', 'Кругорейси'), T('Нарахування', 'зарплата', 'Нарахування'),
       T('Виплати й доплати', '', 'Виплати й доплати'), T('Рухи коштів', '', 'Рухи коштів'), T('Клієнти', '', 'Клієнти'),
-      T('Документи', 'терміни', 'Терміни документів'), T('Журнал змін', '', 'Журнал змін'), { title: 'Видати код', hint: 'вхід для водія', action: 'codes' }],
+      { title: 'Документи', hint: 'що спливає', action: 'docs' }, T('Журнал змін', '', 'Журнал змін'), { title: 'Видати код', hint: 'вхід для водія', action: 'codes' }],
     'логіст': [{ title: 'Дошка машин', hint: 'де кожна машина зараз', action: 'board' }, T('Рейси', 'усі машини', 'Рейси'), T('Заявки', 'актуальні', 'Заявки'), T('Кругорейси', '', 'Кругорейси'),
-      T('Клієнти', '', 'Клієнти'), T('Водій на авто', 'хто на якій машині', 'Водій на авто'), T('Відстані', '', 'Відстані')],
+      T('Клієнти', '', 'Клієнти'), T('Водій на авто', 'хто на якій машині', 'Водій на авто'), T('Відстані', '', 'Відстані'), { title: 'Документи', hint: 'що спливає', action: 'docs' }],
     'бухгалтер': [T('Рейси', 'оплати клієнтів', 'Рейси'), T('Рухи коштів', '', 'Рухи коштів'), T('Виплати й доплати', '', 'Виплати й доплати'),
       T('Готівка від клієнтів', '', 'Готівка від клієнтів'), T('Клієнти', '', 'Клієнти')],
-    'механік': [{ title: 'Дошка машин', hint: 'машини, документи, GPS', action: 'board' }, T('Авто', '', 'Авто'), T('Причепи', '', 'Причепи'), T('Документи', 'терміни', 'Терміни документів'),
+    'механік': [{ title: 'Дошка машин', hint: 'машини, документи, GPS', action: 'board' }, T('Авто', '', 'Авто'), T('Причепи', '', 'Причепи'), { title: 'Документи', hint: 'що спливає', action: 'docs' },
       T('Спідометр і пальне', '', 'Спідометр і пальне')],
     'водій': [T('Мої рейси', '', 'Рейси'), T('Мої витрати', 'аванси й витрати', 'Рухи коштів'), T('Заправки й спідометр', '', 'Спідометр і пальне'),
       T('Моя зарплата', 'нарахування', 'Нарахування'), T('Звіт по рейсу', 'з телефона', null, 'етап 5')]
@@ -62,7 +62,7 @@
   const busy = on => { $('busy').hidden = !on; };
 
   /* ── Екрани ── */
-  function show(id) { ['login', 'home', 'view', 'codes', 'board', 'trip'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
+  function show(id) { ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
 
   function showLogin(msg) {
     $('who').hidden = true; show('login'); $('loginMsg').textContent = msg || '';
@@ -89,7 +89,7 @@
       b.innerHTML = '<b></b><span></span>';
       b.querySelector('b').textContent = t.title;
       b.querySelector('span').textContent = ok ? (t.hint || '') : 'скоро' + (t.soon ? ' · ' + t.soon : '');
-      if (ok) b.onclick = () => t.action === 'codes' ? openCodes() : t.action === 'board' ? openBoard() : openSheet(t);
+      if (ok) b.onclick = () => t.action === 'codes' ? openCodes() : t.action === 'board' ? openBoard() : t.action === 'docs' ? openDocs() : openSheet(t);
       box.appendChild(b);
     });
     show('home');
@@ -260,6 +260,62 @@
     return h;
   }
 
+  /* ── Документи й терміни (етап 2): що спливає по машинах, водіях і ТІР ── */
+  let docs = null, dKind = store.get('dKind') || 'all', dHorizon = store.get('dHorizon') || '30';
+  async function openDocs(force) {
+    show('docs'); if (!docs || force) $('dList').innerHTML = '<p class="muted">Завантаження…</p>';
+    const can = new Set(sheets.map(s => s.name));
+    const ask = sheet => can.has(sheet) ? api('list', { sheet }).then(o => o.rows).catch(() => []) : Promise.resolve([]);
+    try {
+      const [dd_, tir, trucks, onTruck, workers] = await Promise.all([ask('Терміни документів'), ask('ТІР карнети'), ask('Авто'), ask('Водій на авто'), ask('Працівники')]);
+      const today = new Date(new Date().toDateString());
+      const W = {}; workers.forEach(w => W[w['Працівник ID']] = w);
+      const nowTruck = {}; onTruck.filter(o => (!o['З'] || new Date(o['З']) <= today) && (!o['По'] || new Date(o['По']) >= today)).forEach(o => nowTruck[o['Працівник ID']] = o['Авто ID']);
+      const truckIds = trucks.filter(a => a['Активне'] !== false).map(a => String(a['Авто ID']));
+      const items = [];
+      dd_.forEach(d => {
+        if (!d['Діє до']) return;
+        const who = String(d['Чий'] || ''), until = new Date(String(d['Діє до']).slice(0, 10) + 'T00:00:00');
+        const wm = who.match(/\bD\d+\b/), tm = who.match(/\d{4}/);
+        let kind, owner, truck = '';
+        if (wm) { const w = W[wm[0]]; if (w && w['Працює'] === false) return; kind = 'driver'; owner = (w ? w['Прізвище'] : who.replace(/^Працівник\s*/, '')); truck = nowTruck[wm[0]] || ''; }
+        else { kind = 'truck'; truck = tm ? tm[0] : ''; owner = truck || who.replace(/^Авто\s*/, ''); if (truck && truckIds.length && truckIds.indexOf(truck) < 0) return; }
+        items.push({ kind, owner, truck, type: String(d['Тип'] || 'документ'), num: d['Номер'] || '', until, left: Math.round((until - today) / 864e5) });
+      });
+      tir.forEach(t => {
+        if (/здан/i.test(String(t['Статус'] || '') + String(t['Використано'] || '')) || !t['Діє до']) return;
+        const until = new Date(String(t['Діє до']).slice(0, 10) + 'T00:00:00');
+        items.push({ kind: 'tir', owner: String(t['Авто ID'] || '—'), truck: String(t['Авто ID'] || ''), type: 'ТІР карнет', num: t['Карнет'] || '', until, left: Math.round((until - today) / 864e5) });
+      });
+      docs = items.sort((a, b) => a.left - b.left);
+      renderDocs();
+    } catch (e) { $('dList').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
+  }
+  function renderDocs() {
+    const q = $('dSearch').value.trim().toLowerCase();
+    const K = { all: 'Усі', truck: 'Машини', driver: 'Водії', tir: 'ТІР' }, Hz = { '30': '≤ 30 днів', '90': '≤ 90 днів', 'all': 'усі терміни' };
+    const inH = x => dHorizon === 'all' || x.left <= +dHorizon;
+    $('dChips').innerHTML = '';
+    const chip = (label, n, on, fn) => { const c = document.createElement('button'); c.className = 'chip'; c.setAttribute('aria-pressed', String(on)); c.innerHTML = esc(label) + (n != null ? ' <small>' + n + '</small>' : ''); c.onclick = fn; $('dChips').appendChild(c); };
+    Object.keys(K).forEach(k => chip(K[k], docs.filter(x => (k === 'all' || x.kind === k) && inH(x)).length, dKind === k, () => { dKind = k; store.set('dKind', k); renderDocs(); }));
+    Object.keys(Hz).forEach(h => chip(Hz[h], null, dHorizon === h, () => { dHorizon = h; store.set('dHorizon', h); renderDocs(); }));
+    const list = docs.filter(x => (dKind === 'all' || x.kind === dKind) && inH(x) && (!q || [x.owner, x.truck, x.type, x.num].join(' ').toLowerCase().includes(q)));
+    const over = docs.filter(x => x.left < 0).length, soon = docs.filter(x => x.left >= 0 && x.left <= 7).length;
+    $('dSub').textContent = 'Прострочено: ' + over + ' · спливає за 7 днів: ' + soon;
+    const groups = [['Прострочено', x => x.left < 0, 'bad'], ['Сьогодні – 7 днів', x => x.left >= 0 && x.left <= 7, 'warn'], ['8 – 30 днів', x => x.left > 7 && x.left <= 30, ''], ['31 – 90 днів', x => x.left > 30 && x.left <= 90, ''], ['Пізніше', x => x.left > 90, '']];
+    const icon = { truck: '🚛', driver: '👤', tir: '🛃' };
+    let h = '';
+    groups.forEach(([title, f, cls]) => {
+      const g = list.filter(f); if (!g.length) return;
+      h += '<section class="card dgroup ' + cls + '"><h2>' + esc(title) + ' <span class="count">' + g.length + '</span></h2>' + g.map(x =>
+        '<div class="drow"><span class="dico">' + icon[x.kind] + '</span><div class="dmain"><b>' + esc(x.type) + '</b>' + (x.num ? ' <span class="muted small">' + esc(x.num) + '</span>' : '') +
+        '<div class="muted small">' + (x.kind === 'driver' ? esc(x.owner) + (x.truck ? ' · зараз на ' + esc(x.truck) : '') : 'авто ' + esc(x.owner)) + '</div></div>' +
+        '<div class="dwhen"><b>' + x.until.toLocaleDateString('uk-UA') + '</b><span class="pill ' + (x.left < 0 ? 'st-bad' : x.left <= 7 ? 'st-idle' : x.left <= 30 ? 'st-trip' : 'st-none') + '">' +
+        (x.left < 0 ? 'прострочено ' + (-x.left) + ' дн' : x.left === 0 ? 'сьогодні' : 'через ' + x.left + ' дн') + '</span></div></div>').join('') + '</section>';
+    });
+    $('dList').innerHTML = h || '<p class="muted">Нічого не знайдено.</p>';
+  }
+
   async function openCodes() {
     show('codes'); $('issued').hidden = true; $('worker').value = '';
     try {
@@ -350,6 +406,8 @@
   $('search').addEventListener('input', () => renderTable());
   $('bSearch').addEventListener('input', () => board && renderBoard());
   $('bRefresh').onclick = () => openBoard(true);
+  $('dRefresh').onclick = () => openDocs(true);
+  $('dSearch').addEventListener('input', () => docs && renderDocs());
   $('tripBack').onclick = () => tripFrom === 'view' ? show('view') : (board ? (show('board')) : renderHome());
   $('issue').onclick = issue;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
