@@ -185,7 +185,7 @@ th:first-child, td:first-child { padding-left: 16px; }
 
 /* ── дошка машин (етап 2) ── */
 .bhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-.btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--card); color: var(--ink); font-weight: 600; font-size: 14px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--card); color: var(--ink); font-weight: 600; font-size: 14px; }
 .btn:hover { border-color: var(--ink); }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip { min-height: 36px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--card); color: var(--ink); font-size: 14px; font-weight: 600; }
@@ -383,3 +383,37 @@ select:focus { outline: 3px solid var(--focus); outline-offset: 0; border-color:
 .undo-btn small { font-weight: 400; opacity: .7; font-size: .85em; }
 .undo-btn .ico { width: 22px; height: 22px; flex: none; }
 [data-theme="dark"] .undo-btn { border-color: currentColor; color: inherit; }
+
+/* ── Доступність (UX P1, 21.11) ── */
+body[data-role="водій"] #logout, body[data-role="водій"] #logoutAll { display: none; }
+.top .link { min-height: 44px; }
+.ask-wrap { position: fixed; inset: 0; z-index: 50; background: rgba(7, 11, 32, .55); display: grid; place-items: center; padding: 16px; }
+.ask { background: var(--card); color: var(--ink); border-radius: 20px; padding: 22px 20px 18px; max-width: 420px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+.ask h2 { margin: 0 0 8px; font-size: 22px; }
+.ask p { margin: 0 0 18px; font-size: 17px; line-height: 1.45; color: var(--ink-2); }
+.ask-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ask-btns button { min-height: 52px; font-size: 17px; }
+.primary.danger { background: #B42318; border-color: #B42318; color: #fff; }
+.toast { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 60; width: min(560px, calc(100% - 24px));
+  display: flex; align-items: center; gap: 10px; padding: 14px 14px 14px 16px; border-radius: 16px; font-size: 17px;
+  background: var(--card); color: var(--ink); border: 1px solid var(--line); box-shadow: 0 12px 40px rgba(0,0,0,.25); }
+.toast span { flex: 1; }
+.toast.err { background: #FDECEC; color: #7A1A12; border-color: #F3B4AE; }
+.toast .btn { min-height: 44px; white-space: nowrap; }
+.toast-x { background: none; border: 0; font-size: 26px; line-height: 1; min-width: 44px; min-height: 44px; color: inherit; cursor: pointer; }
+.stgo[disabled] { opacity: .55; }
+.hero .addr span { font-size: 16px; }
+.stlist li { min-height: 48px; font-size: 16px; }
+.stlist li em { font-size: 15px; }
+.stlist .stany { font-size: 15px; min-height: 44px; }
+.quick { grid-template-columns: repeat(2, 1fr); }
+.stprob { display: grid; gap: 12px; }
+.stprob b { font-size: 18px; }
+.stprob textarea { font-size: 17px; margin: 0; }
+.stprob .primary { min-height: 56px; font-size: 18px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 44px; padding: 0 14px; border-radius: 22px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: 16px; cursor: pointer; }
+.chip.on { border-color: var(--ink); background: var(--ink); color: var(--card); }
+.profile { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 18px 0 8px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; font-size: 16px; }
+.profile .btn { min-height: 48px; }
+.prob { white-space: nowrap; }
