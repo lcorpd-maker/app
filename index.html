@@ -4,20 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Л-КОРП</title>
-  <meta name="theme-color" content="#1f4e8c">
+  <meta name="theme-color" content="#0C1333">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="stylesheet" href="style.css">
   <script src="config.js"></script>
+  <script>/* тема ще до малювання сторінки — без «блимання» */try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
   <header class="top">
     <div class="brand"><span class="logo">ЛК</span> Л-КОРП</div>
+    <button class="theme" id="theme" title="Тема: авто (за сходом і заходом сонця) / світла / темна">◐ Авто</button>
     <div class="who" id="who" hidden>
       <span id="whoName"></span><span class="dot"> · </span><span id="whoRole" class="role"></span>
       <button class="link" id="logout">Вийти</button>
+      <button class="link small" id="logoutAll" title="Наприклад, якщо загубили телефон: закриє вхід на всіх пристроях">Вийти всюди</button>
     </div>
   </header>
 
