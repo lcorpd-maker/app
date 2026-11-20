@@ -94,7 +94,7 @@
       box.appendChild(b);
     });
     $('homeWork').innerHTML = '';
-    if (me.role === 'водій') api('truck.state').then(st => { tk = st; $('homeWork').innerHTML = workHtml(st.planned, true); bindWork(); }).catch(() => {});
+    if (me.role === 'водій') api('truck.state').then(st => { tk = st; $('homeWork').innerHTML = workHtml(st.planned, true) + '<div id="stBox"></div>'; bindWork(); if ((st.planned || []).length) loadStatus(); }).catch(() => {});
     show('home');
   }
   /* «На вас запланована робота» — поточний і наступні рейси водія (без фрахту й клієнта) */
@@ -104,6 +104,36 @@
       '<div><b>' + esc(w.from) + ' → ' + esc(w.to) + '</b><div class="muted small">машина ' + esc(w.truck) + ' · завантаження ' + (dd(w.load) || '?') + (w.unload ? ' · розвантаження ' + dd(w.unload) : '') +
       (w.cargo ? ' · ' + esc(w.cargo) : '') + (w.crossing ? ' · перехід ' + esc(w.crossing) : '') + (w.adr ? ' · <b>АДР</b>' : '') + '</div></div></div>';
     return '<div class="card tkwork' + (compact ? ' tkclick' : '') + '"><div class="tkwhead">На вас запланована робота</div>' + (compact ? one(list[0]) + (list.length > 1 ? '<div class="muted small">і ще ' + (list.length - 1) + ' →</div>' : '') : list.map(one).join('')) + '</div>';
+  }
+  /* ── Статуси рейсу (етап 3): водій натискає крок — логіст бачить на дошці й у картці рейсу ── */
+  let stCur = null;
+  const ST_LABEL = { 'на завантаженні': 'Я на завантаженні', 'завантажено': 'Завантажився', 'замитнення': 'Замитнився', 'на кордоні': 'Я на кордоні / в черзі',
+    'кордон пройдено': 'Перетнув кордон', 'розмитнення': 'Розмитнився', 'на розвантаженні': 'Я на розвантаженні', 'розвантажено': 'Розвантажився' };
+  async function loadStatus(msg) {
+    try { stCur = await api('trip.status'); renderStatus(msg); } catch (e) { if ($('stBox')) $('stBox').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
+  }
+  function renderStatus(msg) {
+    const box = $('stBox'); if (!box) return;
+    const v = stCur; if (!v || !v.trip) { box.innerHTML = ''; return; }
+    const mine = v.last && v.last.canUndo;
+    let h = '<div class="card stcard"><div class="tkwhead">Рейс ' + esc(v.trip.from) + ' → ' + esc(v.trip.to) + '</div>' + (msg ? '<div class="cinfo">' + msg + '</div>' : '');
+    if (v.next) h += '<button class="primary stgo" data-st="' + esc(v.next) + '">' + esc(ST_LABEL[v.next] || v.next) + '</button>';
+    else h += '<div class="cinfo">Усі кроки рейсу відмічено. Дякуємо!</div>';
+    h += '<ol class="stlist">' + v.steps.map(x => '<li class="' + (x.at ? 'done' : x.step === v.next ? 'next' : '') + '"><span>' + (x.at ? '✓' : '○') + '</span><b>' + esc(x.step) + '</b>' +
+      (x.at ? '<em>' + tkTime(x.at) + '</em>' : (x.step !== v.next ? '<button class="link stany" data-st="' + esc(x.step) + '">відмітити</button>' : '')) + '</li>').join('') + '</ol>';
+    if (mine) h += '<button class="link" id="stUndo">Скасувати останній крок («' + esc(v.last.event) + '»)</button>';
+    h += '<details class="stprob"><summary>Повідомити про проблему</summary><textarea id="stText" rows="3" placeholder="Що сталося? Напр.: пробите колесо, чекаємо майстра"></textarea><button class="btn" id="stProb">Надіслати логісту</button></details>';
+    (v.problems || []).slice(-2).forEach(p => h += '<p class="cnote">Проблема ' + tkTime(p.at) + ': ' + esc(p.text) + '</p>');
+    h += '<p class="msg" id="stMsg"></p></div>';
+    box.innerHTML = h;
+    const send = async (event, text) => {
+      busy(true); $('stMsg').textContent = '';
+      try { const r = await api('trip.status.add', { tripId: v.trip.id, event, text }); stCur = r; renderStatus(r.already ? 'Цей крок уже відмічено.' : '✔ Відмічено: <b>' + esc(event) + '</b>. Логіст бачить.'); }
+      catch (e) { $('stMsg').textContent = e.message; } finally { busy(false); }
+    };
+    box.querySelectorAll('[data-st]').forEach(b => b.onclick = e => { e.stopPropagation(); send(b.dataset.st); });
+    if ($('stUndo')) $('stUndo').onclick = async () => { busy(true); try { stCur = await api('trip.status.undo', { tripId: v.trip.id, id: v.last.id }); renderStatus('Останній крок скасовано.'); } catch (e) { $('stMsg').textContent = e.message; } finally { busy(false); } };
+    $('stProb').onclick = () => { const t = $('stText').value.trim(); if (!t) { $('stMsg').textContent = 'Опишіть проблему'; return; } send('проблема', t); };
   }
   function bindWork() { const c = document.querySelector('#homeWork .tkclick'); if (c) c.onclick = () => openTruck(); }
 
@@ -186,13 +216,13 @@
       tr.innerHTML = '<td><span class="plate">' + esc(x.id) + '</span></td>' +
         '<td>' + drv + (x.trailer ? '<div class="muted small">причіп ' + esc(x.trailer) + '</div>' : '') + '</td>' +
         '<td>' + (t ? tripText(t) + '<div class="muted small">' + esc(t.id) + (t.client ? ' · ' + esc(t.client) : '') + (x.trip ? '' : ' · останній') + '</div>' : '<span class="muted">—</span>') + '</td>' +
-        '<td><span class="pill ' + st.cls + '">' + esc(st.t) + '</span>' + (x.ech ? '<div class="muted small">' + esc(echShort(x.ech)) + '</div>' : '') + '</td><td>' + next + '</td><td class="small">' + esc(gpsText(x.gps)) + '</td><td class="probs">' + probs + '</td>';
+        '<td><span class="pill ' + st.cls + '">' + esc(st.t) + '</span>' + (x.trip && x.trip.st ? '<div class="small"><b>' + esc(x.trip.st.event) + '</b> <span class="muted">' + tkTime(x.trip.st.at) + '</span>' + (x.trip.st.problem ? ' <span class="prob urgent" title="' + esc(x.trip.st.problem) + '">⚠</span>' : '') + '</div>' : '') + (x.ech ? '<div class="muted small">' + esc(echShort(x.ech)) + '</div>' : '') + '</td><td>' + next + '</td><td class="small">' + esc(gpsText(x.gps)) + '</td><td class="probs">' + probs + '</td>';
       const det = tb.insertRow(); det.className = 'bdet'; det.hidden = true;
       det.innerHTML = '<td colspan="7">' + detail(x) + '</td>';
       tr.onclick = () => { det.hidden = !det.hidden; tr.classList.toggle('open', !det.hidden); };
       const c = document.createElement('details'); c.className = 'bcard';
       c.innerHTML = '<summary><div class="bc1"><span class="plate">' + esc(x.id) + '</span><span class="pill ' + st.cls + '">' + esc(st.t) + '</span><span class="probs">' + probs + '</span></div>' +
-        '<div class="bc2">' + (t ? tripText(t) : '<span class="muted">немає рейсу</span>') + '</div><div class="muted small">' + drv + ' · GPS ' + esc(gpsText(x.gps)) + '</div>' + (x.ech ? '<div class="muted small">' + esc(echShort(x.ech)) + '</div>' : '') + '</summary>' + detail(x);
+        '<div class="bc2">' + (t ? tripText(t) : '<span class="muted">немає рейсу</span>') + '</div><div class="muted small">' + drv + ' · GPS ' + esc(gpsText(x.gps)) + '</div>' + (x.trip && x.trip.st ? '<div class="small"><b>' + esc(x.trip.st.event) + '</b> <span class="muted">' + tkTime(x.trip.st.at) + '</span>' + (x.trip.st.problem ? ' ⚠ ' + esc(x.trip.st.problem) : '') + '</div>' : '') + (x.ech ? '<div class="muted small">' + esc(echShort(x.ech)) + '</div>' : '') + '</summary>' + detail(x);
       cards.appendChild(c);
     });
     const qu = b.queue || []; $('bQueue').hidden = false; $('bQueueN').textContent = qu.length;
@@ -260,7 +290,11 @@
         ask('Рухи коштів', { 'Рейс ID': id }), ask('Журнал змін', { 'Запис ID': id })]);
       const r = tr && tr.rows[0];
       if (!r) { $('tripBody').innerHTML = '<p class="msg">Рейс ' + esc(id) + ' не знайдено.</p>'; return; }
-      $('tripBody').innerHTML = tripHtml(r, tr.columns, zv && zv.rows, mv && mv.rows, jr && jr.rows);
+      $('tripBody').innerHTML = tripHtml(r, tr.columns, zv && zv.rows, mv && mv.rows, jr && jr.rows) + '<div id="tripSt"></div>';
+      api('trip.status', { tripId: id }).then(v => { if (!v || !v.trip || !$('tripSt')) return;
+        const any = v.steps.some(x => x.at) || (v.problems || []).length;
+        $('tripSt').innerHTML = '<section class="card" style="margin-top:12px"><h2>Кроки рейсу (від водія)</h2>' + (any ? '<ol class="stlist">' + v.steps.map(x => '<li class="' + (x.at ? 'done' : '') + '"><span>' + (x.at ? '✓' : '○') + '</span><b>' + esc(x.step) + '</b>' + (x.at ? '<em>' + tkTime(x.at) + '</em>' : '') + '</li>').join('') + '</ol>' +
+          (v.problems || []).map(p => '<p class="cnote">Проблема ' + tkTime(p.at) + ': ' + esc(p.text) + '</p>').join('') : '<p class="muted">Водій ще нічого не відмітив.</p>') + '</section>'; }).catch(() => {});
     } catch (e) { $('tripBody').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
   }
   function tripHtml(r, cols, orders, moves, journal) {
