@@ -91,6 +91,24 @@
       <p class="muted small">Дані — з бази (аркуші «Терміни документів» і «ТІР карнети», переносяться щоночі з «Маршрутів»). Документи звільнених водіїв і здані карнети не показуються.</p>
     </section>
 
+    <!-- Калькулятор рейсу / кругорейсу (етап 10, спрощений) -->
+    <section id="calc" hidden>
+      <button class="link back" data-back>← Назад</button>
+      <div class="bhead"><div><h1>Калькулятор рейсу</h1><p class="muted small" id="cSub"></p></div><button class="btn" id="cClear">Очистити</button></div>
+      <div class="card cbox">
+        <div class="cgrid3">
+          <div><label for="cTruck">Машина</label><select id="cTruck"></select></div>
+          <div><label for="cDate">Дата завантаження</label><input id="cDate" type="date"></div>
+          <div><label for="cIdle">Простій після кругорейсу, днів</label><input id="cIdle" inputmode="decimal" placeholder="типовий"></div>
+        </div>
+      </div>
+      <div id="cTrips"></div>
+      <div class="cactions"><button class="btn" id="cAdd">+ рейс</button><button class="primary cgo" id="cGo">Порахувати</button></div>
+      <datalist id="cCities"></datalist><datalist id="cCross"></datalist>
+      <div id="cOut" aria-live="polite"></div>
+      <p class="muted small cfoot">Км — з фактичних рейсів (Freetrack), якщо маршрут уже їздили; інакше Google Maps × поправка на реальний пробіг. Км минулих рейсів уже містять звичайний переїзд до завантаження; для нового маршруту переїзд порожнем від попереднього розвантаження рахується сам. Подачу до першого завантаження впишіть у «Більше». Чергу на кордоні, якщо знаєте її, теж впишіть у «Більше» — інакше береться типова для маршруту. Залиште фрахт порожнім — калькулятор порахує ціну для клієнта. Розрахунок той самий, що у файлі прибутковості (Базові витрати v51), з уточненнями аналітика.</p>
+    </section>
+
     <!-- Видати код -->
     <section id="codes" hidden>
       <button class="link back" data-back>← Назад</button>
