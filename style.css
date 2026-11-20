@@ -227,3 +227,25 @@ th:first-child, td:first-child { padding-left: 16px; }
   .bdesk { display: none; }
   .bcards { display: grid; }
 }
+
+/* ── картка рейсу (етап 2) ── */
+.tlink { color: inherit; font-weight: 700; text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.thead h1 { margin-bottom: 2px; }
+.route { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; margin: 14px 0; padding: 18px; }
+.route > div { display: grid; gap: 2px; }
+.route b { font-size: 20px; line-height: 1.2; }
+.route .arrow { font-size: 24px; color: var(--accent); }
+.tgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-bottom: 12px; align-items: start; }
+.tgrid .card { padding: 18px; }
+.tgrid .wide { grid-column: 1 / -1; }
+.tgrid h2 { font-size: 17px; margin: 0 0 10px; }
+.kv { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 15px; }
+.kv:first-of-type { border-top: 0; }
+.kv span { color: var(--muted); }
+.kv b { text-align: right; font-weight: 600; overflow-wrap: anywhere; }
+.kv.big b { font-size: 18px; font-weight: 800; }
+.kv.bad b { color: var(--bad-fg); }
+.kv.ok b { color: var(--ok-fg); }
+.jrow { padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; overflow-wrap: anywhere; }
+.jrow:first-of-type { border-top: 0; }
+@media (max-width: 560px) { .route { grid-template-columns: 1fr; } .route .arrow { display: none; } }
