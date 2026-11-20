@@ -30,11 +30,11 @@
       T('Моя зарплата', 'нарахування', 'Нарахування'), T('Звіт по рейсу', 'з телефона', null, 'етап 5')]
   };
   const HINT = {
-    'адмін': 'Повний доступ. Поки екрани показують дані з бази лише для перегляду — редагування з\'явиться в наступних етапах.',
-    'керівник': 'Поки — перегляд даних. Робочі екрани кабінету керівника — етап 4.',
-    'логіст': 'Поки — перегляд даних. Робочі екрани логіста — етап 3.',
-    'бухгалтер': 'Поки — перегляд даних. Рахунки й акти — етап 8.',
-    'механік': 'Поки — перегляд даних. Облік техніки — етап 9.',
+    'адмін': 'Повний доступ. Таблиці поки лише для перегляду — змінювати їх можна буде згодом.',
+    'керівник': 'Дошка, калькулятор і документи працюють. Таблиці поки лише для перегляду.',
+    'логіст': 'Дошка машин — головне. Кроки від водіїв видно на дошці й у картці рейсу.',
+    'бухгалтер': 'Поки — перегляд даних. Рахунки, акти й оплати з банку з\'являться згодом.',
+    'механік': 'Дошка машин і документи працюють. Облік ремонтів і ТО з\'явиться згодом.',
     'водій': 'Почніть з «Моя машина»: відмітьте, яку машину ви прийняли. Тут же ваші рейси, витрати й зарплата.'
   };
 
@@ -61,6 +61,28 @@
     return out;
   }
   const busy = on => { $('busy').hidden = !on; };
+  const vib = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} };
+  /* Власне вікно-питання замість системного confirm(): великі кнопки, зрозумілі слова */
+  function ask(title, text, ok, danger) {
+    return new Promise(res => {
+      const w = document.createElement('div'); w.className = 'ask-wrap';
+      w.innerHTML = '<div class="ask" role="dialog" aria-modal="true"><h2></h2><p></p><div class="ask-btns"><button class="btn" data-a="0">Ні, назад</button><button class="primary' + (danger ? ' danger' : '') + '" data-a="1"></button></div></div>';
+      w.querySelector('h2').textContent = title; w.querySelector('p').textContent = text || ''; w.querySelector('[data-a="1"]').textContent = ok || 'Так';
+      const done = v => { w.remove(); res(v); };
+      w.onclick = e => { if (e.target === w) done(false); const b = e.target.closest('[data-a]'); if (b) done(b.dataset.a === '1'); };
+      document.body.appendChild(w); w.querySelector('[data-a="1"]').focus();
+    });
+  }
+  /* Повідомлення вгорі екрана (замість alert і тексту внизу сторінки) */
+  let toastT = null;
+  function toast(html, kind, action) {
+    let t = $('toast'); if (!t) { t = document.createElement('div'); t.id = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+    t.className = 'toast ' + (kind || ''); t.innerHTML = '<span>' + html + '</span>' + (action ? '<button class="btn">' + esc(action.label) + '</button>' : '') + '<button class="toast-x" aria-label="Закрити">×</button>';
+    t.hidden = false; if (kind === 'err') vib([120, 60, 120]);
+    if (action) t.querySelector('.btn').onclick = () => { t.hidden = true; action.run(); };
+    t.querySelector('.toast-x').onclick = () => { t.hidden = true; };
+    clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, kind === 'err' ? 15000 : 4000);
+  }
 
   /* ── Екрани ── */
   let navSeq = 0;   // кожен перехід між екранами; пізня відповідь сервера не перемикає екран, якщо людина вже пішла далі
@@ -76,7 +98,7 @@
     const was = JSON.stringify({ r: me && me.role, s: sheets.map(x => x.name) });
     me = out.me; sheets = out.sheets || [];
     store.set('me', JSON.stringify({ me, sheets }));
-    $('whoName').textContent = me.name; $('whoRole').textContent = me.role; $('who').hidden = false;
+    $('whoName').textContent = me.name; $('whoRole').textContent = me.role; $('who').hidden = false; document.body.dataset.role = me.role;
     // quiet — уточнення від сервера після показу збереженого кабінету: не перемальовуємо й не повертаємо на головну,
     // хіба що змінилися роль чи доступи і людина досі на головній
     if (quiet && (was === JSON.stringify({ r: me.role, s: sheets.map(x => x.name) }) || $('home').hidden)) return;
@@ -94,11 +116,11 @@
       if (!ok) b.classList.add('soon');
       b.innerHTML = '<b></b><span></span>';
       b.querySelector('b').textContent = t.title;
-      b.querySelector('span').textContent = ok ? (t.hint || '') : 'скоро' + (t.soon ? ' · ' + t.soon : '');
+      b.querySelector('span').textContent = ok ? (t.hint || '') : 'скоро';
       if (ok) b.onclick = () => t.action === 'codes' ? openCodes() : t.action === 'board' ? openBoard() : t.action === 'docs' ? openDocs() : t.action === 'calc' ? openCalc() : t.action === 'truck' ? openTruck() : openSheet(t);
       box.appendChild(b);
     });
-    $('homeWork').innerHTML = ''; $('tiles').hidden = false;
+    $('homeWork').innerHTML = ''; $('tiles').hidden = false; if ($('drvOutBox')) $('drvOutBox').innerHTML = '';
     if (me.role === 'водій') {
       $('homeTitle').textContent = 'Мій рейс'; $('homeHint').textContent = ''; $('tiles').hidden = true;
       // один запит паралельно з другим і один показ екрана: без проміжних «Завантаження…» → картка → «Мій рейс»
@@ -116,10 +138,14 @@
   function drawDriverHome(st, sv) {
     tk = st; stCur = sv;
     const has = st && st.planned && st.planned.length;
-    if (has && sv && sv.trip) { $('homeWork').innerHTML = '<div id="stBox"></div>'; $('tiles').hidden = true; renderStatus(); return; }
+    const prof = '<div class="profile"><span>Ви увійшли як <b>' + esc(me.name) + '</b></span><button class="btn" id="drvOut">Вийти з програми</button></div>';
+    if ($('drvOutBox')) $('drvOutBox').innerHTML = '';
+    if (has && sv && sv.trip) { $('homeWork').innerHTML = '<div id="stBox"></div>' + prof; $('tiles').hidden = true; renderStatus(); $('drvOut').onclick = askLogout; return; }
     // немає поточного рейсу — коротка картка роботи (або «поки немає») і звичайні плитки
     $('homeWork').innerHTML = has ? '<div id="homeWorkCard">' + workHtml(st.planned, true) + '</div>' : '<div class="card tkwork"><b>Запланованої роботи поки немає.</b><div class="muted small">Щойно логіст призначить рейс — він з\'явиться тут.</div></div>';
     $('tiles').hidden = false; bindWork();
+    if (!$('drvOutBox')) { const d = document.createElement('div'); d.id = 'drvOutBox'; $('tiles').after(d); }
+    $('drvOutBox').innerHTML = prof; $('drvOut').onclick = askLogout;
   }
   /* «На вас запланована робота» — поточний і наступні рейси водія (без фрахту й клієнта) */
   function workHtml(list, compact) {
@@ -130,7 +156,7 @@
     return '<div class="card tkwork' + (compact ? ' tkclick' : '') + '"><div class="tkwhead">На вас запланована робота</div>' + (compact ? one(list[0]) + (list.length > 1 ? '<div class="muted small">і ще ' + (list.length - 1) + ' →</div>' : '') : list.map(one).join('')) + '</div>';
   }
   /* ── Статуси рейсу (етап 3): водій натискає крок — логіст бачить на дошці й у картці рейсу ── */
-  let stCur = null, stPending = false;
+  let stCur = null, stPending = false, stLock = 0;
   const ST_LABEL = { 'на завантаженні': 'Я на завантаженні', 'завантажено': 'Завантажився', 'замитнення': 'Замитнився', 'на кордоні': 'Я на кордоні / в черзі',
     'кордон пройдено': 'Перетнув кордон', 'розмитнення': 'Розмитнився', 'на розвантаженні': 'Я на розвантаженні', 'розвантажено': 'Розвантажився' };
   async function loadStatus(msg) {
@@ -161,12 +187,13 @@
       '<div><div class="road" style="--p:' + pct + '%"><i></i><b></b></div><div class="ends"><span>' + esc(v.trip.from) + (p.load ? ', ' + dd(p.load) : '') + '</span><span>' + esc(v.trip.to) + '</span></div></div>' +
       '<div class="addr"><div><b>' + esc(v.trip.from) + ' → ' + esc(v.trip.to) + '</b><span>' + facts + '</span></div></div></article>';
     if (msg) h += '<div class="cinfo" style="margin-top:14px">' + msg + '</div>';
-    h += '<div class="next-action">' + (v.next ? '<button class="primary stgo" data-st="' + esc(v.next) + '">' + svgI('M5 12l5 5L20 7') + esc(ST_LABEL[v.next] || v.next) + '</button><p>' + esc(ST_HINT[v.next] || '') + '</p>' + (ahead.length ? '<p><button class="link" id="stAhead">Я вже далі — відмітити інший крок</button></p><div id="stAheadBox" class="stahead" hidden><p class="muted small">Попередні кроки лишаться невідміченими — їх можна дописати потім.</p>' + ahead.map(x => '<button class="btn" data-st="' + esc(x) + '">' + esc(ST_LABEL[x] || x) + '</button>').join('') + '</div>' : '')
+    h += '<div class="next-action">' + (v.next ? '<button class="primary stgo" data-st="' + esc(v.next) + '"' + (stPending ? ' disabled' : '') + '>' + svgI('M5 12l5 5L20 7') + esc(ST_LABEL[v.next] || v.next) + '</button><p>' + esc(ST_HINT[v.next] || '') + '</p>' + (ahead.length ? '<p><button class="link" id="stAhead">Я вже далі — відмітити інший крок</button></p><div id="stAheadBox" class="stahead" hidden><p class="muted small">Попередні кроки лишаться невідміченими — їх можна дописати потім.</p>' + ahead.map(x => '<button class="btn" data-st="' + esc(x) + '">' + esc(ST_LABEL[x] || x) + '</button>').join('') + '</div>' : '')
       : '<div class="cinfo">Усі кроки рейсу відмічено. Дякуємо!</div>') + '</div>';
     if (v.last && v.last.canUndo) { const left = me.role === 'водій' ? Math.max(1, 15 - Math.floor((Date.now() - new Date(v.last.at)) / 60000)) : 0;
       h += '<button class="undo-btn" id="stUndo">' + svgI('M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3') + '<span>Скасувати «' + esc(v.last.event) + '»' + (left ? '<small>натиснули помилково? ще ' + left + ' хв</small>' : '') + '</span></button>'; }
-    h += '<div class="quick">' + QUICK.map(q => '<button class="q' + (q[1] === 'problem' ? ' problem' : '') + (q[1] ? '' : ' soonq') + '" data-q="' + q[1] + '"' + (q[1] ? '' : ' disabled') + '>' + svgI(q[2]) + esc(q[0]) + (q[1] ? '' : '<small>скоро</small>') + '</button>').join('') + '</div>';
-    h += '<div class="stprob" id="stProbBox" hidden><textarea id="stText" rows="3" placeholder="Що сталося? Напр.: пробите колесо, чекаємо майстра"></textarea><button class="btn" id="stProb">Надіслати логісту</button></div>';
+    h += '<div class="quick">' + QUICK.filter(q => q[1]).map(q => '<button class="q' + (q[1] === 'problem' ? ' problem' : '') + (q[1] ? '' : ' soonq') + '" data-q="' + q[1] + '"' + (q[1] ? '' : ' disabled') + '>' + svgI(q[2]) + esc(q[0]) + (q[1] ? '' : '<small>скоро</small>') + '</button>').join('') + '</div>';
+    h += '<div class="stprob card" id="stProbBox" hidden><b>Що сталося?</b><div class="chips">' + ['Довга черга', 'Поломка', 'Проблема з документами', 'Затримка на складі', 'ДТП', 'Інше'].map(c => '<button class="chip" data-chip="' + c + '">' + c + '</button>').join('') + '</div>' +
+      '<textarea id="stText" rows="3" placeholder="Коротко опишіть. Можна надиктувати — кнопка мікрофона на клавіатурі."></textarea><button class="primary" id="stProb">Надіслати логісту</button></div>';
     (v.problems || []).slice(-2).forEach(x => h += '<p class="cnote">Проблема ' + tkTime(x.at) + ': ' + esc(x.text) + '</p>');
     h += '<details class="card ststeps"><summary>Усі кроки рейсу · ' + doneN + ' з ' + v.steps.length + '</summary><ol class="stlist">' + v.steps.map((x, i) => '<li class="' + (x.at ? 'done' : x.step === v.next ? 'next' : '') + '"><span>' + (x.at ? '✓' : '○') + '</span><b>' + esc(x.step) + '</b>' +
       (x.at ? '<em>' + tkTime(x.at) + '</em>' : (i < lastIdx ? '<button class="link stany" data-st="' + esc(x.step) + '">пропущено — відмітити</button>' : '')) + '</li>').join('') + '</ol></details>';
@@ -174,8 +201,10 @@
     if (rest.length) h += '<section class="card stnext"><h2>Далі</h2>' + rest.map(w => '<div class="wrow"><span class="pill st-free">' + (w.order ? 'заявка' : 'далі') + '</span><div><b>' + esc(w.from) + ' → ' + esc(w.to) + '</b><div class="muted small">машина ' + esc(w.truck) + ' · завантаження ' + (dd(w.load) || '?') + (w.cargo ? ' · ' + esc(w.cargo) : '') + '</div></div></div>').join('') + '</section>';
     h += '<p class="msg" id="stMsg"></p>';
     box.innerHTML = h;
-    const send = (event, text) => {
-      if (stPending) return;
+    const send = async (event, text) => {
+      if (stPending || Date.now() < stLock) return;
+      if ((event === 'розвантажено' || event === 'кордон пройдено') && !await ask(event === 'розвантажено' ? 'Машину розвантажили?' : 'Перетнули кордон?', 'Логіст побачить це одразу.', 'Так, ' + (event === 'розвантажено' ? 'розвантажився' : 'перетнув'))) return;
+      stLock = Date.now() + 2000; vib(30);
       // одразу показуємо відмітку (сервер Google відповідає 3–5 с), надсилаємо у фоні; не прийняв — повертаємо як було
       const prev = stCur, now = new Date().toISOString(), o = JSON.parse(JSON.stringify(v));
       if (event === 'проблема') o.problems = (o.problems || []).concat([{ at: now, text }]);
@@ -185,7 +214,8 @@
       renderStatus((event === 'проблема' ? '✔ Проблему записано' : '✔ Відмічено: <b>' + esc(event) + '</b>') + ' · <span class="muted">надсилаю логісту…</span>'); window.scrollTo(0, 0);
       api('trip.status.add', { tripId: v.trip.id, event, text })
         .then(r => { stPending = false; stCur = r; if ($('stBox')) renderStatus(r.already ? 'Цей крок уже був відмічений.' : (event === 'проблема' ? '✔ Логіст отримав повідомлення про проблему.' : '✔ Відмічено: <b>' + esc(event) + '</b>. Логіст бачить.')); })
-        .catch(e => { stPending = false; stCur = prev; if ($('stBox')) { renderStatus(); $('stMsg').textContent = 'Не надіслано: ' + e.message + '. Спробуйте ще раз.'; } });
+        .catch(e => { stPending = false; stCur = prev; if ($('stBox')) renderStatus();
+          toast('<b>Не надіслано</b> «' + esc(event) + '»: ' + esc(e.message), 'err', { label: 'Спробувати ще раз', run: () => { stLock = 0; send(event, text); } }); });
     };
     box.querySelectorAll('[data-st]').forEach(b => b.onclick = e => { e.stopPropagation(); send(b.dataset.st); });
     box.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { if (b.dataset.q === 'truck') openTruck(); else if (b.dataset.q === 'problem') { $('stProbBox').hidden = !$('stProbBox').hidden; if (!$('stProbBox').hidden) $('stText').focus(); } });
@@ -200,6 +230,7 @@
         .then(r => { stPending = false; stCur = r; if ($('stBox')) renderStatus('Крок «' + esc(ev) + '» скасовано.'); })
         .catch(e => { stPending = false; stCur = prev; if ($('stBox')) { renderStatus(); $('stMsg').textContent = 'Не скасовано: ' + e.message; } });
     };
+    box.querySelectorAll('[data-chip]').forEach(c => c.onclick = () => { const t = $('stText'); t.value = c.dataset.chip === 'Інше' ? t.value : c.dataset.chip + (t.value ? '. ' + t.value : '. '); t.focus(); box.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === c)); });
     $('stProb').onclick = () => { const t = $('stText').value.trim(); if (!t) { $('stMsg').textContent = 'Опишіть проблему'; return; } send('проблема', t); };
     if ($('homeWorkCard')) $('homeWorkCard').hidden = true;
     try { if (me && me.role === 'водій' && tk) store.set('homeDrv', JSON.stringify({ login: me.login, st: tk, sv: stCur })); } catch (e) {}
@@ -215,7 +246,7 @@
       current = { title: t.title, sheet: t.sheet, columns: out.columns, rows: out.rows };
       $('viewTitle').textContent = t.title; $('search').value = '';
       renderTable(); show('view');
-    } catch (e) { alert(e.message); } finally { busy(false); }
+    } catch (e) { toast(esc(e.message), 'err'); } finally { busy(false); }
   }
 
   function fmt(v) {
@@ -244,12 +275,12 @@
   let board = null, bFilter = store.get('bFilter') || 'all';
   const dd = s => s ? s.slice(8, 10) + '.' + s.slice(5, 7) : '';
   const daysFrom = s => s ? Math.round((new Date(new Date().toDateString()) - new Date(s + 'T00:00:00')) / 864e5) : 0;
-  const PROB = { doc: '📄', tir: '🛃', gps: '📡', trip: '⏱', debt: '💶' };
+  const PROB = { doc: '📄 документ', tir: '🛃 ТІР', gps: '📡 GPS', trip: '⏱ рейс довго', debt: '💶 оплата' };
   async function openBoard(force) {
     show('board'); if (!board || force) $('bRows').innerHTML = '<tr><td colspan="7" class="muted">Завантаження…</td></tr>';
     busy(!board);
     try { board = (await api('board')); renderBoard(); }
-    catch (e) { if (!board) $('bRows').innerHTML = '<tr><td colspan="7" class="msg">' + esc(e.message) + '</td></tr>'; else alert(e.message); }
+    catch (e) { if (!board) $('bRows').innerHTML = '<tr><td colspan="7" class="msg">' + esc(e.message) + '</td></tr>'; else toast(esc(e.message), 'err'); }
     finally { busy(false); }
   }
   function tripText(t) { return t ? esc(t.from || '?') + ' → ' + esc(t.to || '?') : ''; }
@@ -450,6 +481,7 @@
       finally { busy(false); }
     };
     if ($('tkGive')) $('tkGive').onclick = async () => {
+      if (!await ask('Здати машину?', 'Логіст побачить, що ви більше не на цій машині.', 'Так, здати')) return;
       if (odo() && !/^\d{1,7}$/.test(odo())) { $('tkMsg').textContent = 'Спідометр — лише цифри'; return; }
       $('tkGive').disabled = true; busy(true);
       try { const r = await api('truck.give', { odo: odo(), note: $('tkNote').value }); tk = r.state; renderTruck('✔ Машину здано.' + (r.checks && r.checks.length ? ' Логіст перевірить: ' + esc(r.checks.join('; ')) : '')); }
@@ -624,7 +656,7 @@
   }
   $('cAdd').onclick = () => { if (cTrips.length >= 12) return; const prev = cTrips[cTrips.length - 1]; const t = newTrip(); if (prev && prev.to) t.from = ''; cTrips.push(t); renderCTrips(); calcSave(); };
   $('cGo').onclick = runCalc;
-  $('cClear').onclick = () => { cTrips = [newTrip()]; $('cIdle').value = ''; $('cDate').value = ''; $('cOut').innerHTML = ''; renderCTrips(); calcSave(); };
+  $('cClear').onclick = async () => { if (!await ask('Очистити калькулятор?', 'Усі введені рейси буде стерто.', 'Так, очистити', true)) return; cTrips = [newTrip()]; $('cIdle').value = ''; $('cDate').value = ''; $('cOut').innerHTML = ''; renderCTrips(); calcSave(); };
   ['cTruck', 'cDate', 'cIdle'].forEach(id => $(id).addEventListener('change', calcSave));
 
   async function openCodes() {
@@ -647,7 +679,7 @@
       $('issued').hidden = false;
       $('issued').innerHTML = '<div class="muted">Код для ' + esc(out.name) + ':</div><div class="big">' + out.code + '</div>' +
         '<div class="muted small">Одноразовий, діє ' + out.validHours + ' год. Вхід: app.lcorp.com.ua</div>';
-    } catch (e) { alert(e.message); } finally { busy(false); }
+    } catch (e) { toast(esc(e.message), 'err'); } finally { busy(false); }
   }
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -685,9 +717,12 @@
 
   /* ── Старт ── */
   $('codeForm').addEventListener('submit', loginCode);
-  $('logout').onclick = () => logout(false);
+  $('logout').onclick = () => askLogout();
+  async function askLogout() {
+    if (await ask('Вийти з програми?', me && me.role === 'водій' ? 'Щоб увійти знову, знадобиться новий код від керівника.' : 'Щоб увійти знову, знадобиться вхід через Google або код.', 'Так, вийти', true)) logout(false);
+  }
   $('logoutAll').onclick = async () => {
-    if (!confirm('Вийти на всіх пристроях? Знадобиться новий вхід (код або Google) на кожному телефоні й комп\'ютері.')) return;
+    if (!await ask('Вийти на всіх пристроях?', 'Знадобиться новий вхід (код або Google) на кожному телефоні й комп\'ютері. Робіть так, якщо загубили телефон.', 'Так, вийти всюди', true)) return;
     try { await api('logout.all'); } catch (e) {}
     logout(true);
   };
