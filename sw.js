@@ -1,5 +1,5 @@
 // Офлайн-оболонка: екрани відкриваються навіть без зв'язку; дані завжди беруться з сервера.
-const VERSION = 'v5';   // змінюйте при кожному оновленні вигляду — телефони підхоплять нову версію
+const VERSION = 'v6';   // змінюйте при кожному оновленні вигляду — телефони підхоплять нову версію
 const SHELL = ['./', 'index.html', 'app.js', 'style.css', 'config.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
