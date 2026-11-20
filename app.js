@@ -41,10 +41,16 @@
   /* ── Сервер ── */
   async function api(action, data = {}) {
     if (!CFG.API_URL) throw new Error('Програму ще не підключено до сервера (немає API_URL у config.js)');
+    // кожне «Зберегти» має свій opId: якщо зв'язок обірвався і запит повторено, сервер не створить дубль (ADR-038)
+    if (action === 'save' && !data.opId) data = { ...data, opId: (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2)) };
     const body = JSON.stringify({ action, token: store.get('token'), ...data });
+    const send = () => fetch(CFG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body });
     let res;
-    try { res = await fetch(CFG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body }); }
-    catch (e) { $('offline').hidden = false; throw new Error('Немає зв\'язку з сервером'); }
+    try { res = await send(); }
+    catch (e) {
+      if (action === 'save') { try { await new Promise(r => setTimeout(r, 1500)); res = await send(); } catch (e2) { res = null; } }   // повтор — той самий opId
+      if (!res) { $('offline').hidden = false; throw new Error('Немає зв\'язку з сервером'); }
+    }
     $('offline').hidden = true;
     const out = await res.json();
     if (!out.ok) {
@@ -178,6 +184,32 @@
   /* ── Старт ── */
   $('codeForm').addEventListener('submit', loginCode);
   $('logout').onclick = () => logout(false);
+  $('logoutAll').onclick = async () => {
+    if (!confirm('Вийти на всіх пристроях? Знадобиться новий вхід (код або Google) на кожному телефоні й комп\'ютері.')) return;
+    try { await api('logout.all'); } catch (e) {}
+    logout(true);
+  };
+
+  /* ── Тема (ADR-024): «Авто» — світла вдень, темна після заходу сонця (Львів); або вручну світла/темна ── */
+  function sunHours(d, lat, lon) {   // схід і захід сонця, години за місцевим часом пристрою (алгоритм NOAA, точність ±2 хв)
+    const rad = Math.PI / 180, start = new Date(d.getFullYear(), 0, 0), day = Math.floor((d - start) / 864e5);
+    const g = 2 * Math.PI / 365 * (day - 1);
+    const eq = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+    const decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g);
+    const ha = Math.acos(Math.cos(90.833 * rad) / (Math.cos(lat * rad) * Math.cos(decl)) - Math.tan(lat * rad) * Math.tan(decl)) / rad;
+    const tz = -d.getTimezoneOffset();
+    return { rise: (720 - 4 * (lon + ha) - eq + tz) / 60, set: (720 - 4 * (lon - ha) - eq + tz) / 60 };
+  }
+  function applyTheme() {
+    const mode = store.get('theme') || 'auto', root = document.documentElement;
+    let t = mode;
+    if (mode === 'auto') { const n = new Date(), h = n.getHours() + n.getMinutes() / 60, s = sunHours(n, 49.84, 24.03); t = (h >= s.rise && h < s.set) ? 'light' : 'dark'; }
+    root.dataset.theme = t;
+    $('theme').textContent = mode === 'auto' ? '◐ Авто' : (mode === 'light' ? '☀ Світла' : '☾ Темна');
+    const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.content = t === 'dark' ? '#070B20' : '#0C1333';
+  }
+  $('theme').onclick = () => { const m = store.get('theme') || 'auto'; store.set('theme', m === 'auto' ? 'light' : m === 'light' ? 'dark' : 'auto'); applyTheme(); };
+  applyTheme(); setInterval(applyTheme, 5 * 60 * 1000);
   $('back').onclick = () => renderHome();
   document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => renderHome());
   $('search').addEventListener('input', () => renderTable());
