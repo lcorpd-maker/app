@@ -93,8 +93,13 @@
       if (ok) b.onclick = () => t.action === 'codes' ? openCodes() : t.action === 'board' ? openBoard() : t.action === 'docs' ? openDocs() : t.action === 'calc' ? openCalc() : t.action === 'truck' ? openTruck() : openSheet(t);
       box.appendChild(b);
     });
-    $('homeWork').innerHTML = '';
-    if (me.role === 'водій') api('truck.state').then(st => { tk = st; $('homeWork').innerHTML = workHtml(st.planned, true) + '<div id="stBox"></div>'; bindWork(); if ((st.planned || []).length) loadStatus(); }).catch(() => {});
+    $('homeWork').innerHTML = ''; $('tiles').hidden = false;
+    if (me.role === 'водій') {
+      $('homeTitle').textContent = 'Мій рейс'; $('homeHint').textContent = '';
+      $('homeWork').innerHTML = '<div id="stBox"><p class="muted">Завантаження…</p></div>';
+      api('truck.state').then(st => { tk = st; $('homeWork').innerHTML = '<div id="homeWorkCard">' + workHtml(st.planned, true) + '</div><div id="stBox"></div>' + (st.planned && st.planned.length ? '' : '<div class="card tkwork"><b>Запланованої роботи поки немає.</b><div class="muted small">Щойно логіст призначить рейс — він з\'явиться тут.</div></div>');
+        bindWork(); if ((st.planned || []).length) loadStatus(); }).catch(e => { $('homeWork').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; });
+    }
     show('home');
   }
   /* «На вас запланована робота» — поточний і наступні рейси водія (без фрахту й клієнта) */
@@ -112,28 +117,52 @@
   async function loadStatus(msg) {
     try { stCur = await api('trip.status'); renderStatus(msg); } catch (e) { if ($('stBox')) $('stBox').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
   }
+  const ST_HINT = { 'на завантаженні': 'Натисніть, коли приїдете на склад завантаження. Час зафіксується сам.', 'завантажено': 'Натисніть, коли машину завантажили.',
+    'замитнення': 'Натисніть, коли пройшли митне оформлення.', 'на кордоні': 'Натисніть, коли стали в чергу або під\'їхали до кордону.', 'кордон пройдено': 'Натисніть, коли перетнули кордон.',
+    'розмитнення': 'Натисніть, коли пройшли розмитнення.', 'на розвантаженні': 'Натисніть, коли приїдете на склад розвантаження.', 'розвантажено': 'Натисніть, коли машину розвантажили.' };
+  const QUICK = [['Моя машина', 'truck', 'M3 16V7a1 1 0 011-1h10v10M14 9h4l3 3v4h-7M6.5 18.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm11 0a1.5 1.5 0 100-3 1.5 1.5 0 000 3z'],
+    ['Витрата', '', 'M12 5v14M5 12h14'], ['Заправка', '', 'M4 20V5a1 1 0 011-1h7a1 1 0 011 1v15M4 11h9M13 8h2l3 3v6a1.5 1.5 0 003 0V9l-3-3'],
+    ['Спідометр', '', 'M4 18a8 8 0 1116 0M12 18l4-5'], ['Документ', '', 'M4 8h3l2-2h6l2 2h3v11H4zM12 16a3 3 0 100-6 3 3 0 000 6z'], ['Проблема', 'problem', 'M12 4l9 16H3zM12 10v4M12 17h.01']];
+  const svgI = d => '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>';
+  const dayName = iso => { if (!iso) return ''; const d = new Date(iso + 'T12:00:00'); return isNaN(d) ? '' : dd(iso) + ', ' + d.toLocaleDateString('uk-UA', { weekday: 'long' }); };
   function renderStatus(msg) {
     const box = $('stBox'); if (!box) return;
     const v = stCur; if (!v || !v.trip) { box.innerHTML = ''; return; }
-    const mine = v.last && v.last.canUndo;
-    let h = '<div class="card stcard"><div class="tkwhead">Рейс ' + esc(v.trip.from) + ' → ' + esc(v.trip.to) + '</div>' + (msg ? '<div class="cinfo">' + msg + '</div>' : '');
-    if (v.next) h += '<button class="primary stgo" data-st="' + esc(v.next) + '">' + esc(ST_LABEL[v.next] || v.next) + '</button>';
-    else h += '<div class="cinfo">Усі кроки рейсу відмічено. Дякуємо!</div>';
-    h += '<ol class="stlist">' + v.steps.map(x => '<li class="' + (x.at ? 'done' : x.step === v.next ? 'next' : '') + '"><span>' + (x.at ? '✓' : '○') + '</span><b>' + esc(x.step) + '</b>' +
-      (x.at ? '<em>' + tkTime(x.at) + '</em>' : (x.step !== v.next ? '<button class="link stany" data-st="' + esc(x.step) + '">відмітити</button>' : '')) + '</li>').join('') + '</ol>';
-    if (mine) h += '<button class="link" id="stUndo">Скасувати останній крок («' + esc(v.last.event) + '»)</button>';
-    h += '<details class="stprob"><summary>Повідомити про проблему</summary><textarea id="stText" rows="3" placeholder="Що сталося? Напр.: пробите колесо, чекаємо майстра"></textarea><button class="btn" id="stProb">Надіслати логісту</button></details>';
-    (v.problems || []).slice(-2).forEach(p => h += '<p class="cnote">Проблема ' + tkTime(p.at) + ': ' + esc(p.text) + '</p>');
-    h += '<p class="msg" id="stMsg"></p></div>';
+    const p = ((tk && tk.planned) || []).find(x => x.id === v.trip.id) || {};
+    const doneN = v.steps.filter(x => x.at).length, loaded = v.steps.some(x => x.step === 'завантажено' && x.at);
+    const pct = Math.round(doneN / v.steps.length * 100);
+    const chip = v.last ? v.last.event : (p.state === 'зараз' ? 'в роботі' : 'заплановано');
+    const facts = ['машина ' + esc(v.trip.truck), p.cargo ? esc(p.cargo) : '', v.trip.crossing ? 'перехід ' + esc(v.trip.crossing) : '', p.adr ? '<b>АДР</b>' : ''].filter(Boolean).join(' · ');
+    let h = '<article class="hero">' +
+      '<div class="meta"><span>Рейс ' + esc(v.trip.id) + '</span><span class="st">' + esc(chip) + '</span></div>' +
+      '<div><div class="to">' + (loaded ? 'Розвантаження' : 'Завантаження') + '</div><div class="city">' + esc(loaded ? v.trip.to : v.trip.from) + '</div>' +
+      '<div class="when">' + (loaded ? (p.unload ? dayName(p.unload) : 'дату уточнить логіст') : (p.load ? dayName(p.load) : '')) + '</div></div>' +
+      '<div><div class="road" style="--p:' + pct + '%"><i></i><b></b></div><div class="ends"><span>' + esc(v.trip.from) + (p.load ? ', ' + dd(p.load) : '') + '</span><span>' + esc(v.trip.to) + '</span></div></div>' +
+      '<div class="addr"><div><b>' + esc(v.trip.from) + ' → ' + esc(v.trip.to) + '</b><span>' + facts + '</span></div></div></article>';
+    if (msg) h += '<div class="cinfo" style="margin-top:14px">' + msg + '</div>';
+    h += '<div class="next-action">' + (v.next ? '<button class="primary stgo" data-st="' + esc(v.next) + '">' + svgI('M5 12l5 5L20 7') + esc(ST_LABEL[v.next] || v.next) + '</button><p>' + esc(ST_HINT[v.next] || '') + '</p>'
+      : '<div class="cinfo">Усі кроки рейсу відмічено. Дякуємо!</div>') + '</div>';
+    if (v.last && v.last.canUndo) h += '<p style="text-align:center;margin:0 0 12px"><button class="link" id="stUndo">Скасувати останній крок («' + esc(v.last.event) + '»)</button></p>';
+    h += '<div class="quick">' + QUICK.map(q => '<button class="q' + (q[1] === 'problem' ? ' problem' : '') + (q[1] ? '' : ' soonq') + '" data-q="' + q[1] + '"' + (q[1] ? '' : ' disabled') + '>' + svgI(q[2]) + esc(q[0]) + (q[1] ? '' : '<small>скоро</small>') + '</button>').join('') + '</div>';
+    h += '<div class="stprob" id="stProbBox" hidden><textarea id="stText" rows="3" placeholder="Що сталося? Напр.: пробите колесо, чекаємо майстра"></textarea><button class="btn" id="stProb">Надіслати логісту</button></div>';
+    (v.problems || []).slice(-2).forEach(x => h += '<p class="cnote">Проблема ' + tkTime(x.at) + ': ' + esc(x.text) + '</p>');
+    h += '<details class="card ststeps"><summary>Усі кроки рейсу · ' + doneN + ' з ' + v.steps.length + '</summary><ol class="stlist">' + v.steps.map(x => '<li class="' + (x.at ? 'done' : x.step === v.next ? 'next' : '') + '"><span>' + (x.at ? '✓' : '○') + '</span><b>' + esc(x.step) + '</b>' +
+      (x.at ? '<em>' + tkTime(x.at) + '</em>' : (x.step !== v.next ? '<button class="link stany" data-st="' + esc(x.step) + '">відмітити</button>' : '')) + '</li>').join('') + '</ol></details>';
+    const rest = ((tk && tk.planned) || []).filter(x => x.id !== v.trip.id);
+    if (rest.length) h += '<section class="card stnext"><h2>Далі</h2>' + rest.map(w => '<div class="wrow"><span class="pill st-free">' + (w.order ? 'заявка' : 'далі') + '</span><div><b>' + esc(w.from) + ' → ' + esc(w.to) + '</b><div class="muted small">машина ' + esc(w.truck) + ' · завантаження ' + (dd(w.load) || '?') + (w.cargo ? ' · ' + esc(w.cargo) : '') + '</div></div></div>').join('') + '</section>';
+    h += '<p class="msg" id="stMsg"></p>';
     box.innerHTML = h;
     const send = async (event, text) => {
       busy(true); $('stMsg').textContent = '';
-      try { const r = await api('trip.status.add', { tripId: v.trip.id, event, text }); stCur = r; renderStatus(r.already ? 'Цей крок уже відмічено.' : '✔ Відмічено: <b>' + esc(event) + '</b>. Логіст бачить.'); }
+      try { const r = await api('trip.status.add', { tripId: v.trip.id, event, text }); stCur = r; renderStatus(r.already ? 'Цей крок уже відмічено.' : '✔ Відмічено: <b>' + esc(event) + '</b>. Логіст бачить.'); window.scrollTo(0, 0); }
       catch (e) { $('stMsg').textContent = e.message; } finally { busy(false); }
     };
     box.querySelectorAll('[data-st]').forEach(b => b.onclick = e => { e.stopPropagation(); send(b.dataset.st); });
+    box.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { if (b.dataset.q === 'truck') openTruck(); else if (b.dataset.q === 'problem') { $('stProbBox').hidden = !$('stProbBox').hidden; if (!$('stProbBox').hidden) $('stText').focus(); } });
     if ($('stUndo')) $('stUndo').onclick = async () => { busy(true); try { stCur = await api('trip.status.undo', { tripId: v.trip.id, id: v.last.id }); renderStatus('Останній крок скасовано.'); } catch (e) { $('stMsg').textContent = e.message; } finally { busy(false); } };
     $('stProb').onclick = () => { const t = $('stText').value.trim(); if (!t) { $('stMsg').textContent = 'Опишіть проблему'; return; } send('проблема', t); };
+    if ($('homeWorkCard')) $('homeWorkCard').hidden = true;
+    if (me.role === 'водій' && $('tiles')) $('tiles').hidden = true;      // усе потрібне — у швидких кнопках «Мого рейсу»                 // рейс показано в «Мій рейс» — коротка картка роботи не потрібна
   }
   function bindWork() { const c = document.querySelector('#homeWork .tkclick'); if (c) c.onclick = () => openTruck(); }
 
