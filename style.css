@@ -375,3 +375,11 @@ select:focus { outline: 3px solid var(--focus); outline-offset: 0; border-color:
 .stnext h2 { margin: 0 0 6px; font-size: 17px; }
 .stnext .wrow { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
 #stProbBox { margin: 0 0 14px; }
+.stahead { display: grid; gap: 8px; margin: 6px 0 4px; text-align: left; }
+.stahead .btn { width: 100%; }
+.undo-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin: 0 0 16px; padding: 12px 16px;
+  border: 1.5px solid var(--ink, #0C1333); border-radius: 14px; background: transparent; color: var(--ink, #0C1333); font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
+.undo-btn span { display: flex; flex-direction: column; }
+.undo-btn small { font-weight: 400; opacity: .7; font-size: .85em; }
+.undo-btn .ico { width: 22px; height: 22px; flex: none; }
+[data-theme="dark"] .undo-btn { border-color: currentColor; color: inherit; }
