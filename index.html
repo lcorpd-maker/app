@@ -57,6 +57,24 @@
       <div class="tablewrap"><table id="table"></table></div>
     </section>
 
+    <!-- Дошка машин (етап 2) -->
+    <section id="board" hidden>
+      <button class="link back" data-back>← Назад</button>
+      <div class="bhead">
+        <div><h1>Дошка машин</h1><p class="muted small" id="bSub"></p></div>
+        <button class="btn" id="bRefresh" title="Оновити">↻ Оновити</button>
+      </div>
+      <div class="toolbar">
+        <input id="bSearch" type="search" placeholder="Машина, водій, місто, рейс">
+        <div class="chips" id="bChips" role="group" aria-label="Фільтр"></div>
+      </div>
+      <div class="tablewrap bdesk"><table class="btable"><thead><tr><th>Авто</th><th>Водій і причіп</th><th>Рейс</th><th>Стан</th><th>Далі</th><th>GPS</th><th>Увага</th></tr></thead><tbody id="bRows"></tbody></table></div>
+      <div class="bcards" id="bCards"></div>
+      <p class="muted" id="bEmpty" hidden>Нічого не знайдено.</p>
+      <section class="card bwait" id="bWait" hidden><h2>Заявки без машини <span class="count" id="bWaitN"></span></h2><div id="bWaitList"></div></section>
+      <p class="muted small">Дані з бази (рейси, заявки, «Водій на авто») і GPS Freetrack за вчора. Поки лише перегляд — зміни вносяться як раніше.</p>
+    </section>
+
     <!-- Видати код -->
     <section id="codes" hidden>
       <button class="link back" data-back>← Назад</button>
