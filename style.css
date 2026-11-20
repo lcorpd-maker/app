@@ -249,3 +249,4 @@ th:first-child, td:first-child { padding-left: 16px; }
 .jrow { padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; overflow-wrap: anywhere; }
 .jrow:first-of-type { border-top: 0; }
 @media (max-width: 560px) { .route { grid-template-columns: 1fr; } .route .arrow { display: none; } }
+.qrow .plate { margin-right: 6px; }
