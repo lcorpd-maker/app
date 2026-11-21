@@ -287,11 +287,14 @@
   const daysFrom = s => s ? Math.round((new Date(new Date().toDateString()) - new Date(s + 'T00:00:00')) / 864e5) : 0;
   const PROB = { doc: '📄 документ', tir: '🛃 ТІР', gps: '📡 GPS', trip: '⏱ рейс довго', debt: '💶 оплата' };
   async function openBoard(force) {
-    show('board'); if (!board || force) $('bRows').innerHTML = '<tr><td colspan="7" class="muted">Завантаження…</td></tr>';
-    busy(!board);
-    try { board = (await api('board')); renderBoard(); }
-    catch (e) { if (!board) $('bRows').innerHTML = '<tr><td colspan="7" class="msg">' + esc(e.message) + '</td></tr>'; else toast(esc(e.message), 'err'); }
-    finally { busy(false); }
+    show('board'); const nav = navSeq;
+    // одразу — збережена дошка (з позначкою, коли оновлено), свіжа — у фоні
+    if (!board) { try { const c = JSON.parse(store.get('boardCache') || 'null'); if (c && c.login === me.login) board = c.b; } catch (e) {} }
+    if (board) renderBoard(); else $('bRows').innerHTML = '<tr><td colspan="7" class="muted">Завантаження дошки…</td></tr>';
+    $('bRefresh').disabled = true; $('bRefresh').textContent = '↻ Оновлюю…';
+    try { const b = await api('board', force ? { force: true } : {}); board = b; try { store.set('boardCache', JSON.stringify({ login: me.login, b })); } catch (e) {} if (nav === navSeq) renderBoard(); }
+    catch (e) { if (!board) $('bRows').innerHTML = '<tr><td colspan="7" class="msg">' + esc(e.message) + '</td></tr>'; else toast(esc(e.message), 'err', { label: 'Спробувати ще раз', run: () => openBoard(true) }); }
+    finally { $('bRefresh').disabled = false; $('bRefresh').textContent = '↻ Оновити'; }
   }
   function tripText(t) { return t ? esc(t.from || '?') + ' → ' + esc(t.to || '?') : ''; }
   function stateOf(x) {
@@ -721,7 +724,7 @@
 
   async function logout(silent) {
     if (!silent) { try { await api('logout'); } catch (e) {} }
-    store.del('token'); store.del('me'); store.del('homeDrv'); me = null;
+    store.del('token'); store.del('me'); store.del('homeDrv'); store.del('boardCache'); me = null;
     showLogin(silent ? 'Сесія завершилась — увійдіть ще раз' : '');
   }
 
