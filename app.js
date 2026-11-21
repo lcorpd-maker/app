@@ -473,16 +473,12 @@
       if (at > Date.now() + 5 * 60000) return 'Час ще не настав';
       const odo = w.querySelector('#tsOdo').value.replace(/\s/g, '');
       if (odo && !/^\d{3,7}$/.test(odo)) return 'Спідометр — лише цифри';
-      const op = { kind, at, country: chosen(w, '[data-cc]', 'cc'), odo: odo ? +odo : '' };
+      const op = { kind, at, country: chosen(w, '[data-cc]', 'cc'), odo: odo ? +odo : '', odoSrc: odo ? ow.src() : '' };
       if (start) op.mode = chosen(w, '[data-fm]', 'fm') || 'work';
       tachoSend(op, start ? 'День почато о ' + hm(at) : 'День закінчено о ' + hm(at) + '. Гарного відпочинку!');
     });
     bindTime(w); chipsSel(w, '[data-cc]'); chipsSel(w, '[data-fm]');
-    const odoIn = w.querySelector('#tsOdo'); let typed = false; odoIn.addEventListener('input', () => { typed = true; });
-    if (navigator.onLine !== false) api('tacho.odo', { truck: (tc && tc.truck) || '', workerId: me.role === 'водій' ? undefined : tc.worker }).then(r => {   // свіже показання з Freetrack
-      if (!r || !r.odo || !document.body.contains(w)) return;
-      if (!typed) odoIn.value = r.odo.odo; const t = w.querySelector('#tsOdoT'); if (t) t.textContent = odoText(r.odo);
-    }).catch(() => {});
+    const ow = odoWidget(w.querySelector('#tsOdo'), w.querySelector('#tsOdoT'), () => (tc && tc.truck) || '');
     w.querySelector('[data-a="1"]').textContent = start ? 'Почати день' : 'Закінчити день';
   }
   function tachoEdit(rec, gpsAt) {
@@ -542,7 +538,7 @@
   }
 
   /* ── Дошка машин (етап 2, Board.gs) ── */
-  let board = null, bFilter = store.get('bFilter') || 'all';
+  let board = null, bFilter = store.get('bFilter') || 'all', bSortCan = !!store.get('bSortCan');
   const dd = s => s ? s.slice(8, 10) + '.' + s.slice(5, 7) : '';
   const daysFrom = s => s ? Math.round((new Date(new Date().toDateString()) - new Date(s + 'T00:00:00')) / 864e5) : 0;
   // Проблеми й стани на дошці — лінійна іконка + слово (дизайн-система §5, правила доступності §5). Текст проблеми — з сервера, повністю.
@@ -600,7 +596,11 @@
     const b = board, q = $('bSearch').value.trim().toLowerCase();
     $('bSub').textContent = 'Сьогодні ' + dd(b.today) + ' · оновлено о ' + b.updated + (b.pos && b.pos.at ? ' · місце машин на ' + tkTime(b.pos.at).split(', ').pop() + (b.pos.stale ? ' (давно: вночі не оновлюється)' : '') : '') + (b.gpsError ? ' · GPS: ' + b.gpsError : '');
     const F = { all: ['Усі', () => true], trip: ['В рейсі', x => x.status === 'trip'], free: ['Вільні', x => x.status === 'free'],
-      prob: ['З проблемами', x => x.problems.length > 0] };
+      prob: ['З проблемами', x => x.problems.length > 0],
+      can: ['Можуть їхати зараз', x => !!(x.drive && x.drive.canNow && !x.drive.moving)],
+      soon: ['Скоро перерва', x => !!(x.drive && (x.drive.tone === 'soon' || x.drive.tone === 'red'))],
+      rest: ['Перерва / відпочинок', x => !!(x.drive && x.drive.tone === 'rest' && !x.drive.canNow)] };
+    if (!F[bFilter]) bFilter = 'all';
     $('bChips').innerHTML = '';
     Object.keys(F).forEach(k => {
       const c = document.createElement('button'); c.className = 'chip'; c.setAttribute('aria-pressed', String(bFilter === k));
@@ -609,6 +609,12 @@
     });
     const hay = x => [x.id, x.plate, x.trailer, ...x.drivers.map(d => d.name), ...[x.trip, x.next, x.last].filter(Boolean).flatMap(t => [t.id, t.from, t.to, t.client || ''])].join(' ').toLowerCase();
     const list = b.trucks.filter(F[bFilter][1]).filter(x => !q || hay(x).includes(q));
+    if (bSortCan) {                                                  // «хто раніше може їхати»: вільні зараз → за часом «може з» → без даних
+      const k = x => !x.drive ? 9e15 : x.drive.moving ? 8e15 : x.drive.canNow ? 0 : (x.drive.canAt || 7e15);
+      list.sort((a, c) => k(a) - k(c));
+    }
+    const sb = document.createElement('button'); sb.className = 'chip'; sb.setAttribute('aria-pressed', String(bSortCan));
+    sb.textContent = '↑ Хто раніше може їхати'; sb.onclick = () => { bSortCan = !bSortCan; store.set('bSortCan', bSortCan ? '1' : ''); renderBoard(); }; $('bChips').appendChild(sb);
     $('bEmpty').hidden = list.length > 0;
     $('bEmptyT').textContent = q ? 'Нічого не знайдено' : bFilter === 'prob' ? 'Машин з проблемами немає' : 'Тут поки немає машин';
     $('bEmptyH').textContent = q ? 'Спробуйте номер машини або прізвище водія.' : 'Зміниться після наступного оновлення дошки.';
@@ -753,6 +759,31 @@
     return h;
   }
 
+  /* ── Спідометр з Freetrack (ADR-058): знімки на 06:00 і 20:00, «Оновити зараз», або з приладу вручну ── */
+  function odoWidget(input, info, truckFn) {
+    let src = '', last = null, typed = false;
+    const when = iso => { const d = new Date(iso), t = d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' }); return d.toDateString() === new Date().toDateString() ? 'сьогодні ' + t : d.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' }) + ' ' + t; };
+    const render = note => {
+      const r = last, o = r && r.odo;
+      info.innerHTML = (o ? 'Freetrack: <b>' + Number(o.odo).toLocaleString('uk-UA') + ' км</b> (на ' + when(o.at) + ').' : truckFn() ? 'У Freetrack ще немає показань цієї машини.' : '') +
+        (r && r.next ? ' Наступне автоматичне оновлення — ' + when(r.next) + '.' : '') + (note ? ' <b>' + esc(note) + '</b>' : '') +
+        (truckFn() ? ' <button class="link odo-live" type="button">Оновити з Freetrack зараз</button>' : '') + '<br>Якщо на приладі інакше — впишіть з приладу.';
+      const b = info.querySelector('.odo-live'); if (b) b.onclick = () => load(true);
+    };
+    async function load(live) {
+      const truck = truckFn(); if (!truck) { last = null; render(); return; }
+      if (live) render('Запитую…');
+      try {
+        const r = await api('tacho.odo', { truck, live: live ? 1 : '' }); last = r;
+        if (r.odo && (live || (!typed && !input.value))) { input.value = r.odo.odo; src = 'ft'; typed = false; }
+        render(r.busy ? 'Freetrack зайнятий — спробуйте через ' + Math.max(1, Math.ceil(r.busy / 60)) + ' хв або впишіть з приладу.' : live && r.odo ? 'Оновлено.' : '');
+      } catch (e) { render(live ? 'Немає зв\'язку — впишіть з приладу.' : ''); }
+    }
+    input.addEventListener('input', () => { typed = true; src = 'manual'; });
+    load(false);
+    return { src: () => (input.value ? src || 'manual' : ''), reload: () => { typed = false; load(false); } };
+  }
+
   /* ── Моя машина (етап 3): прийняти / здати ── */
   let tk = null, tkMode = '';
   const tkTime = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); };
@@ -770,7 +801,7 @@
       const t = T[c.truck] || {};
       h += '<div class="card tkcur"><div class="muted small">Ви зараз на машині</div><div class="tkbig"><span class="plate">' + esc(c.truck) + '</span> ' + esc(t.plate || '') + '</div>' +
         '<div class="muted">' + (c.trailer ? 'причіп ' + esc(c.trailer) + ' · ' : '') + 'прийняли ' + tkTime(c.at) + (c.odo ? ' · спідометр ' + Number(c.odo).toLocaleString('uk-UA') : '') + '</div>' +
-        '<label for="tkOdo">Спідометр при здачі, км (якщо знаєте)</label><input id="tkOdo" inputmode="numeric" placeholder="напр. 512 340">' +
+        '<label for="tkOdo">Спідометр при здачі, км</label><input id="tkOdo" inputmode="numeric" placeholder="напр. 512 340"><p class="muted small odo-info" id="tkOdoI"></p>' +
         '<label for="tkNote">Примітка (необов\'язково)</label><input id="tkNote" placeholder="напр. залишив на стоянці в Стрию">' +
         '<button class="primary" id="tkGive">Здати машину</button>' +
         '<button class="link" id="tkSwitch" style="margin-top:14px">Пересісти на іншу машину</button><p class="msg" id="tkMsg"></p></div>';
@@ -781,13 +812,14 @@
         tk.trucks.map(t => '<option value="' + esc(t.id) + '"' + (t.id === sel && !(c && c.truck === t.id) ? ' selected' : '') + '>' + esc(t.id) + (t.plate ? ' · ' + esc(t.plate) : '') + (t.holder ? ' (зараз: ' + esc(t.holder) + ')' : '') + '</option>').join('') + '</select>' +
         '<p class="cnote" id="tkWarn" hidden></p>' +
         '<label for="tkTrailer">Причіп (якщо знаєте)</label><select id="tkTrailer"><option value="">—</option>' + tk.trailers.map(p => '<option value="' + esc(p.id) + '">' + esc(p.id) + (p.plate && p.plate !== p.id ? ' · ' + esc(p.plate) : '') + '</option>').join('') + '</select>' +
-        '<label for="tkOdo">Спідометр, км (якщо знаєте)</label><input id="tkOdo" inputmode="numeric" placeholder="напр. 512 000">' +
+        '<label for="tkOdo">Спідометр, км</label><input id="tkOdo" inputmode="numeric" placeholder="напр. 512 000"><p class="muted small odo-info" id="tkOdoI"></p>' +
         '<button class="primary" id="tkTake">Прийняти машину</button>' + (c ? '<button class="link" id="tkCancel" style="margin-top:14px">Скасувати</button>' : '') + '<p class="msg" id="tkMsg"></p></div>';
     }
     h += '<p class="muted small">Якщо помилились — просто прийміть правильну машину: попередня здасться сама. Логіст бачить усі зміни.</p>';
     $('tkBody').innerHTML = h;
     const warn = () => { const t = T[$('tkTruck').value]; $('tkWarn').hidden = !(t && t.holder); if (t && t.holder) $('tkWarn').textContent = 'За програмою на цій машині зараз ' + t.holder + '. Якщо ви її справді прийняли — продовжуйте, логіст перевірить.'; };
-    if ($('tkTruck')) { $('tkTruck').onchange = warn; warn(); }
+    const ow = odoWidget($('tkOdo'), $('tkOdoI'), () => $('tkTruck') ? $('tkTruck').value : (c && c.truck) || '');
+    if ($('tkTruck')) { $('tkTruck').onchange = () => { warn(); ow.reload(); }; warn(); }
     if ($('tkSwitch')) $('tkSwitch').onclick = () => { tkMode = 'take'; renderTruck(); };
     if ($('tkCancel')) $('tkCancel').onclick = () => { tkMode = ''; renderTruck(); };
     const odo = () => String($('tkOdo').value || '').replace(/[\s ]/g, '');
@@ -795,7 +827,7 @@
       const truck = $('tkTruck').value; if (!truck) { $('tkMsg').textContent = 'Оберіть машину'; return; }
       if (odo() && !/^\d{1,7}$/.test(odo())) { $('tkMsg').textContent = 'Спідометр — лише цифри'; return; }
       $('tkTake').disabled = true; busy(true);
-      try { const r = await apiQ('truck.take', { truck, trailer: $('tkTrailer').value, odo: odo() }, 'прийняти машину ' + truck);
+      try { const r = await apiQ('truck.take', { truck, trailer: $('tkTrailer').value, odo: odo(), odoSrc: ow.src() }, 'прийняти машину ' + truck);
         if (r.queued) { tkMode = ''; renderTruck('✔ Збережено на телефоні: прийняти машину <b>' + esc(truck) + '</b>. Надішлеться само, щойно з\'явиться зв\'язок.'); return; }
         tk = r.state; tkMode = '';
         renderTruck(r.already ? 'Ви вже на цій машині.' : '✔ Машину <b>' + esc(truck) + '</b> прийнято.' + (r.checks && r.checks.length ? ' Логіст перевірить: ' + esc(r.checks.join('; ')) : '')); }
@@ -806,7 +838,7 @@
       if (!await ask('Здати машину?', 'Логіст побачить, що ви більше не на цій машині.', 'Так, здати')) return;
       if (odo() && !/^\d{1,7}$/.test(odo())) { $('tkMsg').textContent = 'Спідометр — лише цифри'; return; }
       $('tkGive').disabled = true; busy(true);
-      try { const r = await apiQ('truck.give', { odo: odo(), note: $('tkNote').value }, 'здати машину');
+      try { const r = await apiQ('truck.give', { odo: odo(), odoSrc: ow.src(), note: $('tkNote').value }, 'здати машину');
         if (r.queued) { renderTruck('✔ Збережено на телефоні: здати машину. Надішлеться само, щойно з\'явиться зв\'язок.'); return; }
         tk = r.state; renderTruck('✔ Машину здано.' + (r.checks && r.checks.length ? ' Логіст перевірить: ' + esc(r.checks.join('; ')) : '')); }
       catch (e) { $('tkMsg').textContent = e.message; $('tkGive').disabled = false; }
