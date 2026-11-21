@@ -43,7 +43,7 @@
   async function api(action, data = {}) {
     if (!CFG.API_URL) throw new Error('Програму ще не підключено до сервера (немає API_URL у config.js)');
     // кожне «Зберегти» має свій opId: якщо зв'язок обірвався і запит повторено, сервер не створить дубль (ADR-038)
-    const ONCE = action === 'save' || action === 'truck.take' || action === 'truck.give' || action === 'trip.status.add' || action === 'tacho.add';
+    const ONCE = action === 'save' || action === 'truck.take' || action === 'truck.give' || action === 'trip.status.add' || action === 'tacho.add' || action === 'tripdoc.add';
     if (ONCE && !data.opId) data = { ...data, opId: newId() };
     const perf = perfQ.splice(0, 10), t0 = performance.now();
     const body = JSON.stringify({ action, token: store.get('token'), ...data, ...(perf.length ? { perf } : {}) });
@@ -82,11 +82,11 @@
     try {
       while (outbox().length) {
         const it = outbox()[0];
-        try { const r = await api(it.action, it.data); sent++; if (it.action === 'tacho.add' && r && r.log) { tc = r; saveHomeTc(); } if (it.action === 'expense.add' && r && r.list) ex = r; }
+        try { const r = await api(it.action, it.data); sent++; if (it.action === 'tacho.add' && r && r.log) { tc = r; saveHomeTc(); } if (it.action === 'expense.add' && r && r.list) ex = r; if (it.action === 'tripdoc.add' && r && r.list) td = r; }
         catch (e) { if (isNet(e)) break; toast('<b>Не прийнято</b> «' + esc(it.label || it.action) + '»: ' + esc(e.message), 'err'); }
         outboxSet(outbox().filter(x => x.data.opId !== it.data.opId));
       }
-    } finally { flushing = false; renderOutbox(); if (sent) { if (!$('exp').hidden) renderExp(); if (!$('tacho').hidden && !document.querySelector('.tsheet')) renderTacho(); } }
+    } finally { flushing = false; renderOutbox(); if (sent) { if (!$('exp').hidden) renderExp(); if (!$('tdoc').hidden) renderTdoc(); if (!$('tacho').hidden && !document.querySelector('.tsheet')) renderTacho(); } }
     if (sent && !outbox().length) { toast('✔ Надіслано все, що чекало зв\'язку (' + sent + ').'); if (me && me.role === 'водій' && !$('home').hidden) renderHome(); }
   }
   function renderOutbox() {
@@ -141,7 +141,7 @@
 
   /* ── Екрани ── */
   let navSeq = 0, meFresh = false;   // кожен перехід між екранами; пізня відповідь сервера не перемикає екран, якщо людина вже пішла далі
-  function show(id) { navSeq++; ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck', 'tacho', 'exp', 'health'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
+  function show(id) { navSeq++; ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck', 'tacho', 'exp', 'health', 'tdoc'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
 
   function showLogin(msg) {
     $('who').hidden = true; show('login'); $('loginMsg').textContent = msg || '';
@@ -227,7 +227,7 @@
     'розмитнення': 'Натисніть, коли пройшли розмитнення.', 'на розвантаженні': 'Натисніть, коли приїдете на склад розвантаження.', 'розвантажено': 'Натисніть, коли машину розвантажили.' };
   const QUICK = [['Моя машина', 'truck', 'M3 16V7a1 1 0 011-1h10v10M14 9h4l3 3v4h-7M6.5 18.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm11 0a1.5 1.5 0 100-3 1.5 1.5 0 000 3z'],
     ['Витрата', 'exp', 'M12 5v14M5 12h14'], ['Заправка', 'fuel', 'M4 20V5a1 1 0 011-1h7a1 1 0 011 1v15M4 11h9M13 8h2l3 3v6a1.5 1.5 0 003 0V9l-3-3'],
-    ['Спідометр', '', 'M4 18a8 8 0 1116 0M12 18l4-5'], ['Документ', '', 'M4 8h3l2-2h6l2 2h3v11H4zM12 16a3 3 0 100-6 3 3 0 000 6z'], ['Проблема', 'problem', 'M12 4l9 16H3zM12 10v4M12 17h.01']];
+    ['Спідометр', '', 'M4 18a8 8 0 1116 0M12 18l4-5'], ['Документ', 'tdoc', 'M4 8h3l2-2h6l2 2h3v11H4zM12 16a3 3 0 100-6 3 3 0 000 6z'], ['Проблема', 'problem', 'M12 4l9 16H3zM12 10v4M12 17h.01']];
   const svgI = d => '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>';
   const dayName = iso => { if (!iso) return ''; const d = new Date(iso + 'T12:00:00'); return isNaN(d) ? '' : dd(iso) + ', ' + d.toLocaleDateString('uk-UA', { weekday: 'long' }); };
   function renderStatus(msg) {
@@ -285,7 +285,7 @@
           toast('<b>Не надіслано</b> «' + esc(event) + '»: ' + esc(e.message), 'err', { label: 'Спробувати ще раз', run: () => { stLock = 0; send(event, text); } }); });
     };
     box.querySelectorAll('[data-st]').forEach(b => b.onclick = e => { e.stopPropagation(); send(b.dataset.st); });
-    box.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { if (b.dataset.q === 'truck') openTruck(); else if (b.dataset.q === 'exp') openExp(); else if (b.dataset.q === 'fuel') openExp('Пальне'); else if (b.dataset.q === 'problem') { $('stProbBox').hidden = !$('stProbBox').hidden; if (!$('stProbBox').hidden) $('stText').focus(); } });
+    box.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { if (b.dataset.q === 'truck') openTruck(); else if (b.dataset.q === 'exp') openExp(); else if (b.dataset.q === 'fuel') openExp('Пальне'); else if (b.dataset.q === 'tdoc') openTdoc(); else if (b.dataset.q === 'problem') { $('stProbBox').hidden = !$('stProbBox').hidden; if (!$('stProbBox').hidden) $('stText').focus(); } });
     if ($('hintYes')) $('hintYes').onclick = () => { stLock = 0; send(v.hint.step, undefined, true); };
     if ($('hintNo')) $('hintNo').onclick = () => { store.set(hk, String(Date.now() + 3 * 3600000)); renderStatus(); };
     if ($('stAhead')) $('stAhead').onclick = () => { $('stAheadBox').hidden = !$('stAheadBox').hidden; };
@@ -724,6 +724,7 @@
         if (last >= 0 && $('tripBadge')) { const ev = v.steps[last].step; $('tripBadge').innerHTML = badge(ST_GRP[ev] || 'go', cap(ev)); }
         $('tripSt').innerHTML = '<section class="card tsteps"><h2>Кроки рейсу від водія</h2>' + (any ? '<ol class="tl">' + v.steps.map((x, i) => '<li class="' + (i === last ? 'now' : x.at ? 'done' : 'todo') + '"><span class="dot" aria-hidden="true"></span><span class="tl-t">' + esc(cap(x.step)) + (i === last ? '<span class="sr"> — зараз</span>' : '') + '</span>' + (x.at ? '<small>' + tkTime(x.at) + '</small>' : i < last ? '<small>пропущено</small>' : '') + '</li>').join('') + '</ol>' +
           (v.problems || []).map(p => '<p class="cnote">Проблема ' + tkTime(p.at) + ': ' + esc(p.text) + '</p>').join('') : '<p class="muted">Водій ще нічого не відмітив.</p>') + '</section>'; }).catch(() => {});
+      api('tripdoc', { tripId: id }).then(v => { if (!v || nav !== navSeq || !$('tripDocs')) return; $('tripDocs').innerHTML = tdocCard(v.list, true); bindTdocList($('tripDocs')); }).catch(() => {});
     } catch (e) { if (nav === navSeq) $('tripBody').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
   }
   function tripHtml(r, cols, orders, moves, journal) {
@@ -734,7 +735,7 @@
     let h = '<div class="thead"><div class="ttl"><h1>Рейс ' + esc(r['Рейс ID']) + '</h1><span id="tripBadge"></span></div>' +
       '<p class="tplates">' + [r['Авто ID'] && '<span class="plate ua">' + esc(r['Авто ID']) + '</span>', r['Водій (як записано)'] && esc(r['Водій (як записано)']), r['Тип'] && esc(r['Тип']), r['АДР'] && '<span class="badge b-warn">' + svgI(PROB.drv) + 'АДР</span>', r['Кругорейс ID'] && 'кругорейс ' + esc(r['Кругорейс ID'])].filter(Boolean).join(' · ') + '</p></div>';
     h += '<div class="route card"><div><span class="muted small">Завантаження</span><b>' + esc(r['Звідки'] || '—') + '</b><span>' + esc(fmt(r['Дата завантаження'])) + '</span></div>' +
-      '<div class="arrow">→</div><div><span class="muted small">Розвантаження</span><b>' + esc(r['Куди'] || '—') + '</b><span>' + (unl ? esc(fmt(unl)) : '<span class="muted">дата не вказана</span>') + '</span></div></div><div id="tripSt"></div>';
+      '<div class="arrow">→</div><div><span class="muted small">Розвантаження</span><b>' + esc(r['Куди'] || '—') + '</b><span>' + (unl ? esc(fmt(unl)) : '<span class="muted">дата не вказана</span>') + '</span></div></div><div id="tripSt"></div><div id="tripDocs"></div>';
     const cargo = [f('Вантаж', 'Вантаж'), f('Тонн', 'Тонн'), f('Перехід', 'Перехід'), f('Км', 'Км'), f('Пальне, л', 'Пальне, л'), f('Допомагав вантажити', 'Допомагав'), f('ТТН документів', 'ТТН документів')].join('');
     const pay = [f('Клієнт', 'Клієнт (як записано)'), f('Клієнт ID', 'Клієнт ID'), f('Контакт клієнта', 'Контакт клієнта'), (has('Фрахт') ? '<div class="kv big"><span>Фрахт</span><b>' + esc(money(r['Фрахт'])) + '\u00a0' + esc(({ EUR: '€', PLN: 'zł', USD: '$', UAH: 'грн' })[String(r['Валюта'] || '').toUpperCase()] || r['Валюта'] || '') + '</b></div>' : ''), f('Оплата', 'Оплата'),
       f('Відстрочка, днів', 'Відстрочка, днів'), f('Очікувана оплата', 'Очікувана оплата', late ? 'bad' : ''), f('Оплачено', 'Оплачено', 'ok'), f('Коментар оплати', 'Коментар оплати')].join('');
@@ -882,6 +883,84 @@
     try {
       const r = await api('expense.photo', { id });
       const w = document.createElement('div'); w.className = 'ask-wrap'; w.innerHTML = '<div class="ask exphotobox" role="dialog" aria-modal="true" aria-label="Фото чека"><img alt="Фото чека" src="data:' + esc(r.mime) + ';base64,' + r.data + '"><div class="ask-btns"><button class="primary">Закрити</button></div></div>';
+      document.body.appendChild(w); w.onclick = e => { if (e.target === w || e.target.closest('button')) w.remove(); };
+    } catch (e) { toast('<b>Фото не відкрилось</b>: ' + esc(e.message), 'err'); } finally { busy(false); }
+  }
+
+  /* ── Фото документів рейсу (ADR-063): вид → фото → Зберегти. Без зв'язку — у чергу. Офіс бачить у картці рейсу ── */
+  let td = null, tdDraft = null;
+  const TD_ICO = { 'CMR': 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7', 'Пломба': 'M12 3a4 4 0 014 4v3H8V7a4 4 0 014-4zM6 10h12v11H6z', 'Пошкодження': 'M12 4l9 16H3zM12 10v4M12 17h.01' };
+  const tdIco = k => TD_ICO[k] || 'M4 8h3l2-2h6l2 2h3v11H4zM12 16a3 3 0 100-6 3 3 0 000 6z';
+  async function openTdoc() {
+    show('tdoc'); const nav = navSeq; tdDraft = { kind: '', note: '', photos: [] };
+    if (!td) $('tdBody').innerHTML = '<p class="muted">Завантаження…</p>'; else renderTdoc();
+    try { td = await api('tripdoc', {}); if (nav === navSeq) renderTdoc(); }
+    catch (e) { if (!td) $('tdBody').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
+  }
+  function tdPending() {
+    return outbox().filter(x => x.action === 'tripdoc.add').map(x => ({ id: x.data.op.id, kind: x.data.op.kind, note: x.data.op.note, at: x.data.clientAt, pending: true, thumb: x.data.op.photo }));
+  }
+  const tdWhen = t => new Date(t).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  function tdocCard(list, office) {
+    return '<section class="card tdlist"><h2>Документи рейсу <span class="count">' + list.length + '</span></h2>' + (list.length ? list.map(x => {
+      const canUndo = x.pending || office || (me && x.who === me.login && Date.now() - x.at < ((td && td.undoMin) || 15) * 60000);
+      return '<div class="exitem"><div class="exmain">' + svgI(tdIco(x.kind)) + '<div><b>' + esc(x.kind) + '</b><small>' + tdWhen(x.at) + (x.note ? ' · ' + esc(x.note) : '') + '</small>' +
+        (x.pending ? '<span class="exst pend">ще на телефоні</span>' : '') + '</div></div><div class="exact">' + (x.photo && !x.pending ? '<button class="btn" data-tph="' + esc(x.id) + '">Фото</button>' : '') +
+        (canUndo ? '<button class="btn" data-tun="' + esc(x.id) + '">' + (office ? 'Прибрати' : 'Скасувати') + '</button>' : '') + '</div></div>';
+    }).join('') : '<p class="muted">' + (office ? 'Водій ще не надсилав фото документів.' : 'Ще немає фото документів цього рейсу.') + '</p>') + '</section>';
+  }
+  function bindTdocList(box) {
+    box.querySelectorAll('[data-tph]').forEach(e => e.onclick = () => tdShowPhoto(e.dataset.tph));
+    box.querySelectorAll('[data-tun]').forEach(e => e.onclick = () => tdUndo(e.dataset.tun, box));
+  }
+  function renderTdoc(msg) {
+    if (!td) return;
+    const b = $('tdBody'), d = tdDraft || (tdDraft = { kind: '', note: '', photos: [] });
+    let h = msg ? '<div class="cinfo">' + msg + '</div>' : '';
+    if (!td.trip) { b.innerHTML = h + '<section class="card"><p>Зараз немає поточного рейсу. Коли логіст призначить рейс, тут можна буде сфотографувати CMR та інші документи.</p></section>'; return; }
+    h += '<p class="muted">Рейс <b>' + esc(td.trip.id) + '</b>' + (td.trip.from || td.trip.to ? ' · ' + esc(td.trip.from || '—') + ' → ' + esc(td.trip.to || '—') : '') + '</p>';
+    h += '<section class="card exform"><h2>Що фотографуєте?</h2><div class="extypes">' + td.kinds.map(k => '<button class="extype" data-tk="' + esc(k) + '" aria-pressed="' + (k === d.kind) + '">' + svgI(tdIco(k)) + '<span>' + esc(k) + '</span></button>').join('') + '</div>' +
+      '<label class="btn exphoto" for="tdFile">' + svgI(tdIco('')) + (d.photos.length ? 'Додати ще сторінку' : 'Сфотографувати') + '</label><input id="tdFile" type="file" accept="image/*" capture="environment" hidden>' +
+      (d.photos.length ? '<div class="tdthumbs">' + d.photos.map((p, i) => '<span><img class="exthumb" alt="Сторінка ' + (i + 1) + '" src="data:image/jpeg;base64,' + p + '"><button class="link" data-tdel="' + i + '">прибрати</button></span>').join('') + '</div>' : '') +
+      '<label for="tdNote">Примітка (можна не писати)</label><input id="tdNote" value="' + esc(d.note) + '" placeholder="напр. CMR з печаткою отримувача">' +
+      '<p class="msg" id="tdMsg"></p><button class="primary" id="tdSave">Зберегти' + (d.photos.length > 1 ? ' (' + d.photos.length + ' фото)' : '') + '</button></section>';
+    const list = tdPending().map(x => Object.assign(x, { photo: false })).concat(td.list);
+    h += tdocCard(list, false);
+    b.innerHTML = h;
+    const keep = () => { if ($('tdNote')) d.note = $('tdNote').value; };
+    b.querySelectorAll('[data-tk]').forEach(e => e.onclick = () => { keep(); d.kind = e.dataset.tk; renderTdoc(); });
+    b.querySelectorAll('[data-tdel]').forEach(e => e.onclick = () => { keep(); d.photos.splice(+e.dataset.tdel, 1); renderTdoc(); });
+    $('tdFile').onchange = async e => { const f = e.target.files[0]; if (!f) return; keep(); try { d.photos.push(await shrinkPhoto(f)); } catch (er) { toast('Не вдалося прочитати фото — спробуйте ще раз', 'err'); } renderTdoc(); };
+    $('tdSave').onclick = () => {
+      keep();
+      if (!d.kind) { $('tdMsg').textContent = 'Оберіть, що за документ'; return; }
+      if (!d.photos.length) { $('tdMsg').textContent = 'Сфотографуйте документ'; return; }
+      vib(30); const n = d.photos.length, kind = d.kind;
+      d.photos.forEach((p, i) => {
+        const op = { id: 'TD-' + newId().slice(0, 18), kind, note: (d.note.trim() + (n > 1 ? ' (стор. ' + (i + 1) + ' з ' + n + ')' : '')).trim(), photo: p };
+        apiQ('tripdoc.add', { op, tripId: td.trip.id, opId: op.id }, kind + (n > 1 ? ' стор. ' + (i + 1) : ''))
+          .then(r => { if (!r.queued) td = r; if (!$('tdoc').hidden) renderTdoc(); })
+          .catch(e => toast('<b>Не записано</b>: ' + esc(e.message), 'err'));
+      });
+      toast('Записано: ' + esc(kind) + (n > 1 ? ' · ' + n + ' фото' : ''));
+      tdDraft = { kind: '', note: '', photos: [] }; renderTdoc();
+    };
+    bindTdocList(b);
+  }
+  async function tdUndo(id, box) {
+    const q = outbox().find(x => x.action === 'tripdoc.add' && x.data.op.id === id);
+    if (q) { outboxSet(outbox().filter(x => x !== q)); renderOutbox(); renderTdoc(); toast('Скасовано.'); return; }
+    busy(true);
+    try { const r = await api('tripdoc.undo', { id, opId: 'TDU-' + newId().slice(0, 16) });
+      if (box && box.id === 'tripDocs') { box.innerHTML = tdocCard(r.list, true); bindTdocList(box); } else { td = r; renderTdoc(); }
+      toast('Фото прибрано з рейсу.'); }
+    catch (e) { toast('<b>Не скасовано</b>: ' + esc(e.message), 'err'); } finally { busy(false); }
+  }
+  async function tdShowPhoto(id) {
+    busy(true);
+    try {
+      const r = await api('tripdoc.photo', { id });
+      const w = document.createElement('div'); w.className = 'ask-wrap'; w.innerHTML = '<div class="ask exphotobox" role="dialog" aria-modal="true" aria-label="Фото документа"><img alt="Фото документа" src="data:' + esc(r.mime) + ';base64,' + r.data + '"><div class="ask-btns"><button class="primary">Закрити</button></div></div>';
       document.body.appendChild(w); w.onclick = e => { if (e.target === w || e.target.closest('button')) w.remove(); };
     } catch (e) { toast('<b>Фото не відкрилось</b>: ' + esc(e.message), 'err'); } finally { busy(false); }
   }
