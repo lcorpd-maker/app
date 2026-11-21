@@ -6,14 +6,14 @@
 :root {
   color-scheme: light;
   --bg: #F3F6F9; --card: #FFFFFF; --surface-2: #F3F6F9;
-  --ink: #0C1333; --ink-2: #33395A; --muted: #5C656B;
+  --ink: #0C1333; --ink-2: #33395A; --muted: #454C52;
   --line: #DFE4E9; --line-strong: #6E777D;
   --chrome: #0C1333; --chrome-ink: #FFFFFF; --chrome-muted: #A5B0BA;
   --primary: #0C1333; --primary-ink: #FFFFFF; --primary-hover: #1B2350;
   --accent: #856FCA; --accent-text: #5A4A9E; --sky: #D4EAFC; --sky-ink: #0C1333; --focus: #856FCA;
   --warn-fg: #8A4A00; --warn-bg: #FFF0D9; --warn-bd: #F2C58A;
   --bad-fg: #B0263A; --bad-bg: #FCE8EC; --bad-bd: #F0B1BE;
-  --ok-fg: #0D6847;
+  --ok-fg: #0B5C3E;
   --grad: linear-gradient(135deg, #0C1333 0%, #1B1F4D 55%, #856FCA 130%);
   --r: 10px; --r-lg: 16px;
   --sh: 0 12px 32px rgba(12,19,51,.16);
@@ -27,7 +27,7 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --bg: #0C1333; --card: #141B3D; --surface-2: #1A2245;
-    --ink: #EEF2F7; --ink-2: #C9D2DC; --muted: #A5B0BA;
+    --ink: #EEF2F7; --ink-2: #C9D2DC; --muted: #B8C2CC;
     --line: #2A3360; --line-strong: #6A7590;
     --chrome: #070B20; --chrome-muted: #A5B0BA;
     --primary: #D4EAFC; --primary-ink: #0C1333; --primary-hover: #E8F3FD;
@@ -43,7 +43,7 @@
 :root[data-theme="dark"] {
     color-scheme: dark;
     --bg: #0C1333; --card: #141B3D; --surface-2: #1A2245;
-    --ink: #EEF2F7; --ink-2: #C9D2DC; --muted: #A5B0BA;
+    --ink: #EEF2F7; --ink-2: #C9D2DC; --muted: #B8C2CC;
     --line: #2A3360; --line-strong: #6A7590;
     --chrome: #070B20; --chrome-muted: #A5B0BA;
     --primary: #D4EAFC; --primary-ink: #0C1333; --primary-hover: #E8F3FD;
@@ -63,7 +63,7 @@ html, body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px
 h1 { font-size: 28px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin: 8px 0 8px; }
 p { margin: 0 0 12px; }
 .muted { color: var(--muted); }
-.small { font-size: 13px; }
+.small { font-size: 15px; }
 button { font: inherit; color: inherit; cursor: pointer; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
@@ -741,7 +741,7 @@ html[data-zoom] body { zoom: var(--zoom); overflow-x: hidden; }
 html[data-zoom] main, html[data-zoom] .card, html[data-zoom] section { max-width: 100%; }
 html[data-zoom] .extypes { grid-template-columns: repeat(2, 1fr); }
 html[data-zoom] .tc-modes { grid-template-columns: repeat(2, 1fr); }
-body, .card, .hero, .chip, .btn, .extype span { overflow-wrap: break-word; hyphens: auto; }
+body, .card, .hero, .chip, .btn, .extype span { overflow-wrap: break-word; hyphens: manual; }
 #theme { display: none; }
 #fontBtn { min-width: 48px; min-height: 44px; font-size: 18px; padding: 0 12px; border-width: 1.5px; }
 .viewbox h2 { font-size: 18px; margin: 4px 0 10px; }
@@ -801,3 +801,45 @@ html[data-zoom] .tsheet { max-height: calc(92vh / var(--zoom)); }
 .seg { grid-template-columns: repeat(2, 1fr); }
 .calllog { justify-content: center; min-height: 52px; font-size: 17px; text-decoration: none; }
 .profile a.btn { text-decoration: none; }
+
+/* ── Дизайн-огляд 21.11 (ADR-068): одна головна дія на екрані, нічого дрібнішого 15 px, перевищення — червоним ── */
+#homeWork { display: flex; flex-direction: column; }
+#homeWork > #timeBox.urgent { order: -1; }
+.timebox.compact { padding-block: 10px; }
+.timebox.compact .tb-head { margin: 0 0 8px; }
+.timebox.compact .tb-start { width: 100%; justify-content: center; min-height: 52px; font-size: 17px; background: var(--card); color: var(--ink); border: 2px solid var(--ink); }
+.hero { --hero-2: #E6EBF2; background: linear-gradient(135deg, #0C1333 0%, #1B1F4D 60%, #3B3478 100%); }
+.hero .meta, .hero .to, .hero .ends { color: var(--hero-2); font-size: 15px; }
+.hero .facts { font-size: 15px; color: var(--hero-2); line-height: 1.35; margin-top: -4px; }
+.hero .facts b { color: #fff; }
+.next-action p { font-size: 15px; }
+/* посилання й рядки, що розгортаються, — повна зона натискання */
+.link { min-height: 48px; display: inline-flex; align-items: center; }
+details > summary { min-height: 48px; padding-block: 12px; box-sizing: border-box; }
+.cmore summary { min-height: 48px; font-size: 15px; }
+/* тахограф: перевищення */
+.tc-nums > div.bad { color: var(--bad-fg); }
+.tc-nums > div.bad b { color: var(--bad-fg); }
+.tc-nums > div b small { display: block; font-size: 15px; font-weight: 800; }
+.tc-sheet .hours, .tc-sheet .lane > span b, .tc-week .wb b, .stlist li em, .stlist .stany, .pill, .exst, .role { font-size: 14px; }
+/* шапка водія: «📞 Логіст» замість таблички ролі */
+.hdrcall { display: none; }
+body[data-role="водій"] #whoRole, body[data-role="водій"] .who .dot { display: none; }
+body[data-role="водій"] .hdrcall { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 999px; background: #fff; color: #0C1333; font-weight: 700; font-size: 16px; text-decoration: none; white-space: nowrap; }
+body[data-role="водій"] #whoName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 34vw; }
+.profile .danger-link { margin-left: auto; }
+/* «Гроші»: звіт — внизу картки, звичайного розміру */
+.rptlink { margin: 12px 0 0; }
+.rptlink .ico { width: 24px; height: 24px; flex: none; }
+/* фото документів: камера — головна */
+#tdoc .phbtn[for="tdC"] { background: var(--ink); color: var(--card); border-color: var(--ink); min-height: 52px; padding: 0 16px; font-size: 16px; }
+#tdSave.dim { opacity: .55; }
+#tdSave, #exSave, #rpSave { min-height: 60px; font-size: 19px; }
+/* «Аа» на найбільшому шрифті — один стовпчик */
+html[data-zoom="1.4"] .zgrid { grid-template-columns: 1fr; }
+html[data-zoom="1.4"] .zbtn { min-height: 52px; grid-auto-flow: column; justify-content: start; gap: 10px; padding: 6px 14px; }
+html[data-zoom] body[data-role="водій"] #whoName { display: none; }   /* ім'я є внизу головної; на великому шрифті шапка не влазить */
+body[data-role="водій"] .who { min-width: 0; }
+/* без автопереносів довгі рядки (час «06:30–23:28:») не повинні розпирати картки */
+.tc-gps, .tsheet, .timebox { grid-template-columns: minmax(0, 1fr); }
+.tc-gps > *, .tsheet > * { min-width: 0; overflow-wrap: anywhere; }
