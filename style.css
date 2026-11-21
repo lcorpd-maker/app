@@ -417,3 +417,23 @@ body[data-role="водій"] #logout, body[data-role="водій"] #logoutAll { 
 .profile { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 18px 0 8px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; font-size: 16px; }
 .profile .btn { min-height: 48px; }
 .prob { white-space: nowrap; }
+
+/* ── Черга без зв'язку (ADR-054) ── */
+.outbox { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 55; width: min(560px, calc(100% - 24px));
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 16px; font-size: 16px;
+  background: #FFF4E0; color: #6B3D00; border: 1px solid #F2C66D; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+.outbox span { flex: 1; }
+.outbox .btn { min-height: 44px; white-space: nowrap; }
+
+/* ── Розмір шрифту і підказки (UX P2) ── */
+html[data-zoom] body { zoom: var(--zoom); }
+#fontBtn { font-weight: 800; min-width: 44px; }
+.tour h2 { font-size: 22px; }
+.tour-dots { display: flex; gap: 6px; margin-bottom: 12px; }
+.tour-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); }
+.tour-dots i.on { background: var(--ink); width: 22px; border-radius: 4px; }
+
+/* ── Де машина зараз (Freetrack) ── */
+.pos { font-size: 14px; }
+.pos a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.pos.stale { opacity: .6; }
