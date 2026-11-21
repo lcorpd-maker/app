@@ -17,8 +17,8 @@
 <body>
   <header class="top">
     <div class="brand"><span class="logo">ЛК</span> Л-КОРП</div>
-    <button class="theme" id="theme" title="Тема: авто (за сходом і заходом сонця) / світла / темна">◐ Авто</button>
-    <button class="theme" id="fontBtn" title="Розмір шрифту: звичайний / великий / дуже великий" aria-label="Розмір шрифту">Аа</button>
+    <button class="theme" id="theme" hidden>◐ Авто</button>
+    <button class="theme" id="fontBtn" title="Розмір тексту і кольори" aria-label="Розмір тексту і кольори">Аа</button>
     <div class="who" id="who" hidden>
       <span id="whoName"></span><span class="dot"> · </span><span id="whoRole" class="role"></span>
       <button class="link" id="logout">Вийти</button>
@@ -128,6 +128,11 @@
     </section>
 
     <!-- Витрата за 10 секунд / Витрати водіїв (ADR-060) -->
+    <section id="rpt" hidden>
+      <button class="link back" data-back>‹ Назад</button>
+      <h1>Звіт кругорейсу</h1>
+      <div id="rpBody" class="narrow"></div>
+    </section>
     <section id="tdoc" hidden>
       <button class="link back" data-back>‹ Назад</button>
       <h1>Документи рейсу</h1>
