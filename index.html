@@ -71,9 +71,9 @@
         <input id="bSearch" type="search" placeholder="Машина, водій, місто, рейс">
         <div class="chips" id="bChips" role="group" aria-label="Фільтр"></div>
       </div>
-      <div class="tablewrap bdesk"><table class="btable"><thead><tr><th>Авто</th><th>Водій і причіп</th><th>Рейс</th><th>Стан</th><th>Далі</th><th>Де зараз</th><th>Увага</th></tr></thead><tbody id="bRows"></tbody></table></div>
+      <div class="tablewrap bdesk"><table class="btable"><thead><tr><th>Авто</th><th>Водій і причіп</th><th>Поточний рейс</th><th>Статус</th><th>Розвантаження і далі</th><th>Де зараз</th><th>Проблеми</th></tr></thead><tbody id="bRows"></tbody></table></div>
       <div class="bcards" id="bCards"></div>
-      <p class="muted" id="bEmpty" hidden>Нічого не знайдено.</p>
+      <div class="empty" id="bEmpty" role="status" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><strong id="bEmptyT">Нічого не знайдено</strong><span id="bEmptyH">Спробуйте номер машини або прізвище водія.</span><button class="btn" id="bReset" type="button">Показати всі машини</button></div>
       <section class="card bwait" id="bQueue" hidden><h2>Причепи в черзі <span class="count" id="bQueueN"></span></h2><p class="muted small">Завантажені причепи, що чекають тягач (реєстр бота «Заявки → рейси»).</p><div id="bQueueList"></div></section>
       <section class="card bwait" id="bWait" hidden><h2>Заявки без машини <span class="count" id="bWaitN"></span></h2><div id="bWaitList"></div></section>
       <p class="muted small">Дані з бази (рейси, заявки, «Водій на авто») і Freetrack: де машина зараз (оновлюється раз на 15 хв з 6:00 до 22:00) і пробіг за вчора. Поки лише перегляд — зміни вносяться як раніше.</p>
@@ -81,7 +81,7 @@
 
     <!-- Картка рейсу (етап 2, перегляд) -->
     <section id="trip" hidden>
-      <button class="link back" id="tripBack">← Назад</button>
+      <button class="link back" id="tripBack"><span aria-hidden="true">‹</span> <span id="tripBackT">Дошка</span></button>
       <div id="tripBody"></div>
     </section>
 
