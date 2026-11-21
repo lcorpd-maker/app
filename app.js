@@ -251,7 +251,7 @@
       '<div><div class="to">' + (loaded ? 'Розвантаження' : 'Завантаження') + '</div><div class="city">' + esc(loaded ? v.trip.to : v.trip.from) + '</div>' +
       '<div class="when">' + (loaded ? (p.unload ? dayName(p.unload) : 'дату уточнить логіст') : (p.load ? dayName(p.load) : '')) + '</div></div>' +
       '<div><div class="road" style="--p:' + pct + '%"><i></i><b></b></div><div class="ends"><span>' + esc(v.trip.from) + (p.load ? ', ' + dd(p.load) : '') + '</span><span>' + esc(v.trip.to) + '</span></div></div>' +
-      '<div class="facts">' + facts + '</div></article>';
+      '<div class="facts">' + facts + '</div>' + (() => { const n = navPoint(v); return n ? '<a class="navbtn" target="_blank" rel="noopener" href="' + esc(mapsUrl(n.q)) + '">🧭 Навігація: ' + ADDR_L[n.k] + (n.exact ? '' : ' (лише місто)') + '</a>' : ''; })() + '</article>';
     h += '<div class="next-action">' + (v.next ? '<button class="primary stgo" data-st="' + esc(v.next) + '"' + (stPending ? ' disabled' : '') + '>' + svgI('M5 12l5 5L20 7') + esc(ST_LABEL[v.next] || v.next) + '</button><p>' + esc(ST_HINT[v.next] || '') + '</p>' + (ahead.length ? '<p><button class="link" id="stAhead">Я вже далі</button></p><div id="stAheadBox" class="stahead" hidden><p class="muted small">Попередні кроки лишаться невідміченими — їх можна дописати потім.</p>' + ahead.map(x => '<button class="btn" data-st="' + esc(x) + '">' + esc(ST_LABEL[x] || x) + '</button>').join('') + '</div>' : '')
       : '<div class="cinfo">Усі кроки рейсу відмічено. Дякуємо!</div>') + '</div>';
     if (v.last && v.last.canUndo) { const left = me.role === 'водій' ? Math.max(1, 15 - Math.floor((Date.now() - new Date(v.last.at)) / 60000)) : 0;
@@ -259,6 +259,8 @@
     if (msg) h += '<p class="stmsg" role="status">' + msg + '</p>';
     h += '<div class="quick">' + QUICK.map(q => '<button class="q' + (q[1] === 'problem' ? ' problem' : '') + '" data-q="' + q[1] + '">' + svgI(q[2]) + esc(q[0]) + '</button>').join('') + '</div>';
     h += docsAlert(tk && tk.docs);
+    if (v.rmpd && v.rmpd.file && !store.get('rmpdSeen_' + v.rmpd.ver)) h += '<button class="docalert rmpdalert st-' + (v.rmpd.state === 'ok' ? 'ok' : 'soon') + '" data-rmpd="' + esc(v.trip.id) + '" data-ver="' + esc(v.rmpd.ver) + '">📄 RMPD готовий' + (v.rmpd.state === 'ok' ? ' · ✓ перевірено' : ' · ще перевіряється') + ' — відкрити ›</button>';
+    if (v.rmpd && v.rmpd.file) { const ver = v.rmpd.ver, tid = v.trip.id; setTimeout(() => { if (!rmpdCached(ver) && navigator.onLine) rmpdFetch(tid, ver).catch(() => {}); }, 1500); }   // на кордоні може не бути зв'язку — завантажуємо заздалегідь
     // «Проблема»: спершу великі готові причини — одне натискання й надіслано; свій текст — за бажанням (без автоматичної клавіатури)
     h += '<div class="stprob card" id="stProbBox" hidden><a class="btn calllog" href="tel:' + LOGIST_TEL + '">📞 Подзвонити логісту</a><b>Що сталося? Натисніть — логіст отримає одразу</b><div class="probgrid">' + ['Довга черга', 'Поломка', 'Документи', 'Затримка на складі', 'ДТП'].map(c => '<button class="btn probone" data-pq="' + c + '">' + c + '</button>').join('') + '</div>' +
       '<details class="probown"><summary>Інше — написати своїми словами</summary><textarea id="stText" rows="3" placeholder="Коротко опишіть. Можна надиктувати — мікрофон на клавіатурі."></textarea><button class="primary" id="stProb">Надіслати логісту</button></details></div>';
@@ -289,6 +291,7 @@
           toast('<b>Не надіслано</b> «' + esc(event) + '»: ' + esc(e.message), 'err', { label: 'Спробувати ще раз', run: () => { stLock = 0; send(event, text); } }); });
     };
     box.querySelectorAll('[data-st]').forEach(b => b.onclick = e => { e.stopPropagation(); send(b.dataset.st); });
+    box.querySelectorAll('.rmpdalert').forEach(b => b.onclick = () => { rmpdOpen(b.dataset.rmpd, b.dataset.ver); b.remove(); });
     box.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { if (b.dataset.q === 'truck') openTruck(); else if (b.dataset.q === 'exp') openExp(); else if (b.dataset.q === 'fuel') openExp('Пальне'); else if (b.dataset.q === 'tdoc') openTdoc(); else if (b.dataset.q === 'problem') { $('stProbBox').hidden = !$('stProbBox').hidden; if (!$('stProbBox').hidden) $('stProbBox').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } });
     box.querySelectorAll('[data-pq]').forEach(b => b.onclick = async () => { if (await ask('Надіслати логісту: «' + b.dataset.pq + '»?', 'Логіст і керівник отримають повідомлення одразу.', 'Так, надіслати')) { $('stProbBox').hidden = true; stLock = 0; send('проблема', b.dataset.pq); } });
     if ($('hintYes')) $('hintYes').onclick = () => { stLock = 0; send(v.hint.step, undefined, true); };
@@ -717,6 +720,67 @@
     if (a) { e.preventDefault(); e.stopPropagation(); openTrip(a.dataset.trip, 'board'); }
   }, true);
   const money = v => (v === '' || v == null) ? '' : (typeof v === 'number' ? v.toLocaleString('uk-UA', { maximumFractionDigits: 2 }) : String(v));
+  /* ── RMPD рейсу (з бота RMPD) і адреси рейсу (ADR-070) ── */
+  const mapsUrl = q => 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(q);
+  const ADDR_L = { load: 'Завантаження', cOut: 'Замитнення', cIn: 'Розмитнення', unload: 'Розвантаження' };
+  const rmpdMark = st => st === 'ok' ? '✓' : st === 'none' ? '—' : st === 'warn' ? '⚠' : '⏳';
+  /** RMPD-файл: спершу з телефона (працює без інтернету на кордоні), інакше — з сервера, і зберігаємо на телефоні. */
+  function rmpdCached(ver) { try { const c = JSON.parse(store.get('rmpdFile') || 'null'); return c && c.ver === ver ? c : null; } catch (e) { return null; } }
+  async function rmpdFetch(tripId, ver) {
+    const hit = rmpdCached(ver); if (hit) return hit;
+    const r = await api('rmpd.file', { tripId });
+    try { store.set('rmpdFile', JSON.stringify({ ver: r.ver, name: r.name, mime: r.mime, data: r.data })); } catch (e) {}   // лише один, останній
+    return r;
+  }
+  async function rmpdOpen(tripId, ver) {
+    busy(true);
+    try {
+      const r = await rmpdFetch(tripId, ver); try { store.set('rmpdSeen_' + ver, '1'); } catch (e) {}
+      if (/^image\//.test(r.mime)) {
+        const w = document.createElement('div'); w.className = 'ask-wrap'; w.innerHTML = '<div class="ask exphotobox" role="dialog" aria-modal="true" aria-label="RMPD"><img alt="RMPD" src="data:' + esc(r.mime) + ';base64,' + r.data + '"><div class="ask-btns"><button class="primary">Закрити</button></div></div>';
+        document.body.appendChild(w); w.querySelector('button').onclick = () => w.remove(); return;
+      }
+      const bin = atob(r.data), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([u], { type: r.mime || 'application/pdf' }));
+      const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; if (/iP(hone|ad)/.test(navigator.userAgent)) a.download = r.name || 'RMPD.pdf';
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) { toast('<b>RMPD не відкрився</b>: ' + esc(e.message) + (navigator.onLine ? '' : ' Немає зв\'язку — відкрийте, коли з\'явиться інтернет.'), 'err'); }
+    finally { busy(false); }
+  }
+  function rmpdCard(r, tripId, office) {
+    if (!r) return '';
+    return '<section class="card rmpdc st-' + r.state + '"><div class="rmpdh"><b>RMPD</b><span>' + rmpdMark(r.state) + ' ' + esc(r.label) + '</span></div>' +
+      (r.state === 'ok' && r.who ? '<p class="muted small">' + esc(r.who) + (r.when ? ', ' + esc(r.when) : '') + '</p>' : '') +
+      (office && r.issues ? '<p class="cnote">' + esc(r.issues) + '</p>' : '') +
+      (r.file ? '<button class="' + (office ? 'btn' : 'primary') + ' rmpdgo" data-rmpd="' + esc(tripId) + '" data-ver="' + esc(r.ver) + '">📄 Відкрити RMPD</button>' : (r.state !== 'none' && !office ? '<p class="muted small">Файл з\'явиться тут, щойно логіст надішле його боту.</p>' : '')) + '</section>';
+  }
+  const bindRmpd = box => box.querySelectorAll('[data-rmpd]').forEach(b => b.onclick = () => rmpdOpen(b.dataset.rmpd, b.dataset.ver));
+  /** Логіст: адреси рейсу (з заявки — бот; немає — вписати). */
+  function addrCard(a, tripId, canEdit) {
+    a = a || {}; const has = Object.keys(ADDR_L).some(k => a[k]);
+    return '<section class="card addrc"><h2>Адреси</h2>' + Object.keys(ADDR_L).map(k => canEdit
+      ? '<label for="ad_' + k + '">' + ADDR_L[k] + '</label><div class="adrow"><input id="ad_' + k + '" data-ad="' + k + '" value="' + esc(a[k] || '') + '" placeholder="вулиця, місто, індекс — або посилання з карти">' + (a[k] ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(mapsUrl(a[k])) + '">Карта</a>' : '') + '</div>'
+      : (a[k] ? '<div class="kv"><span>' + ADDR_L[k] + '</span><b><a target="_blank" rel="noopener" href="' + esc(mapsUrl(a[k])) + '">' + esc(a[k]) + '</a></b></div>' : '')).join('') +
+      (canEdit ? '<p class="msg" id="adMsg"></p><button class="primary" id="adSave" data-adtrip="' + esc(tripId) + '">Зберегти адреси</button><p class="muted small">Водій побачить кнопку «Навігація». З заявки адреси підтягує бот; чого немає — впишіть тут.</p>' : (has ? '' : '<p class="muted">Адрес ще немає.</p>')) + '</section>';
+  }
+  function bindAddr(box) {
+    const b = box.querySelector('#adSave'); if (!b) return;
+    b.onclick = async () => {
+      const addr = {}; box.querySelectorAll('[data-ad]').forEach(i => addr[i.dataset.ad] = i.value.trim());
+      b.disabled = true; busy(true);
+      try { const r = await api('trip.addr', { tripId: b.dataset.adtrip, addr }); box.innerHTML = addrCard(r.addr, b.dataset.adtrip, true); bindAddr(box); toast(r.changed ? '✔ Адреси збережено.' : 'Без змін.'); }
+      catch (e) { $('adMsg').textContent = e.message; b.disabled = false; }
+      finally { busy(false); }
+    };
+  }
+  /** Водій: наступна точка за кроками рейсу. */
+  function navPoint(v) {
+    const a = v.addr || {}, done = s => v.steps.some(x => x.step === s && x.at), has = s => v.steps.some(x => x.step === s);
+    let k = 'load';
+    if (done('завантажено')) k = has('замитнення') && !done('замитнення') && a.cOut ? 'cOut' : has('розмитнення') && done('кордон пройдено') && !done('розмитнення') && a.cIn ? 'cIn' : 'unload';
+    const q = a[k] || (k === 'load' ? v.trip.from : k === 'unload' ? v.trip.to : '');
+    return q ? { k, q, exact: !!a[k] } : null;
+  }
   async function openTrip(id, from) {
     tripFrom = from || 'board'; $('tripBackT').textContent = tripFrom === 'view' ? 'Таблиця' : board ? 'Дошка' : 'Назад';
     show('trip'); const nav = navSeq; $('tripBody').innerHTML = '<p class="muted">Завантаження рейсу ' + esc(id) + '…</p>';
@@ -734,7 +798,10 @@
         if (last >= 0 && $('tripBadge')) { const ev = v.steps[last].step; $('tripBadge').innerHTML = badge(ST_GRP[ev] || 'go', cap(ev)); }
         $('tripSt').innerHTML = '<section class="card tsteps"><h2>Кроки рейсу від водія</h2>' + (any ? '<ol class="tl">' + v.steps.map((x, i) => '<li class="' + (i === last ? 'now' : x.at ? 'done' : 'todo') + '"><span class="dot" aria-hidden="true"></span><span class="tl-t">' + esc(cap(x.step)) + (i === last ? '<span class="sr"> — зараз</span>' : '') + '</span>' + (x.at ? '<small>' + tkTime(x.at) + '</small>' : i < last ? '<small>пропущено</small>' : '') + '</li>').join('') + '</ol>' +
           (v.problems || []).map(p => '<p class="cnote">Проблема ' + tkTime(p.at) + ': ' + esc(p.text) + '</p>').join('') : '<p class="muted">Водій ще нічого не відмітив.</p>') + '</section>'; }).catch(() => {});
-      api('tripdoc', { tripId: id }).then(v => { if (!v || nav !== navSeq || !$('tripDocs')) return; $('tripDocs').innerHTML = tdocCard(v.list, true); bindTdocList($('tripDocs')); }).catch(() => {});
+      api('tripdoc', { tripId: id }).then(v => { if (!v || nav !== navSeq || !$('tripDocs')) return;
+        const edit = ['адмін', 'керівник', 'логіст'].indexOf(me.role) >= 0;
+        $('tripDocs').innerHTML = rmpdCard(v.rmpd, id, true) + '<div id="tripAddr">' + addrCard(v.addr, id, edit) + '</div>' + tdocCard(v.list, true);
+        bindTdocList($('tripDocs')); bindRmpd($('tripDocs')); bindAddr($('tripAddr')); }).catch(() => {});
     } catch (e) { if (nav === navSeq) $('tripBody').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
   }
   function tripHtml(r, cols, orders, moves, journal) {
@@ -969,6 +1036,7 @@
     let h = msg ? '<div class="cinfo">' + msg + '</div>' : '';
     if (!td.trip) { b.innerHTML = h + '<section class="card"><p>Зараз немає поточного рейсу. Коли логіст призначить рейс, тут можна буде сфотографувати CMR та інші документи.</p></section>'; return; }
     h += '<p class="muted">Рейс <b>' + esc(td.trip.id) + '</b>' + (td.trip.from || td.trip.to ? ' · ' + esc(td.trip.from || '—') + ' → ' + esc(td.trip.to || '—') : '') + '</p>';
+    h += rmpdCard(td.rmpd, td.trip.id, false);
     h += '<section class="card exform"><h2>Що фотографуєте?</h2><div class="extypes">' + td.kinds.map(k => '<button class="extype" data-tk="' + esc(k) + '" aria-pressed="' + (k === d.kind) + '">' + svgI(tdIco(k)) + '<span>' + esc(k) + '</span></button>').join('') + '</div>' +
       photoStrip('td', d.photos.length, true) +
       (d.photos.length ? '<div class="tdthumbs">' + d.photos.map((p, i) => '<span><img class="exthumb" alt="Сторінка ' + (i + 1) + '" src="data:image/jpeg;base64,' + p + '"><button class="link" data-tdel="' + i + '">прибрати</button></span>').join('') + '</div>' : '') +
@@ -998,7 +1066,7 @@
       toast('Записано: ' + esc(kind) + (n > 1 ? ' · ' + n + ' фото' : ''));
       tdDraft = { kind: 'CMR', note: '', photos: [] }; renderTdoc();
     };
-    bindTdocList(b);
+    bindTdocList(b); bindRmpd(b);
   }
   async function tdUndo(id, box) {
     const q = outbox().find(x => x.action === 'tripdoc.add' && x.data.op.id === id);
