@@ -44,7 +44,7 @@
     if (!CFG.API_URL) throw new Error('Програму ще не підключено до сервера (немає API_URL у config.js)');
     // кожне «Зберегти» має свій opId: якщо зв'язок обірвався і запит повторено, сервер не створить дубль (ADR-038)
     const ONCE = action === 'save' || action === 'truck.take' || action === 'truck.give' || action === 'trip.status.add';
-    if (ONCE && !data.opId) data = { ...data, opId: (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2)) };
+    if (ONCE && !data.opId) data = { ...data, opId: newId() };
     const perf = perfQ.splice(0, 10), t0 = performance.now();
     const body = JSON.stringify({ action, token: store.get('token'), ...data, ...(perf.length ? { perf } : {}) });
     const send = () => fetch(CFG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body });
@@ -63,6 +63,54 @@
     }
     return out;
   }
+  /* ── Черга записів без зв'язку (ADR-054): кроки рейсу, прийом/здача машини зберігаються на телефоні й надсилаються самі ── */
+  const newId = () => crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2);
+  const isNet = e => !e.code && /зв'язку/.test(e.message || '');
+  const outbox = () => { try { return JSON.parse(store.get('outbox') || '[]'); } catch (e) { return []; } };
+  const outboxSet = q => { store.set('outbox', JSON.stringify(q)); renderOutbox(); };
+  async function apiQ(action, data, label) {
+    data = { ...data, clientAt: Date.now(), opId: data.opId || newId() };
+    const item = { action, data, label, at: Date.now() };
+    if (outbox().length) { outboxSet(outbox().concat([item])); flushOutbox(); return { queued: true, opId: data.opId }; }   // зберегти порядок
+    try { return await api(action, data); }
+    catch (e) { if (!isNet(e)) throw e; outboxSet(outbox().concat([item])); return { queued: true, opId: data.opId }; }
+  }
+  let flushing = false;
+  async function flushOutbox() {
+    if (flushing || !store.get('token') || !outbox().length) return;
+    flushing = true; let sent = 0;
+    try {
+      while (outbox().length) {
+        const it = outbox()[0];
+        try { await api(it.action, it.data); sent++; }
+        catch (e) { if (isNet(e)) break; toast('<b>Не прийнято</b> «' + esc(it.label || it.action) + '»: ' + esc(e.message), 'err'); }
+        outboxSet(outbox().filter(x => x.data.opId !== it.data.opId));
+      }
+    } finally { flushing = false; renderOutbox(); }
+    if (sent && !outbox().length) { toast('✔ Надіслано все, що чекало зв\'язку (' + sent + ').'); if (me && me.role === 'водій' && !$('home').hidden) renderHome(); }
+  }
+  function renderOutbox() {
+    const n = outbox().length; let b = $('outboxBar');
+    if (!n) { if (b) b.hidden = true; return; }
+    if (!b) { b = document.createElement('div'); b.id = 'outboxBar'; b.className = 'outbox'; document.body.appendChild(b); }
+    b.hidden = false; b.innerHTML = '<span>📶 Немає зв\'язку. Не надіслано: <b>' + n + '</b> — надішлеться само</span><button class="btn">Надіслати зараз</button>';
+    b.querySelector('.btn').onclick = () => flushOutbox();
+  }
+  window.addEventListener('online', () => flushOutbox());
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) flushOutbox(); });
+  setInterval(() => { if (outbox().length) flushOutbox(); }, 30000);
+  /** Кроки, що ще чекають у черзі, показати поверх даних із сервера (щоб відмітка не «зникала»). */
+  function applyOutbox(sv) {
+    if (!sv || !sv.trip || !sv.steps) return sv;
+    const q = outbox().filter(x => x.action === 'trip.status.add' && x.data.tripId === sv.trip.id && x.data.event !== 'проблема');
+    if (!q.length) return sv;
+    const o = JSON.parse(JSON.stringify(sv));
+    q.forEach(x => { o.steps.forEach(st => { if (st.step === x.data.event && !st.at) { st.at = new Date(x.data.clientAt).toISOString(); st.id = 'q:' + x.data.opId; } }); });
+    const li = o.steps.reduce((m, x, i) => x.at ? i : m, -1); o.next = (o.steps[li + 1] || {}).step || '';
+    const lq = q[q.length - 1]; o.last = { event: lq.data.event, at: new Date(lq.data.clientAt).toISOString(), id: 'q:' + lq.data.opId, canUndo: true };
+    return o;
+  }
+
   async function apiBatch(calls) {
     const out = await api('batch', { calls });
     return out.results.map(r => { if (!r.ok) { const e = new Error(r.error || 'Помилка'); e.code = r.code; return e; } return r; });
@@ -143,10 +191,10 @@
         else { tk = st; stCur = sv; }
       }).catch(e => { if (nav === navSeq && !cache) $('homeWork').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; });
     }
-    show('home');
+    show('home'); setTimeout(tour, 700);
   }
   function drawDriverHome(st, sv) {
-    tk = st; stCur = sv;
+    sv = applyOutbox(sv); tk = st; stCur = sv;
     const has = st && st.planned && st.planned.length;
     const prof = '<div class="profile"><span>Ви увійшли як <b>' + esc(me.name) + '</b></span><button class="btn" id="drvOut">Вийти з програми</button></div>';
     if ($('drvOutBox')) $('drvOutBox').innerHTML = '';
@@ -222,8 +270,11 @@
         const li = o.steps.reduce((m, x, i) => x.at ? i : m, -1); o.next = (o.steps[li + 1] || {}).step || ''; o.last = { event, at: now, id: 'new', canUndo: false }; }
       stCur = o; stPending = true;
       renderStatus((event === 'проблема' ? '✔ Проблему записано' : '✔ Відмічено: <b>' + esc(event) + '</b>') + ' · <span class="muted">надсилаю логісту…</span>'); window.scrollTo(0, 0);
-      api('trip.status.add', { tripId: v.trip.id, event, text })
-        .then(r => { stPending = false; stCur = r; if ($('stBox')) renderStatus(r.already ? 'Цей крок уже був відмічений.' : (event === 'проблема' ? '✔ Логіст отримав повідомлення про проблему.' : '✔ Відмічено: <b>' + esc(event) + '</b>. Логіст бачить.')); })
+      apiQ('trip.status.add', { tripId: v.trip.id, event, text }, event === 'проблема' ? 'проблема' : event)
+        .then(r => { stPending = false;
+          if (r.queued) { if (event !== 'проблема') stCur.last = { event, at: now, id: 'q:' + r.opId, canUndo: true }; stCur.steps.forEach(x => { if (x.id === 'new') x.id = 'q:' + r.opId; });
+            if ($('stBox')) renderStatus('✔ Відмічено: <b>' + esc(event) + '</b> · збережено на телефоні — <b>надішлеться само</b>, щойно з\'явиться зв\'язок.'); return; }
+          stCur = r; if ($('stBox')) renderStatus(r.already ? 'Цей крок уже був відмічений.' : (event === 'проблема' ? '✔ Логіст отримав повідомлення про проблему.' : '✔ Відмічено: <b>' + esc(event) + '</b>. Логіст бачить.')); })
         .catch(e => { stPending = false; stCur = prev; if ($('stBox')) renderStatus();
           toast('<b>Не надіслано</b> «' + esc(event) + '»: ' + esc(e.message), 'err', { label: 'Спробувати ще раз', run: () => { stLock = 0; send(event, text); } }); });
     };
@@ -235,6 +286,9 @@
       const prev = stCur, o = JSON.parse(JSON.stringify(v)), ev = v.last.event;
       o.steps.forEach(x => { if (x.id === v.last.id) { x.at = ''; x.id = ''; } });
       const li = o.steps.reduce((m, x, i) => x.at ? i : m, -1); o.next = (o.steps[li + 1] || {}).step || ''; o.last = null;
+      if (String(v.last.id).startsWith('q:')) {   // ще не надіслано — прибираємо з черги, сервер нічого не дізнається
+        const op = String(v.last.id).slice(2); outboxSet(outbox().filter(x => x.data.opId !== op)); stCur = o; renderStatus('Крок «' + esc(ev) + '» скасовано (він ще не був надісланий).'); return;
+      }
       stCur = o; stPending = true; renderStatus('Скасовано: <b>' + esc(ev) + '</b> · <span class="muted">надсилаю…</span>');
       api('trip.status.undo', { tripId: v.trip.id, id: v.last.id })
         .then(r => { stPending = false; stCur = r; if ($('stBox')) renderStatus('Крок «' + esc(ev) + '» скасовано.'); })
@@ -302,6 +356,15 @@
     if (x.status === 'free') { const n = daysFrom(x.since); return { cls: n > 3 ? 'st-idle' : 'st-free', t: 'вільна з ' + dd(x.since) + (n > 0 ? ' · ' + n + ' дн' : '') }; }
     return { cls: 'st-none', t: 'немає рейсів' };
   }
+  /** Де машина зараз (Freetrack, Track.gs): «📍 Мостиська, UA · їде 53 км/год» / «стоїть з 14:20». */
+  function posHtml(id, short) {
+    const P = board && board.pos, p = P && P.trucks && P.trucks[id]; if (!p) return '';
+    const since = p.since ? (new Date(p.since).toDateString() === new Date().toDateString() ? tkTime(p.since).split(', ').pop() : tkTime(p.since)) : '';
+    const what = p.moving ? 'їде' + (p.speed ? ' ' + p.speed + ' км/год' : '') : (since ? 'стоїть з ' + since : esc(p.text || ''));
+    const link = 'https://www.google.com/maps?q=' + p.lat + ',' + p.lon;
+    return '<div class="pos' + (P.stale ? ' stale' : '') + '"><a href="' + link + '" target="_blank" rel="noopener" title="Відкрити на карті">📍 ' + esc(p.place || 'на карті') + '</a> · ' + what +
+      (short ? '' : '<div class="muted small">оновлено ' + tkTime(P.at).split(', ').pop() + (P.stale ? ' — давно, Freetrack вночі не опитуємо' : '') + '</div>') + '</div>';
+  }
   function gpsText(g) {
     if (!g) return '—';
     if (g.standSince) return 'стоїть з ' + dd(g.standSince);
@@ -331,13 +394,13 @@
       tr.innerHTML = '<td><span class="plate">' + esc(x.id) + '</span></td>' +
         '<td>' + drv + (x.trailer ? '<div class="muted small">причіп ' + esc(x.trailer) + '</div>' : '') + '</td>' +
         '<td>' + (t ? tripText(t) + '<div class="muted small">' + esc(t.id) + (t.client ? ' · ' + esc(t.client) : '') + (x.trip ? '' : ' · останній') + '</div>' : '<span class="muted">—</span>') + '</td>' +
-        '<td><span class="pill ' + st.cls + '">' + esc(st.t) + '</span>' + (x.trip && x.trip.st ? '<div class="small"><b>' + esc(x.trip.st.event) + '</b> <span class="muted">' + tkTime(x.trip.st.at) + '</span>' + (x.trip.st.problem ? ' <span class="prob urgent" title="' + esc(x.trip.st.problem) + '">⚠</span>' : '') + '</div>' : '') + (x.ech ? '<div class="muted small">' + esc(echShort(x.ech)) + '</div>' : '') + '</td><td>' + next + '</td><td class="small">' + esc(gpsText(x.gps)) + '</td><td class="probs">' + probs + '</td>';
+        '<td><span class="pill ' + st.cls + '">' + esc(st.t) + '</span>' + (x.trip && x.trip.st ? '<div class="small"><b>' + esc(x.trip.st.event) + '</b> <span class="muted">' + tkTime(x.trip.st.at) + '</span>' + (x.trip.st.problem ? ' <span class="prob urgent" title="' + esc(x.trip.st.problem) + '">⚠</span>' : '') + '</div>' : '') + (x.ech ? '<div class="muted small">' + esc(echShort(x.ech)) + '</div>' : '') + '</td><td>' + next + '</td><td class="small">' + posHtml(x.id) + '<div class="muted small">пробіг: ' + esc(gpsText(x.gps)) + '</div></td><td class="probs">' + probs + '</td>';
       const det = tb.insertRow(); det.className = 'bdet'; det.hidden = true;
       det.innerHTML = '<td colspan="7">' + detail(x) + '</td>';
       tr.onclick = () => { det.hidden = !det.hidden; tr.classList.toggle('open', !det.hidden); };
       const c = document.createElement('details'); c.className = 'bcard';
       c.innerHTML = '<summary><div class="bc1"><span class="plate">' + esc(x.id) + '</span><span class="pill ' + st.cls + '">' + esc(st.t) + '</span><span class="probs">' + probs + '</span></div>' +
-        '<div class="bc2">' + (t ? tripText(t) : '<span class="muted">немає рейсу</span>') + '</div><div class="muted small">' + drv + ' · GPS ' + esc(gpsText(x.gps)) + '</div>' + (x.trip && x.trip.st ? '<div class="small"><b>' + esc(x.trip.st.event) + '</b> <span class="muted">' + tkTime(x.trip.st.at) + '</span>' + (x.trip.st.problem ? ' ⚠ ' + esc(x.trip.st.problem) : '') + '</div>' : '') + (x.ech ? '<div class="muted small">' + esc(echShort(x.ech)) + '</div>' : '') + '</summary>' + detail(x);
+        '<div class="bc2">' + (t ? tripText(t) : '<span class="muted">немає рейсу</span>') + '</div><div class="muted small">' + drv + '</div>' + posHtml(x.id, true) + (x.trip && x.trip.st ? '<div class="small"><b>' + esc(x.trip.st.event) + '</b> <span class="muted">' + tkTime(x.trip.st.at) + '</span>' + (x.trip.st.problem ? ' ⚠ ' + esc(x.trip.st.problem) : '') + '</div>' : '') + (x.ech ? '<div class="muted small">' + esc(echShort(x.ech)) + '</div>' : '') + '</summary>' + detail(x);
       cards.appendChild(c);
     });
     const qu = b.queue || []; $('bQueue').hidden = false; $('bQueueN').textContent = qu.length;
@@ -488,7 +551,9 @@
       const truck = $('tkTruck').value; if (!truck) { $('tkMsg').textContent = 'Оберіть машину'; return; }
       if (odo() && !/^\d{1,7}$/.test(odo())) { $('tkMsg').textContent = 'Спідометр — лише цифри'; return; }
       $('tkTake').disabled = true; busy(true);
-      try { const r = await api('truck.take', { truck, trailer: $('tkTrailer').value, odo: odo() }); tk = r.state; tkMode = '';
+      try { const r = await apiQ('truck.take', { truck, trailer: $('tkTrailer').value, odo: odo() }, 'прийняти машину ' + truck);
+        if (r.queued) { tkMode = ''; renderTruck('✔ Збережено на телефоні: прийняти машину <b>' + esc(truck) + '</b>. Надішлеться само, щойно з\'явиться зв\'язок.'); return; }
+        tk = r.state; tkMode = '';
         renderTruck(r.already ? 'Ви вже на цій машині.' : '✔ Машину <b>' + esc(truck) + '</b> прийнято.' + (r.checks && r.checks.length ? ' Логіст перевірить: ' + esc(r.checks.join('; ')) : '')); }
       catch (e) { $('tkMsg').textContent = e.message; $('tkTake').disabled = false; }
       finally { busy(false); }
@@ -497,7 +562,9 @@
       if (!await ask('Здати машину?', 'Логіст побачить, що ви більше не на цій машині.', 'Так, здати')) return;
       if (odo() && !/^\d{1,7}$/.test(odo())) { $('tkMsg').textContent = 'Спідометр — лише цифри'; return; }
       $('tkGive').disabled = true; busy(true);
-      try { const r = await api('truck.give', { odo: odo(), note: $('tkNote').value }); tk = r.state; renderTruck('✔ Машину здано.' + (r.checks && r.checks.length ? ' Логіст перевірить: ' + esc(r.checks.join('; ')) : '')); }
+      try { const r = await apiQ('truck.give', { odo: odo(), note: $('tkNote').value }, 'здати машину');
+        if (r.queued) { renderTruck('✔ Збережено на телефоні: здати машину. Надішлеться само, щойно з\'явиться зв\'язок.'); return; }
+        tk = r.state; renderTruck('✔ Машину здано.' + (r.checks && r.checks.length ? ' Логіст перевірить: ' + esc(r.checks.join('; ')) : '')); }
       catch (e) { $('tkMsg').textContent = e.message; $('tkGive').disabled = false; }
       finally { busy(false); }
     };
@@ -724,15 +791,46 @@
 
   async function logout(silent) {
     if (!silent) { try { await api('logout'); } catch (e) {} }
-    store.del('token'); store.del('me'); store.del('homeDrv'); store.del('boardCache'); me = null;
+    store.del('token'); store.del('me'); store.del('homeDrv'); store.del('boardCache'); store.del('outbox'); me = null;
     showLogin(silent ? 'Сесія завершилась — увійдіть ще раз' : '');
   }
 
   /* ── Старт ── */
   $('codeForm').addEventListener('submit', loginCode);
   $('logout').onclick = () => askLogout();
+  /* ── Розмір шрифту (UX P2): звичайний → великий → дуже великий; запам'ятовується на цьому пристрої ── */
+  const ZOOMS = [['1', 'звичайний'], ['1.2', 'великий'], ['1.4', 'дуже великий']];
+  function applyZoom(z) { const d = document.documentElement; if (z === '1') { d.style.removeProperty('--zoom'); delete d.dataset.zoom; } else { d.style.setProperty('--zoom', z); d.dataset.zoom = z; } }
+  $('fontBtn').onclick = () => {
+    let cur = '1'; try { cur = store.get('fontScale') || '1'; } catch (e) {}
+    const i = (ZOOMS.findIndex(x => x[0] === cur) + 1) % ZOOMS.length; store.set('fontScale', ZOOMS[i][0]); applyZoom(ZOOMS[i][0]);
+    toast('Шрифт: <b>' + ZOOMS[i][1] + '</b>. Натисніть «Аа» ще раз, щоб змінити.');
+  };
+
+  /* ── Підказки при першому вході (UX P2): 3 короткі картки, один раз на пристрої для кожної ролі ── */
+  const TOURS = {
+    'водій': [['Головна кнопка', 'Велика темна кнопка — це те, що сталося зараз: «Я на завантаженні», «Замитнився»… Натисніть, коли це сталося. Логіст побачить одразу.'],
+      ['Без інтернету — не страшно', 'Якщо немає зв\'язку, програма збереже натискання на телефоні й надішле сама. Помилились — кнопка «Скасувати» під великою кнопкою.'],
+      ['Моя машина і проблема', '«Моя машина» — коли сідаєте на машину або здаєте її. «Проблема» — якщо щось не так у дорозі. Кнопка «Аа» вгорі робить шрифт більшим.']],
+    'логіст': [['Дошка машин', 'Головний екран логіста: де кожна машина, рейс, що далі, проблеми. Кроки від водіїв видно одразу.'],
+      ['Картка рейсу', 'Натисніть номер рейсу — побачите маршрут, дати, оплату, кроки водія.'],
+      ['Калькулятор', 'Перед тим як погодити заявку — порахуйте рейс або кругорейс у «Калькуляторі». «Аа» вгорі — більший шрифт.']]
+  };
+  TOURS['керівник'] = TOURS['логіст']; TOURS['адмін'] = TOURS['логіст'];
+  function tour() {
+    const steps = me && TOURS[me.role]; if (!steps) return;
+    const key = 'tour1_' + me.role; if (store.get(key)) return;
+    let i = 0; const w = document.createElement('div'); w.className = 'ask-wrap';
+    const draw = () => { const [t, x] = steps[i];
+      w.innerHTML = '<div class="ask tour" role="dialog" aria-modal="true"><div class="tour-dots">' + steps.map((_, k) => '<i class="' + (k === i ? 'on' : '') + '"></i>').join('') + '</div><h2>' + esc(t) + '</h2><p>' + esc(x) + '</p><div class="ask-btns"><button class="btn" data-a="skip">Пропустити</button><button class="primary" data-a="next">' + (i < steps.length - 1 ? 'Далі' : 'Зрозуміло') + '</button></div></div>';
+      w.querySelector('[data-a="next"]').onclick = () => { if (++i >= steps.length) close(); else draw(); };
+      w.querySelector('[data-a="skip"]').onclick = close; };
+    const close = () => { store.set(key, '1'); w.remove(); };
+    draw(); document.body.appendChild(w);
+  }
   async function askLogout() {
-    if (await ask('Вийти з програми?', me && me.role === 'водій' ? 'Щоб увійти знову, знадобиться новий код від керівника.' : 'Щоб увійти знову, знадобиться вхід через Google або код.', 'Так, вийти', true)) logout(false);
+    const n = outbox().length;
+    if (await ask('Вийти з програми?', (n ? '⚠ На телефоні є ' + n + ' не надісланих записів — після виходу вони пропадуть. Краще дочекатися зв\'язку. ' : '') + (me && me.role === 'водій' ? 'Щоб увійти знову, знадобиться новий код від керівника.' : 'Щоб увійти знову, знадобиться вхід через Google або код.'), 'Так, вийти', true)) logout(false);
   }
   $('logoutAll').onclick = async () => {
     if (!await ask('Вийти на всіх пристроях?', 'Знадобиться новий вхід (код або Google) на кожному телефоні й комп\'ютері. Робіть так, якщо загубили телефон.', 'Так, вийти всюди', true)) return;
@@ -775,6 +873,7 @@
     if (!store.get('token')) return showLogin();
     // одразу показуємо збережений кабінет, потім уточнюємо в сервера
     try { const c = JSON.parse(store.get('me') || 'null'); if (c) enter(c); } catch (e) {}
+    renderOutbox(); setTimeout(flushOutbox, 1500);
     if (me && me.role === 'водій') return;   // «хто я» приходить у пакеті головної водія
     try { const r = await api('me'); meFresh = true; enter(r, !!me); }
     catch (e) { if (e.code !== 'auth' && me) return; if (!me) showLogin(e.code === 'auth' ? '' : e.message); }
