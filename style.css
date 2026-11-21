@@ -731,3 +731,6 @@ html[data-theme="dark"] .tc-gps { background: #12304F; color: #D4EAFC; border-co
 .hl-n { font-weight: 800; }
 .hl-tab { width: 100%; border-collapse: collapse; font-size: 15px; } .hl-tab th, .hl-tab td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
 #hlAgain { margin-top: 12px; width: auto; padding: 0 18px; min-height: 48px; }
+
+/* документи рейсу (ADR-063) */
+.tdthumbs{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.tdthumbs span{display:flex;flex-direction:column;align-items:center}.tdthumbs .exthumb{max-width:110px;max-height:140px}
