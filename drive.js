@@ -413,6 +413,7 @@ function foldTacho(recs) {
     ['kind', 'mode', 'at', 'country', 'odo', 'note', 'truck'].forEach(k => { if (r[k] != null && r[k] !== '') cur[k] = r[k]; });
     if (r.fix) { cur.edited = r.saved; cur.editedBy = r.by || ''; } else cur.saved = r.saved;
     if (r.late) cur.late = true;
+    cur.pending = !!r.pending;                      // ще на телефоні (черга без зв'язку) — останній застосований запис
   });
   return order.map(k => byId[k]).filter(x => !x.del && x.at != null).sort((a, b) => a.at - b.at);
 }
