@@ -39,12 +39,14 @@
   };
 
   /* ── Сервер ── */
+  const perfQ = [];
   async function api(action, data = {}) {
     if (!CFG.API_URL) throw new Error('Програму ще не підключено до сервера (немає API_URL у config.js)');
     // кожне «Зберегти» має свій opId: якщо зв'язок обірвався і запит повторено, сервер не створить дубль (ADR-038)
     const ONCE = action === 'save' || action === 'truck.take' || action === 'truck.give' || action === 'trip.status.add';
     if (ONCE && !data.opId) data = { ...data, opId: (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2)) };
-    const body = JSON.stringify({ action, token: store.get('token'), ...data });
+    const perf = perfQ.splice(0, 10), t0 = performance.now();
+    const body = JSON.stringify({ action, token: store.get('token'), ...data, ...(perf.length ? { perf } : {}) });
     const send = () => fetch(CFG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body });
     let res;
     try { res = await send(); }
@@ -54,11 +56,16 @@
     }
     $('offline').hidden = true;
     const out = await res.json();
+    if (action !== 'login.code' && action !== 'login.google') perfQ.push({ a: action === 'batch' ? 'batch:' + (data.calls || []).map(c => c.action).join('+') : action, ms: Math.round(performance.now() - t0), at: Date.now() });
     if (!out.ok) {
       if (out.code === 'auth' && action !== 'login.code' && action !== 'login.google') { logout(true); }
       const err = new Error(out.error || 'Помилка'); err.code = out.code; err.current = out.current; throw err;
     }
     return out;
+  }
+  async function apiBatch(calls) {
+    const out = await api('batch', { calls });
+    return out.results.map(r => { if (!r.ok) { const e = new Error(r.error || 'Помилка'); e.code = r.code; return e; } return r; });
   }
   const busy = on => { $('busy').hidden = !on; };
   const vib = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} };
@@ -85,7 +92,7 @@
   }
 
   /* ── Екрани ── */
-  let navSeq = 0;   // кожен перехід між екранами; пізня відповідь сервера не перемикає екран, якщо людина вже пішла далі
+  let navSeq = 0, meFresh = false;   // кожен перехід між екранами; пізня відповідь сервера не перемикає екран, якщо людина вже пішла далі
   function show(id) { navSeq++; ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
 
   function showLogin(msg) {
@@ -127,7 +134,10 @@
       let cache = null; try { cache = JSON.parse(store.get('homeDrv') || 'null'); } catch (e) {}
       if (cache && cache.login === me.login) drawDriverHome(cache.st, cache.sv); else $('homeWork').innerHTML = '<div class="card tkwork"><p class="muted">Завантаження вашого рейсу…</p></div>';
       const nav = navSeq + 1;   // show('home') нижче
-      Promise.all([api('truck.state'), api('trip.status').catch(() => null)]).then(([st, sv]) => {
+      const calls = [{ action: 'truck.state' }, { action: 'trip.status' }]; if (!meFresh) calls.push({ action: 'me' });
+      apiBatch(calls).then(([st, sv, mr]) => {
+        if (st instanceof Error) throw st; if (sv instanceof Error) sv = null;
+        if (mr && !(mr instanceof Error)) { meFresh = true; enter(mr, true); }
         const fresh = JSON.stringify({ login: me.login, st, sv });
         if (store.get('homeDrv') !== fresh) { store.set('homeDrv', fresh); if (nav === navSeq) drawDriverHome(st, sv); }
         else { tk = st; stCur = sv; }
@@ -762,7 +772,8 @@
     if (!store.get('token')) return showLogin();
     // одразу показуємо збережений кабінет, потім уточнюємо в сервера
     try { const c = JSON.parse(store.get('me') || 'null'); if (c) enter(c); } catch (e) {}
-    try { enter(await api('me'), !!me); }
+    if (me && me.role === 'водій') return;   // «хто я» приходить у пакеті головної водія
+    try { const r = await api('me'); meFresh = true; enter(r, !!me); }
     catch (e) { if (e.code !== 'auth' && me) return; if (!me) showLogin(e.code === 'auth' ? '' : e.message); }
   })();
 })();
