@@ -523,7 +523,7 @@
       const out = await api('list', { sheet: t.sheet });
       if (nav !== navSeq) return;
       current = { title: t.title, sheet: t.sheet, columns: out.columns, rows: out.rows };
-      $('viewTitle').textContent = t.title; $('search').value = '';
+      $('viewTitle').textContent = t.title; $('search').value = ''; if ($('viewNewTrip')) $('viewNewTrip').hidden = !(t.sheet === 'Рейси' && canTrip());
       renderTable(); show('view');
     } catch (e) { toast(esc(e.message), 'err'); } finally { busy(false); }
   }
@@ -570,7 +570,7 @@
     return badge('plan', 'Немає рейсів');
   }
   async function openBoard(force) {
-    show('board'); const nav = navSeq;
+    show('board'); const nav = navSeq; if ($('bNewTrip')) $('bNewTrip').hidden = !canTrip();
     // одразу — збережена дошка (з позначкою, коли оновлено), свіжа — у фоні
     if (!board) { try { const c = JSON.parse(store.get('boardCache') || 'null'); if (c && c.login === me.login) board = c.b; } catch (e) {} }
     if (board) renderBoard(); else $('bRows').innerHTML = '<tr><td colspan="7" class="muted">Завантаження дошки…</td></tr>';
@@ -720,6 +720,97 @@
     if (a) { e.preventDefault(); e.stopPropagation(); openTrip(a.dataset.trip, 'board'); }
   }, true);
   const money = v => (v === '' || v == null) ? '' : (typeof v === 'number' ? v.toLocaleString('uk-UA', { maximumFractionDigits: 2 }) : String(v));
+  /* ── Логіст: новий рейс і виправлення в програмі (ADR-072, пілот логістів) ──
+     Зберігає звичайний 'save' (журнал змін, захист від одночасних змін, причина зміни фрахту). Тип рахується сам — як у нічному перенесенні. */
+  const TF_ROLES = ['адмін', 'керівник', 'логіст', 'бухгалтер'];
+  const canTrip = () => me && TF_ROLES.indexOf(me.role) >= 0;
+  let tfLists = null;
+  async function tfLoad() {
+    if (tfLists) return tfLists;
+    const [a, w, c, t] = await apiBatch([{ action: 'list', sheet: 'Авто' }, { action: 'list', sheet: 'Працівники' }, { action: 'list', sheet: 'Клієнти' }, { action: 'list', sheet: 'Рейси', filter: { 'Рейс ID': '—' } }]);
+    if (a instanceof Error) throw a;
+    tfLists = { trucks: a.rows.filter(x => x['Активне'] !== false).map(x => String(x['Авто ID'])).sort(),
+      drivers: w instanceof Error ? [] : w.rows.filter(x => /водій/i.test(x['Посада'] || '') && x['Працює'] !== false).map(x => ({ id: String(x['Працівник ID']), name: String(x['Прізвище'] || '') })).sort((x, y) => x.name.localeCompare(y.name, 'uk')),
+      clients: c instanceof Error ? [] : [...new Set(c.rows.map(x => String(x['Назва'] || '').trim()).filter(Boolean))].slice(0, 600),
+      cols: t instanceof Error ? null : t.columns };
+    return tfLists;
+  }
+  const tfType = (cross, adr) => { const j = String(cross || '').trim().toLowerCase(); return j === 'контейнеровоз' ? 'Контейнеровоз' : j === 'ставка по україні' ? 'Ставка по Україні' : adr ? 'АДР' : j === 'по україні' ? 'По Україні' : 'Міжнародка'; };
+  const tfDate = v => { if (!v) return ''; const s = String(v); if (/^\d{4}-\d{2}-\d{2}/.test(s)) { const d = new Date(s); return isNaN(d) ? s.slice(0, 10) : d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); } return ''; };
+  /** r — рядок рейсу (виправлення) або null (новий). opts.truck — машина для нового. */
+  async function tripForm(r, opts) {
+    opts = opts || {}; busy(true);
+    let L; try { L = await tfLoad(); } catch (e) { toast(esc(e.message), 'err'); return; } finally { busy(false); }
+    const isNew = !r, v = r || { 'Авто ID': opts.truck || '', 'Валюта': 'EUR', 'Оплата': 'безгот' };
+    const has = c => !L.cols || L.cols.indexOf(c) >= 0;
+    const inp = (c, extra, type) => has(c) ? '<label for="tf_' + c.replace(/\W/g, '') + '">' + esc(c.replace(' (як записано)', '')) + '</label><input id="tf_' + c.replace(/\W/g, '') + '" data-c="' + esc(c) + '"' + (type ? ' type="' + type + '"' : '') + ' value="' + esc(type === 'date' ? tfDate(v[c]) : (v[c] == null ? '' : v[c])) + '"' + (extra || '') + '>' : '';
+    const sel = (c, list, empty) => has(c) ? '<label for="tf_' + c.replace(/\W/g, '') + '">' + esc(c) + '</label><select id="tf_' + c.replace(/\W/g, '') + '" data-c="' + esc(c) + '">' + (empty ? '<option value="">' + empty + '</option>' : '') + list.map(o => '<option value="' + esc(o[0]) + '"' + (String(v[c] || '') === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select>' : '';
+    const truckOpts = L.trucks.concat(v['Авто ID'] && L.trucks.indexOf(String(v['Авто ID'])) < 0 ? [String(v['Авто ID'])] : []).map(t => [t, t]);
+    const drvOpts = L.drivers.map(d => [d.id, d.name + ' · ' + d.id]);
+    const html = '<div class="tform">' +
+      (isNew ? '' : '<p class="muted small">Рейс <b>' + esc(v['Рейс ID']) + '</b>. Під час пілоту головні — «Маршрути»: зміну внесіть і там, інакше нічне перенесення збереже обидві версії (програма не затре вашу правку).</p>') +
+      '<fieldset><legend>Машина і водій</legend><div class="tfgrid">' + (isNew ? sel('Авто ID', truckOpts, '— оберіть —') + inp('Номер', ' inputmode="numeric" placeholder="номер рейсу машини"') : '') + sel('Водій ID', drvOpts, '— ще не вирішили —') + '</div></fieldset>' +
+      '<fieldset><legend>Маршрут</legend><div class="tfgrid">' + inp('Звідки', ' placeholder="місто завантаження"') + inp('Дата завантаження', '', 'date') + inp('Куди', ' placeholder="місто розвантаження"') + inp('Дата розвантаження', '', 'date') +
+        inp('Перехід', ' list="tfCross" placeholder="Краківець, Шегині, по Україні…"') + inp('Вантаж') + '</div>' +
+        (has('АДР') ? '<label class="tfchk"><input type="checkbox" id="tf_adr"' + (v['АДР'] ? ' checked' : '') + '> АДР (небезпечний вантаж)</label>' : '') + '<p class="muted small" id="tfType"></p></fieldset>' +
+      (has('Фрахт') ? '<fieldset><legend>Клієнт і оплата</legend><div class="tfgrid">' + inp('Клієнт (як записано)', ' list="tfClients"') + inp('Фрахт', ' inputmode="decimal"') + sel('Валюта', ['EUR', 'UAH', 'USD', 'PLN'].map(x => [x, x])) +
+        inp('Оплата', ' list="tfPay"') + inp('Відстрочка, днів', ' inputmode="numeric"') + inp('Контакт клієнта') + '</div></fieldset>' : '') +
+      '<fieldset><legend>Примітки</legend>' + (has('Примітки') ? '<textarea data-c="Примітки" rows="3">' + esc(v['Примітки'] || '') + '</textarea>' : '') + '</fieldset>' +
+      '<datalist id="tfCross">' + ['Краківець', 'Шегині', 'Ягодин', 'Рава-Руська', 'Устилуг', 'Переїзд на експорт', 'Контейнеровоз', 'по Україні', 'Ставка по Україні'].map(x => '<option value="' + x + '">').join('') + '</datalist>' +
+      '<datalist id="tfPay">' + ['безгот', 'готівка', 'карта', 'безгот на розв', 'готівка на розв'].map(x => '<option value="' + x + '">').join('') + '</datalist>' +
+      '<datalist id="tfClients">' + L.clients.map(x => '<option value="' + esc(x) + '">').join('') + '</datalist>' +
+      '<p class="msg" id="tfMsg"></p></div>';
+    const w = document.createElement('div'); w.className = 'ask-wrap';
+    w.innerHTML = '<div class="ask tsheet tfsheet" role="dialog" aria-modal="true"><h2>' + (isNew ? 'Новий рейс' : 'Виправити рейс') + '</h2>' + html + '<div class="ask-btns"><button class="btn" data-a="0">Скасувати</button><button class="primary" data-a="1">' + (isNew ? 'Створити рейс' : 'Зберегти зміни') + '</button></div></div>';
+    document.body.appendChild(w);
+    const q = s => w.querySelector(s), typeUpd = () => { if (q('#tfType')) q('#tfType').textContent = 'Тип рейсу: ' + tfType(q('[data-c="Перехід"]') ? q('[data-c="Перехід"]').value : v['Перехід'], q('#tf_adr') && q('#tf_adr').checked) + ' (рахується сам — для зарплати водія)'; };
+    typeUpd(); w.querySelectorAll('[data-c="Перехід"], #tf_adr').forEach(e => e.oninput = e.onchange = typeUpd);
+    // новий рейс: номер — наступний для машини (як у «Маршрутах»), можна виправити
+    const sugg = async () => { const t = q('[data-c="Авто ID"]') && q('[data-c="Авто ID"]').value; if (!t || !q('[data-c="Номер"]') || q('[data-c="Номер"]').dataset.touched) return;
+      try { const o = await api('list', { sheet: 'Рейси', filter: { 'Авто ID': t } }); const n = Math.max(0, ...o.rows.map(x => +x['Номер'] || 0)) + 1; if (!q('[data-c="Номер"]').dataset.touched) q('[data-c="Номер"]').value = n; } catch (e) {} };
+    if (isNew) { if (q('[data-c="Номер"]')) q('[data-c="Номер"]').oninput = e => e.target.dataset.touched = '1'; if (q('[data-c="Авто ID"]')) q('[data-c="Авто ID"]').onchange = sugg; sugg(); }
+    const close = () => w.remove();
+    const save = async reason => {
+      const row = {}; w.querySelectorAll('[data-c]').forEach(e => { const c = e.dataset.c; let val = e.value.trim(); if (c === 'Фрахт' || c === 'Відстрочка, днів' || c === 'Номер') val = val.replace(/\s/g, '').replace(',', '.');
+        const old = c in v ? (e.type === 'date' ? tfDate(v[c]) : String(v[c] == null ? '' : v[c])) : ''; if (isNew || val !== old) row[c] = val; });
+      if (q('#tf_adr')) { const a = q('#tf_adr').checked ? 'так' : ''; if (isNew || a !== String(v['АДР'] || '')) row['АДР'] = a; }
+      const cross = 'Перехід' in row ? row['Перехід'] : v['Перехід'], adr = 'АДР' in row ? row['АДР'] : v['АДР'], tp = tfType(cross, adr);
+      if (has('Тип') && (isNew || tp !== String(v['Тип'] || ''))) row['Тип'] = tp;
+      if ('Водій ID' in row) { const d = L.drivers.find(x => x.id === row['Водій ID']); if (has('Водій (як записано)')) row['Водій (як записано)'] = d ? d.name : ''; }
+      if (isNew) {
+        if (!row['Авто ID']) { q('#tfMsg').textContent = 'Оберіть машину'; return; }
+        if (!/^\d+$/.test(row['Номер'] || '')) { q('#tfMsg').textContent = 'Номер рейсу — цифрами'; return; }
+        if (!row['Звідки'] || !row['Куди'] || !row['Дата завантаження']) { q('#tfMsg').textContent = 'Заповніть: звідки, куди, дата завантаження'; return; }
+        if (has('Джерело')) row['Джерело'] = 'програма (логіст ' + (me.name || me.login) + ')';
+        Object.keys(row).forEach(k => { if (row[k] === '') delete row[k]; });
+      } else { if (!Object.keys(row).length) { close(); toast('Без змін.'); return; } row['Рейс ID'] = v['Рейс ID']; }
+      const b = q('[data-a="1"]'); b.disabled = true; busy(true);
+      try {
+        const out = await api('save', { sheet: 'Рейси', row, ifHash: isNew ? undefined : v._h, reason });
+        close(); board = null; try { store.set('boardCache', ''); } catch (e) {}
+        toast(isNew ? '✔ Рейс <b>' + esc(out.row['Рейс ID']) + '</b> створено.' : (out.saved ? '✔ Зміни збережено.' : 'Без змін.'));
+        openTrip(out.row['Рейс ID'], tripFrom);
+      } catch (e) {
+        b.disabled = false;
+        if (e.code === 'reason') { const why = await askText('Чому змінюється фрахт?', 'Напр. клієнт погодив доплату за простій'); if (why) return save(why); q('#tfMsg').textContent = 'Без причини змінити фрахт не можна.'; }
+        else if (e.code === 'conflict') { q('#tfMsg').textContent = 'Поки ви редагували, рейс змінив хтось інший. Закрийте вікно й відкрийте рейс заново.'; }
+        else q('#tfMsg').textContent = e.message;
+      } finally { busy(false); }
+    };
+    w.onclick = e => { const bt = e.target.closest('[data-a]'); if (!bt) return; if (bt.dataset.a === '0') close(); else save(); };
+  }
+  /** Коротке текстове питання (причина зміни). */
+  function askText(title, ph) {
+    return new Promise(res => {
+      const w = document.createElement('div'); w.className = 'ask-wrap';
+      w.innerHTML = '<div class="ask" role="dialog" aria-modal="true"><h2></h2><input id="atx" placeholder=""><div class="ask-btns"><button class="btn" data-a="0">Скасувати</button><button class="primary" data-a="1">Зберегти</button></div></div>';
+      w.querySelector('h2').textContent = title; w.querySelector('#atx').placeholder = ph || '';
+      const done = v => { w.remove(); res(v); };
+      w.onclick = e => { const b = e.target.closest('[data-a]'); if (b) done(b.dataset.a === '1' ? w.querySelector('#atx').value.trim() : ''); };
+      document.body.appendChild(w); w.querySelector('#atx').focus();
+    });
+  }
+
   /* ── RMPD рейсу (з бота RMPD) і адреси рейсу (ADR-070) ── */
   const mapsUrl = q => 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(q);
   const ADDR_L = { load: 'Завантаження', cOut: 'Замитнення', cIn: 'Розмитнення', unload: 'Розвантаження' };
@@ -793,6 +884,7 @@
       const r = tr && tr.rows[0];
       if (!r) { $('tripBody').innerHTML = '<p class="msg">Рейс ' + esc(id) + ' не знайдено.</p>'; return; }
       $('tripBody').innerHTML = tripHtml(r, tr.columns, zv && zv.rows, mv && mv.rows, jr && jr.rows);
+      if ($('tripEdit')) $('tripEdit').onclick = () => tripForm(r);
       api('trip.status', { tripId: id }).then(v => { if (!v || !v.trip || !$('tripSt') || nav !== navSeq) return;
         const any = v.steps.some(x => x.at) || (v.problems || []).length, last = v.steps.map(x => !!x.at).lastIndexOf(true);
         if (last >= 0 && $('tripBadge')) { const ev = v.steps[last].step; $('tripBadge').innerHTML = badge(ST_GRP[ev] || 'go', cap(ev)); }
@@ -809,7 +901,7 @@
     const f = (label, c, cls) => has(c) ? '<div class="kv' + (cls ? ' ' + cls : '') + '"><span>' + esc(label) + '</span><b>' + esc(fmt(typeof r[c] === 'number' ? money(r[c]) : r[c])) + '</b></div>' : '';
     const unl = r['Дата розвантаження'], due = r['Очікувана оплата'];
     const late = due && !r['Оплачено'] && new Date(due) < new Date(new Date().toDateString());
-    let h = '<div class="thead"><div class="ttl"><h1>Рейс ' + esc(r['Рейс ID']) + '</h1><span id="tripBadge"></span></div>' +
+    let h = '<div class="thead"><div class="ttl"><h1>Рейс ' + esc(r['Рейс ID']) + '</h1><span id="tripBadge"></span>' + (canTrip() ? '<button class="btn" id="tripEdit">✏️ Виправити</button>' : '') + '</div>' +
       '<p class="tplates">' + [r['Авто ID'] && '<span class="plate ua">' + esc(r['Авто ID']) + '</span>', r['Водій (як записано)'] && esc(r['Водій (як записано)']), r['Тип'] && esc(r['Тип']), r['АДР'] && '<span class="badge b-warn">' + svgI(PROB.drv) + 'АДР</span>', r['Кругорейс ID'] && 'кругорейс ' + esc(r['Кругорейс ID'])].filter(Boolean).join(' · ') + '</p></div>';
     h += '<div class="route card"><div><span class="muted small">Завантаження</span><b>' + esc(r['Звідки'] || '—') + '</b><span>' + esc(fmt(r['Дата завантаження'])) + '</span></div>' +
       '<div class="arrow">→</div><div><span class="muted small">Розвантаження</span><b>' + esc(r['Куди'] || '—') + '</b><span>' + (unl ? esc(fmt(unl)) : '<span class="muted">дата не вказана</span>') + '</span></div></div><div id="tripSt"></div><div id="tripDocs"></div>';
@@ -1565,6 +1657,8 @@
   $('bSearch').addEventListener('input', () => board && renderBoard());
   $('bReset').onclick = () => { $('bSearch').value = ''; bFilter = 'all'; store.set('bFilter', 'all'); if (board) renderBoard(); $('bSearch').focus(); };
   $('bRefresh').onclick = () => openBoard(true);
+  if ($('bNewTrip')) $('bNewTrip').onclick = () => tripForm(null);
+  if ($('viewNewTrip')) $('viewNewTrip').onclick = () => tripForm(null);
   $('dRefresh').onclick = () => openDocs(true);
   $('dSearch').addEventListener('input', () => docs && renderDocs());
   $('tripBack').onclick = () => tripFrom === 'view' ? show('view') : (board ? (show('board')) : renderHome());
