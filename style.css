@@ -623,3 +623,73 @@ body:has(#board:not([hidden])) main { max-width: 1440px; }
   #trip .kv b { text-align: left; }
 }
 @media (max-width: 560px) { #tripBack { width: calc(100% + 28px); margin: -14px -14px 12px; padding: 0 14px; } }
+
+/* ── «Мій час» і ручний тахограф (ADR-058): інформаційно, червоне — дружнє нагадування; режими — символ + слово ── */
+.timebox { display: grid; gap: 8px; margin: 0 0 14px; padding: 16px; border-radius: 18px; border: 1.5px solid var(--line); border-left: 6px solid var(--line-strong); font-size: 17px; }
+.timebox .tb-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.timebox .tb-head b { font-size: 18px; }
+.timebox .tb-head .link { font-size: 16px; min-height: 44px; }
+.timebox .tb-main { font-size: 20px; font-weight: 800; line-height: 1.25; display: flex; gap: 8px; align-items: baseline; }
+.timebox .tb-sub { color: var(--ink-2); font-size: 17px; line-height: 1.35; }
+.timebox .tb-ico { flex: 0 0 auto; }
+.timebox .tb-mode, .timebox .tb-start { min-height: 56px; font-size: 18px; display: flex; align-items: center; gap: 10px; justify-content: center; }
+.timebox .tb-mode .ico { width: 26px; height: 26px; }
+.timebox.tone-ok { border-left-color: var(--ok-fg); }
+.timebox.tone-soon { border-left-color: var(--warn-bd); background: var(--warn-bg); }
+.timebox.tone-soon .tb-main { color: var(--warn-fg); }
+.timebox.tone-red { border-left-color: var(--bad-fg); background: var(--bad-bg); }
+.timebox.tone-red .tb-main { color: var(--bad-fg); }
+.timebox.tone-rest .tb-main { color: var(--ok-fg); }
+.timebox.tone-grey { border-left-color: var(--line); }
+.tc-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 18px; }
+.tc-top .btn, .tc-top .primary { min-height: 48px; width: auto; padding: 0 18px; }
+.tc-hint { margin: 4px 0 8px; font-size: 17px; }
+.tc-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 14px; }
+.tc-mode { position: relative; min-height: 76px; padding: 10px; border-radius: 16px; border: 2px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: 17px; display: grid; justify-items: center; align-content: center; gap: 2px; cursor: pointer; text-align: center; }
+.tc-mode .ico { width: 30px; height: 30px; }
+.tc-mode small { color: var(--muted); font-size: 14px; }
+.tc-mode.on, .tc-mode[aria-pressed="true"] { border-width: 3px; border-color: var(--ink); background: var(--sky); }
+.tc-mode em { position: absolute; top: 6px; right: 8px; font-style: normal; font-size: 13px; font-weight: 800; color: var(--ok-fg); }
+.tc-modes.small .tc-mode { min-height: 64px; font-size: 16px; }
+.tc-gps { border: 1.5px solid #9CC8F0; background: #EAF4FD; color: #0C2D52; display: grid; gap: 6px; font-size: 17px; }
+.tc-nums h2, .tc-sheet h2, .tc-recs h2, .tc-week h2 { font-size: 18px; margin: 0 0 8px; }
+.tc-nums > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 17px; }
+.tc-nums > div b { text-align: right; }
+.tc-sheet .hours { position: relative; height: 18px; margin-left: 112px; font-size: 13px; color: var(--muted); }
+.tc-sheet .hours span { position: absolute; transform: translateX(-50%); }
+.tc-sheet .lane { display: grid; grid-template-columns: 104px 1fr; gap: 8px; align-items: center; margin: 4px 0; font-size: 14px; }
+.tc-sheet .lane > span b { display: block; font-size: 13px; color: var(--muted); font-weight: 600; }
+.tc-sheet .track { position: relative; height: 22px; background: var(--surface-2); border-radius: 6px; background-image: repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), var(--line) calc(25% - 1px) 25%); }
+.tc-sheet .track i { position: absolute; top: 3px; bottom: 3px; border-radius: 4px; }
+.tc-sheet .track u { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--bad-fg); }
+.m-drive { background: #1E6FD9; } .m-work { background: #C27A12; } .m-avail { background: #8A7BC8; } .m-rest { background: #2E9B6A; }
+.m-gps { background: repeating-linear-gradient(45deg, #1E6FD9 0 4px, transparent 4px 7px); border: 1px solid #1E6FD9; }
+.tc-recs .trec { display: grid; grid-template-columns: auto auto 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 17px; }
+.tc-recs .trec .tt { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 52px; }
+.tc-recs .trec small { display: block; color: var(--muted); font-size: 14px; }
+.btn.icon { width: 48px; min-width: 48px; height: 48px; padding: 0; display: grid; place-items: center; }
+.tc-recs .link { min-height: 48px; font-size: 17px; }
+.tc-week .wbars { position: relative; display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; height: 140px; align-items: end; padding-bottom: 22px; }
+.tc-week .wb { position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.tc-week .wb i { width: 70%; background: #1E6FD9; border-radius: 4px 4px 0 0; min-height: 2px; }
+.tc-week .wb b { position: absolute; font-size: 13px; bottom: calc(100% - 2px); }
+.tc-week .wb span { position: absolute; bottom: -22px; font-size: 14px; color: var(--muted); }
+.tc-week .wb.fut i { opacity: .25; }
+.tc-week .w9 { position: absolute; left: 0; right: 0; bottom: calc(22px + (100% - 22px) * .9); border-top: 2px dashed var(--line-strong); pointer-events: none; }
+.tc-foot { margin-top: 16px; }
+.tsheet { max-height: 92vh; overflow: auto; display: grid; gap: 8px; }
+.tsheet label { font-weight: 700; margin-top: 4px; }
+.tsheet .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.tsheet .chip { min-height: 44px; font-size: 16px; }
+.tsrow { display: grid; grid-template-columns: 64px 1fr 64px; gap: 8px; }
+.tsrow input { font-size: 24px; text-align: center; min-height: 56px; }
+.tsrow .btn { min-height: 56px; font-size: 18px; }
+.danger-link { color: var(--bad-fg); justify-self: center; min-height: 44px; }
+/* дошка логіста: рядок «час водія» під «Де зараз» */
+.bdrive { margin-top: 4px; font-size: 14px; line-height: 1.3; }
+.bdrive b { font-weight: 700; }
+.bdrive.tone-red { color: var(--bad-fg); } .bdrive.tone-soon { color: var(--warn-fg); } .bdrive.tone-rest { color: var(--ok-fg); } .bdrive.tone-grey { color: var(--muted); }
+.bdrive small { display: block; color: var(--muted); }
+html[data-theme="dark"] .tc-gps { background: #12304F; color: #D4EAFC; border-color: #2F5F8F; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tc-gps { background: #12304F; color: #D4EAFC; border-color: #2F5F8F; } }
+.tc-recs .thist { color: var(--warn-fg); }
