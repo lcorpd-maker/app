@@ -459,12 +459,13 @@
   function tachoDay(kind) {
     const r = tcCalc(), hint = (tc && tc.hint) || {}, start = kind === 'dayStart';
     const cc = hint.country || ((r && r.list.length && r.list[r.list.length - 1].country) || 'UA');
-    const odoT = hint.odo ? (hint.odo.gpsKm ? 'Підказка: ' + hint.odo.odo + ' км (' + esc(hint.odo.src) + ' ' + hint.odo.base + ' + ' + hint.odo.gpsKm + ' км за GPS). Перевірте з приладом.' : 'Останнє: ' + hint.odo.odo + ' км (' + esc(hint.odo.src) + '). Перевірте з приладом.') : 'Спідометр можна дописати пізніше.';
+    const odoText = o => o.ft ? 'З Freetrack: ' + o.odo + ' км (на ' + hm(new Date(o.at).getTime()) + '). Перевірте з приладом — якщо інакше, виправте.' : null;
+    const odoT = hint.odo ? odoText(hint.odo) || (hint.odo.gpsKm ? 'Підказка: ' + hint.odo.odo + ' км (' + esc(hint.odo.src) + ' ' + hint.odo.base + ' + ' + hint.odo.gpsKm + ' км за GPS). Перевірте з приладом.' : 'Останнє: ' + hint.odo.odo + ' км (' + esc(hint.odo.src) + '). Перевірте з приладом.') : 'Спідометр можна дописати пізніше.';
     const startRec = r && r.list.slice().reverse().find(x => x.kind === 'dayStart');
     const html = timeRow(Date.now()) +
       '<label>Країна</label><div class="chips">' + CC.map(c => '<button class="chip" data-cc="' + c[0] + '" aria-pressed="' + (c[0] === cc) + '">' + c[0] + ' · ' + c[1] + '</button>').join('') + '</div>' +
       (hint.place ? '<p class="muted small">За GPS ви біля: ' + esc(hint.place) + '</p>' : '') +
-      '<label for="tsOdo">Спідометр, км</label><input id="tsOdo" inputmode="numeric" value="' + (hint.odo ? hint.odo.odo : '') + '"><p class="muted small">' + odoT + '</p>' +
+      '<label for="tsOdo">Спідометр, км</label><input id="tsOdo" inputmode="numeric" value="' + (hint.odo ? hint.odo.odo : '') + '"><p class="muted small" id="tsOdoT">' + odoT + '</p>' +
       (start ? '<label>З чого починаєте</label><div class="chips">' + ['work', 'drive'].map(k => '<button class="chip" data-fm="' + k + '" aria-pressed="' + (k === 'work') + '">' + TM[k][0] + '</button>').join('') + '</div>'
         : (r ? '<p class="muted">За день: за кермом ' + fmtD(r.ev.day || 0) + (startRec && startRec.odo ? ' · спідометр зранку ' + startRec.odo + ' км' : '') + '.</p><p class="muted small">Далі програма сама почне «Відпочинок» і покаже, коли можна їхати.</p>' : ''));
     const w = tsheet(start ? 'Початок дня' : 'Кінець дня', html, w => {
@@ -477,6 +478,11 @@
       tachoSend(op, start ? 'День почато о ' + hm(at) : 'День закінчено о ' + hm(at) + '. Гарного відпочинку!');
     });
     bindTime(w); chipsSel(w, '[data-cc]'); chipsSel(w, '[data-fm]');
+    const odoIn = w.querySelector('#tsOdo'); let typed = false; odoIn.addEventListener('input', () => { typed = true; });
+    if (navigator.onLine !== false) api('tacho.odo', { truck: (tc && tc.truck) || '', workerId: me.role === 'водій' ? undefined : tc.worker }).then(r => {   // свіже показання з Freetrack
+      if (!r || !r.odo || !document.body.contains(w)) return;
+      if (!typed) odoIn.value = r.odo.odo; const t = w.querySelector('#tsOdoT'); if (t) t.textContent = odoText(r.odo);
+    }).catch(() => {});
     w.querySelector('[data-a="1"]').textContent = start ? 'Почати день' : 'Закінчити день';
   }
   function tachoEdit(rec, gpsAt) {
