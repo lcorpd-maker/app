@@ -735,3 +735,66 @@ html[data-theme="dark"] .tc-gps { background: #12304F; color: #D4EAFC; border-co
 /* документи рейсу (ADR-063) */
 .tdthumbs{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.tdthumbs span{display:flex;flex-direction:column;align-items:center}.tdthumbs .exthumb{max-width:110px;max-height:140px}
 .exgal{margin-top:6px}
+
+/* ── Кабінет водія 2.0 (ADR-065): менше кнопок, усе під рукою, найбільший шрифт без прокрутки вбік ── */
+html[data-zoom] body { zoom: var(--zoom); overflow-x: hidden; }
+html[data-zoom] main, html[data-zoom] .card, html[data-zoom] section { max-width: 100%; }
+html[data-zoom] .extypes { grid-template-columns: repeat(2, 1fr); }
+html[data-zoom] .tc-modes { grid-template-columns: repeat(2, 1fr); }
+body, .card, .hero, .chip, .btn, .extype span { overflow-wrap: break-word; hyphens: auto; }
+#theme { display: none; }
+#fontBtn { min-width: 48px; min-height: 44px; font-size: 18px; padding: 0 12px; border-width: 1.5px; }
+.viewbox h2 { font-size: 18px; margin: 4px 0 10px; }
+.zgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+.zbtn { min-height: 64px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: 14px; display: grid; place-items: center; gap: 2px; padding: 6px; cursor: pointer; }
+.zbtn[aria-pressed="true"] { border: 3px solid var(--ink); background: var(--sky); font-weight: 700; }
+.ask-btns.one { grid-template-columns: 1fr; }
+/* головна водія: 4 кнопки 2×2 одразу під головною дією; «Скасувати» — тонкий рядок, а не друга велика кнопка */
+.quick { grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 4px 0 14px; }
+.quick .q { min-height: 64px; font-size: 17px; }
+.undo-line { margin: -2px 0 8px; text-align: center; }
+.undo-line .link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 16px; }
+.undo-line .ico { width: 18px; height: 18px; }
+.stmsg { margin: 0 0 8px; font-size: 15px; text-align: center; color: var(--muted); }
+.probgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.probgrid .probone { min-height: 56px; justify-content: center; font-size: 16px; }
+.probown summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.probown textarea { font-family: inherit; font-size: 17px; width: 100%; margin: 6px 0 8px; color: var(--ink); background: var(--card); }
+.probown textarea::placeholder { color: var(--muted); opacity: 1; }
+/* «Гроші»: перемикач зверху */
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; border-radius: 14px; background: var(--line); margin-bottom: 12px; }
+.seg button { min-height: 48px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; line-height: 1.15; padding: 4px; }
+.seg button[aria-selected="true"] { background: var(--card); box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+.extypes { grid-template-columns: repeat(2, 1fr); }
+.extype { min-height: 56px; grid-auto-flow: column; justify-content: start; padding: 8px 12px; text-align: left; font-size: 15px; }
+.extype .ico { width: 22px; height: 22px; }
+.exmore { display: block; margin: -4px 0 10px; min-height: 40px; }
+.chipmore { border-style: dashed; }
+/* фото — одна тонка смуга */
+.phstrip { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; padding: 6px 6px 6px 12px; border: 1px solid var(--line); border-radius: 14px; }
+.phstrip > span { flex: 1; font-weight: 600; font-size: 15px; }
+.phbtn { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--card); font-weight: 600; font-size: 15px; cursor: pointer; }
+.phbtn .ico { width: 20px; height: 20px; }
+.exphoto .ico, .exgal .ico { width: 22px !important; height: 22px !important; }
+/* нижні аркуші «Мій час»: кнопки завжди видно */
+.tsheet .ask-btns { position: sticky; bottom: -18px; background: var(--card); padding: 10px 0 8px; margin-top: 4px; box-shadow: 0 -8px 12px -10px rgba(0,0,0,.25); }
+.ccbox .ccmore { min-height: 44px; }
+.tc-more summary { min-height: 48px; display: flex; align-items: center; font-weight: 600; cursor: pointer; }
+.tc-more > section { border: 0; padding: 8px 0 0; margin: 0; box-shadow: none; }
+html[data-zoom="1.4"] .extypes { grid-template-columns: 1fr; }
+html[data-zoom="1.4"] .quick .q { font-size: 15px; }
+html[data-zoom] .phstrip { flex-wrap: wrap; }
+html[data-zoom] .phstrip > span { flex-basis: 100%; }
+html[data-zoom] .phbtn { flex: 1; justify-content: center; }
+html[data-zoom] .city { font-size: 32px; }
+.rptlink { width: 100%; justify-content: center; margin-bottom: 10px; min-height: 52px; }
+.rpsum .kv.big b { font-size: 20px; }
+/* найбільший шрифт: без прокрутки вбік (знайдено тестами v28) */
+.timebox { grid-template-columns: minmax(0,1fr); }
+.timebox .tb-head { flex-wrap: wrap; }
+.timebox .tb-mode { white-space: normal; text-align: left; }
+.rptlink { white-space: normal; height: auto; padding-block: 8px; text-align: center; }
+.tc-gps .ask-btns button { white-space: normal; height: auto; padding: 8px 12px; line-height: 1.2; }
+html[data-zoom] .tsheet { max-height: calc(92vh / var(--zoom)); }
+.tsheet, .tsrow input { min-width: 0; }
+.tc-sheet .hours { margin-right: 14px; }
