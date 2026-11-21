@@ -153,7 +153,7 @@
     const was = JSON.stringify({ r: me && me.role, s: sheets.map(x => x.name) });
     me = out.me; sheets = out.sheets || [];
     store.set('me', JSON.stringify({ me, sheets }));
-    $('whoName').textContent = me.name; $('whoRole').textContent = me.role; $('who').hidden = false; document.body.dataset.role = me.role;
+    $('whoName').textContent = me.name; $('whoRole').textContent = me.role; try { $('hdrCall').href = 'tel:' + LOGIST_TEL; } catch (e) {} $('who').hidden = false; document.body.dataset.role = me.role;
     // quiet — уточнення від сервера після показу збереженого кабінету: не перемальовуємо й не повертаємо на головну,
     // хіба що змінилися роль чи доступи і людина досі на головній
     if (quiet && (was === JSON.stringify({ r: me.role, s: sheets.map(x => x.name) }) || $('home').hidden)) return;
@@ -198,9 +198,9 @@
   function drawDriverHome(st, sv) {
     sv = applyOutbox(sv); tk = st; stCur = sv;
     const has = st && st.planned && st.planned.length;
-    const prof = '<div class="profile"><span>' + esc(me.name) + '</span><a class="btn" href="tel:' + LOGIST_TEL + '">📞 Логіст</a><button class="btn" id="pushBtn">🔔 Сповіщення</button><button class="btn" id="drvOut">Вийти</button></div>';
+    const prof = '<div class="profile"><span>' + esc(me.name) + '</span><button class="btn" id="pushBtn">🔔 Сповіщення</button><button class="link danger-link" id="drvOut">Вийти з програми</button></div>';
     if ($('drvOutBox')) $('drvOutBox').innerHTML = '';
-    if (has && sv && sv.trip) { $('homeWork').innerHTML = '<div id="timeBox"></div><div id="stBox"></div>' + prof; renderTimeBox(); $('tiles').hidden = true; renderStatus(); $('drvOut').onclick = askLogout; $('pushBtn').onclick = openPush; return; }
+    if (has && sv && sv.trip) { $('homeWork').innerHTML = '<div id="stBox"></div><div id="timeBox"></div>' + prof; renderTimeBox(); $('tiles').hidden = true; renderStatus(); $('drvOut').onclick = askLogout; $('pushBtn').onclick = openPush; return; }
     // немає поточного рейсу — коротка картка роботи (або «поки немає») і звичайні плитки
     $('homeWork').innerHTML = '<div id="timeBox"></div>' + (has ? '<div id="homeWorkCard">' + workHtml(st.planned, true) + '</div>' : '<div class="card tkwork"><b>Запланованої роботи поки немає.</b><div class="muted small">Щойно логіст призначить рейс — він з\'явиться тут.</div></div>');
     $('tiles').hidden = false; bindWork(); renderTimeBox();
@@ -228,7 +228,7 @@
   // ADR-065: на головній — лише 4 кнопки (за звітами водіїв-тестувальників і побажанням власниці): заправки йдуть картками UTA, «Спідометр» — у «Моя машина»
   const LOGIST_TEL = '+380970864081';   // «Подзвонити логісту» (поки тестовий номер від власниці, 21.11)
   const QUICK = [['Моя машина', 'truck', 'M3 16V7a1 1 0 011-1h10v10M14 9h4l3 3v4h-7M6.5 18.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm11 0a1.5 1.5 0 100-3 1.5 1.5 0 000 3z'],
-    ['Гроші', 'exp', 'M3 7h18v10H3zM12 15a3 3 0 100-6 3 3 0 000 6zM6 10v4M18 10v4'], ['Документ', 'tdoc', 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7'], ['Проблема', 'problem', 'M12 4l9 16H3zM12 10v4M12 17h.01']];
+    ['Гроші', 'exp', 'M3 7h18v10H3zM12 15a3 3 0 100-6 3 3 0 000 6zM6 10v4M18 10v4'], ['Фото документів', 'tdoc', 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7'], ['Проблема', 'problem', 'M12 4l9 16H3zM12 10v4M12 17h.01']];
   const svgI = d => '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>';
   const dayName = iso => { if (!iso) return ''; const d = new Date(iso + 'T12:00:00'); return isNaN(d) ? '' : dd(iso) + ', ' + d.toLocaleDateString('uk-UA', { weekday: 'long' }); };
   function renderStatus(msg) {
@@ -250,8 +250,8 @@
       '<div><div class="to">' + (loaded ? 'Розвантаження' : 'Завантаження') + '</div><div class="city">' + esc(loaded ? v.trip.to : v.trip.from) + '</div>' +
       '<div class="when">' + (loaded ? (p.unload ? dayName(p.unload) : 'дату уточнить логіст') : (p.load ? dayName(p.load) : '')) + '</div></div>' +
       '<div><div class="road" style="--p:' + pct + '%"><i></i><b></b></div><div class="ends"><span>' + esc(v.trip.from) + (p.load ? ', ' + dd(p.load) : '') + '</span><span>' + esc(v.trip.to) + '</span></div></div>' +
-      '<div class="addr"><div><b>' + esc(v.trip.from) + ' → ' + esc(v.trip.to) + '</b><span>' + facts + '</span></div></div></article>';
-    h += '<div class="next-action">' + (v.next ? '<button class="primary stgo" data-st="' + esc(v.next) + '"' + (stPending ? ' disabled' : '') + '>' + svgI('M5 12l5 5L20 7') + esc(ST_LABEL[v.next] || v.next) + '</button><p>' + esc(ST_HINT[v.next] || '') + '</p>' + (ahead.length ? '<p><button class="link" id="stAhead">Я вже далі — відмітити інший крок</button></p><div id="stAheadBox" class="stahead" hidden><p class="muted small">Попередні кроки лишаться невідміченими — їх можна дописати потім.</p>' + ahead.map(x => '<button class="btn" data-st="' + esc(x) + '">' + esc(ST_LABEL[x] || x) + '</button>').join('') + '</div>' : '')
+      '<div class="facts">' + facts + '</div></article>';
+    h += '<div class="next-action">' + (v.next ? '<button class="primary stgo" data-st="' + esc(v.next) + '"' + (stPending ? ' disabled' : '') + '>' + svgI('M5 12l5 5L20 7') + esc(ST_LABEL[v.next] || v.next) + '</button><p>' + esc(ST_HINT[v.next] || '') + '</p>' + (ahead.length ? '<p><button class="link" id="stAhead">Я вже далі</button></p><div id="stAheadBox" class="stahead" hidden><p class="muted small">Попередні кроки лишаться невідміченими — їх можна дописати потім.</p>' + ahead.map(x => '<button class="btn" data-st="' + esc(x) + '">' + esc(ST_LABEL[x] || x) + '</button>').join('') + '</div>' : '')
       : '<div class="cinfo">Усі кроки рейсу відмічено. Дякуємо!</div>') + '</div>';
     if (v.last && v.last.canUndo) { const left = me.role === 'водій' ? Math.max(1, 15 - Math.floor((Date.now() - new Date(v.last.at)) / 60000)) : 0;
       h += '<p class="undo-line"><button class="link" id="stUndo">' + svgI('M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3') + 'Скасувати «' + esc(v.last.event) + '»' + (left ? ' (ще ' + left + ' хв)' : '') + '</button></p>'; }
@@ -318,7 +318,7 @@
     avail: ['Очікування', 'черга, готовність', 'M4 4h16v16H4zM4 20L20 4'],
     rest: ['Перерва / відпочинок', '', 'M3 18V8M3 14h18v4M21 14v-2a3 3 0 00-3-3h-7v5M7 12a2 2 0 100-4 2 2 0 000 4z'] };
   const CC = [['UA', 'Україна'], ['PL', 'Польща'], ['DE', 'Німеччина'], ['LT', 'Литва'], ['SK', 'Словаччина'], ['HU', 'Угорщина'], ['RO', 'Румунія'], ['CZ', 'Чехія']];
-  const hm = ms => new Date(ms).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+  const hm = ms => new Date(ms).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   const fmtD = m => window.DRV ? DRV.fmtDur(m) : Math.round(m) + ' хв';
   /** Журнал: сервер + черга без зв'язку + щойно натиснуте. */
   function tcLog() {
@@ -338,7 +338,10 @@
     const box = $('timeBox'); if (!box) return;
     const r = tcCalc(); if (!r) { box.innerHTML = ''; return; }
     const x = r.text, started = todayStarted(r), m = r.ev.mode && started ? r.ev.mode : null;
-    box.innerHTML = '<section class="card timebox tone-' + x.tone + '"><div class="tb-head"><b>Мій час</b><button class="link" id="tbOpen">Мій час і тахограф ›</button></div>' +
+    box.classList.toggle('urgent', started && (x.tone === 'red' || x.tone === 'soon'));   // попередження про час — нагору, над рейсом
+    // день не почато: один тонкий рядок і кнопка-обведення — головна темна кнопка на екрані одна (крок рейсу)
+    box.innerHTML = !started && $('stBox') ? '<section class="card timebox compact tone-grey"><div class="tb-head"><b>Мій час: день не почато</b><button class="link" id="tbOpen">Відкрити ›</button></div><button class="btn tb-start" id="tbStart">Почати день</button></section>'
+      : '<section class="card timebox tone-' + x.tone + '"><div class="tb-head"><b>Мій час</b><button class="link" id="tbOpen">Відкрити ›</button></div>' +
       (started && m ? '<button class="btn tb-mode" id="tbMode">' + svgI(TM[m][2]) + '<span><b>' + esc(TM[m][0]) + '</b> · змінити</span></button>' : '<button class="primary tb-start" id="tbStart">Почати день</button>') +
       (started || r.ev.source !== 'gps' ? '<div class="tb-main"><span class="tb-ico" aria-hidden="true">' + esc(x.icon) + '</span>' + esc(x.main) + '</div>' + (x.sub ? '<div class="tb-sub">' + esc(x.sub) + '</div>' : '') : '<div class="tb-sub">Відмітьте час і спідометр — програма підкаже, коли перерва.</div>') + '</section>';
     $('tbOpen').onclick = () => openTacho();
@@ -391,14 +394,16 @@
     if (office) h += (ev.diffs || []).length ? '<section class="card tc-gps"><b>Відмітки водія і GPS розходяться</b>' + ev.diffs.map(d => '<p>' + hm(d.start) + '–' + hm(d.end) + ': водій — «' + esc(TM[d.mode][0]) + '», GPS — ' + d.gps + ' ' + fmtD(d.min) + '</p>').join('') + '<p class="muted small">Це не порушення: GPS не бачить завантаження, митницю, пором. Уточніть у водія, якщо важливо.</p></section>' : '';
     else if (dif && !moving) h += '<section class="card tc-gps"><b>GPS бачить інакше</b><p>' + hm(dif.start) + '–' + hm(dif.end) + ': у вас «' + esc(TM[dif.mode][0]) + '», а GPS ' + (dif.gps === 'рух' ? 'бачив рух ' + fmtD(dif.min) : 'бачив стоянку ' + fmtD(dif.min)) + '.</p>' +
       '<div class="ask-btns"><button class="btn" id="gpsOk">Усе правильно</button><button class="primary" id="gpsFix">Виправити</button></div></section>';
+    // перевищення — червоним і словами «понад норму на …», а не тим самим жирним, що й норма (дизайн-огляд 21.11)
+    const lim = (name, v, max, of) => { v = v || 0; const over = v > max; return '<div class="' + (over ? 'bad' : '') + '"><span>' + name + '</span><b>' + fmtD(v) + ' з ' + of + (over ? '<small>⚠ понад норму на ' + fmtD(v - max) + '</small>' : '') + '</b></div>'; };
     h += '<section class="card tc-nums"><h2>Орієнтовно на сьогодні</h2>' +
-      '<div><span>За кермом без перерви</span><b>' + fmtD(ev.cont || 0) + ' з 4 год 30 хв</b></div>' +
-      '<div><span>За кермом сьогодні</span><b>' + fmtD(ev.day || 0) + ' з ' + (ev.dayLimit > 540 ? '9 (можна 10)' : '9') + '</b></div>' +
-      '<div><span>Цей тиждень</span><b>' + fmtD(ev.week || 0) + ' з 56 год</b></div>' +
-      '<div><span>Два тижні</span><b>' + fmtD(ev.twoWeek || 0) + ' з 90 год</b></div>' +
+      lim('За кермом без перерви', ev.cont, 270, '4 год 30 хв') +
+      lim('За кермом сьогодні', ev.day, ev.dayLimit > 540 ? 600 : 540, ev.dayLimit > 540 ? '9 (можна 10)' : '9') +
+      lim('Цей тиждень', ev.week, 3360, '56 год') +
+      lim('Два тижні', ev.twoWeek, 5400, '90 год') +
       (ev.source !== 'manual' ? '<p class="muted small">' + (ev.source === 'gps' ? 'Поки за GPS. Відмічайте режими — буде точніше.' : 'Частина часу — за GPS (схоже, режим не перемкнули).') + '</p>' : '') + '</section>';
     h += recordsHtml(r, now);
-    h += '<details class="card tc-more"><summary>Докладніше: доба як на аркуші й тиждень</summary>' + sheetHtml(r, now) + weekHtml(r, now) + '</details>';
+    h += '<details class="card tc-more"><summary>Показати весь день і тиждень</summary>' + sheetHtml(r, now) + weekHtml(r, now) + '</details>';
     h += '<p class="muted small tc-foot">' + (office ? 'Орієнтовно: відмітки водія, де їх немає — GPS. Остаточно — тахограф водія. Оцінка не є доказом проти водія.' : 'Це ваш облік і підказка, не штраф і не контроль. Числа приблизні. Офіційно рахує тахограф.') + '</p>';
     b.innerHTML = h;
     b.querySelectorAll('[data-mode]').forEach(e => e.onclick = () => {
@@ -427,13 +432,13 @@
     const lim = now - ((tc && tc.editDays) || 2) * 86400000, from = now - 2 * 86400000;
     const list = r.list.filter(x => x.at >= from).slice().reverse();
     const nextAt = id => { const i = r.list.findIndex(y => y.id === id); return i >= 0 && i + 1 < r.list.length ? r.list[i + 1].at : now; };
-    return '<section class="card tc-recs"><h2>Записи за 2 доби</h2>' + (list.length ? list.map(x => {
+    return '<section class="card tc-recs"><h2>Мої відмітки (2 доби)</h2>' + (list.length ? list.map(x => {
       const mode = window.DRV.recMode(x), lab = x.kind === 'dayStart' ? 'Початок дня · ' + TM[mode][0] : x.kind === 'dayEnd' ? 'Кінець дня' : TM[mode][0];
       return '<div class="trec"><span class="tt">' + (new Date(x.at).toDateString() === new Date().toDateString() ? '' : new Date(x.at).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' }) + ' ') + hm(x.at) + '</span>' + svgI(TM[mode][2]) +
         '<div><b>' + esc(lab) + '</b><small>' + fmtD((nextAt(x.id) - x.at) / 60000) + [x.country, x.odo ? x.odo + ' км' : '', x.note].filter(Boolean).map(s => ' · ' + esc(s)).join('') + (x.edited ? ' · виправлено' : '') + (x.pending ? ' · ще на телефоні' : '') + '</small>' +
         (me.role !== 'водій' && x.hist && x.hist.length ? '<small class="thist">' + x.hist.map(hh => (hh.del ? 'видалено' : 'було ' + (hh.was.at ? hm(hh.was.at) : '?') + ' «' + esc(TM[window.DRV.recMode(hh.was)] ? TM[window.DRV.recMode(hh.was)][0] : '') + '»') + ' — змінено ' + new Date(hh.saved).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + (hh.by ? ' (' + esc(hh.by) + ')' : '')).join('; ') + '</small>' : '') + '</div>' +
         (x.at >= lim && !x.pending ? '<button class="btn icon" data-edit="' + esc(x.id) + '" aria-label="Виправити запис ' + hm(x.at) + '">' + svgI('M4 20h4L19 9l-4-4L4 16zM14 6l4 4') + '</button>' : '') + '</div>';
-    }).join('') : '<p class="muted">Записів ще немає.</p>') + '<button class="link" id="tcAdd">+ Додати пропущений запис</button>' +
+    }).join('') : '<p class="muted">Записів ще немає.</p>') + '<button class="link" id="tcAdd">+ Забув відмітити — додати</button>' +
       '<p class="muted small">Виправити можна записи за ' + ((tc && tc.editDays) || 2) + ' доби. Старші — попросіть логіста.</p></section>';
   }
   function weekHtml(r, now) {
@@ -781,6 +786,8 @@
 
   /* ── «Витрата за 10 секунд» (ADR-060): тип → сума → валюта → фото чека → Зберегти. Без зв'язку — у чергу, фото теж ── */
   let ex = null, exDraft = null;
+  // коротші підписи для водія (дизайн-огляд 21.11); у базу йде повна назва, як і раніше
+  const EX_LBL = { 'Завантаження / розвантаження': 'Склад (вантаж)', 'Копії / друк': 'Друк', 'Отримав під звіт': 'Мені дали гроші', 'Від клієнта': 'Гроші від клієнта' };
   const EX_ICO = { 'Пальне': 'M4 20V5a1 1 0 011-1h7a1 1 0 011 1v15M4 11h9M13 8h2l3 3v6a1.5 1.5 0 003 0V9l-3-3', 'AdBlue': 'M12 3c3 4 6 7 6 11a6 6 0 01-12 0c0-4 3-7 6-11z',
     'Дорога / віньєтка': 'M8 3L4 21M16 3l4 18M12 5v3M12 11v3M12 17v3', 'Стоянка': 'M6 21V3h7a5 5 0 010 10H6', 'Мийка': 'M5 13h14l-1.5 6h-11zM8 9c0-2 1-3 2-4M12 9c0-2 1-3 2-4M16 9c0-2 1-3 2-4',
     'Ремонт / запчастини': 'M14 6l4 4M4 20l8-8M13 7l4 4 3-3-4-4z', 'Митниця / документи': 'M6 3h9l4 4v14H6zM9 12h7M9 16h7', 'Обмін валюти': 'M4 8h13l-3-3M20 16H7l3 3', 'Інше': 'M5 12h.01M12 12h.01M19 12h.01' };
@@ -825,30 +832,29 @@
       if (d.mode === 'xch' && d.cur === 'UAH') d.cur = 'EUR';
       const curChips = list => '<div class="chips" role="group" aria-label="Валюта">' + list.filter(c => !(d.mode === 'xch' && c === 'UAH')).map(c => '<button class="chip" data-ec="' + c + '" aria-pressed="' + (c === d.cur) + '">' + c + '</button>').join('') +
         (curMore.length && !d.curAll && curMore.indexOf(d.cur) < 0 ? '<button class="chip chipmore" data-ecm>ще…</button>' : curMore.map(c => '<button class="chip" data-ec="' + c + '" aria-pressed="' + (c === d.cur) + '">' + c + '</button>').join('')) + '</div>';
-      h += '<button class="btn rptlink" id="exRpt">' + svgI('M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h4') + 'Звіт кругорейсу — перевірити й надіслати</button>';
-      h += '<div class="seg" role="tablist">' + [['exp', 'Витрата'], ['got', 'Отримав під звіт'], ['xch', 'Обмін валюти'], ['cli', 'Від клієнта']].map(m => '<button role="tab" data-em="' + m[0] + '" aria-selected="' + (d.mode === m[0]) + '">' + m[1] + '</button>').join('') + '</div>';
+      h += '<div class="seg" role="tablist">' + [['exp', 'Витрата'], ['got', 'Мені дали гроші'], ['xch', 'Обмін валюти'], ['cli', 'Гроші від клієнта']].map(m => '<button role="tab" data-em="' + m[0] + '" aria-selected="' + (d.mode === m[0]) + '">' + m[1] + '</button>').join('') + '</div>';
       h += '<section class="card exform">';
       if (d.mode === 'exp') {
         const showMore = d.more || more.indexOf(d.type) >= 0, fuel = d.type === 'Пальне' || d.type === 'AdBlue';
-        h += '<div class="extypes">' + types.concat(showMore ? more : []).map(t => '<button class="extype" data-et="' + esc(t) + '" aria-pressed="' + (t === d.type) + '">' + svgI(EX_ICO[t] || EX_ICO['Інше']) + '<span>' + esc(t) + '</span></button>').join('') + '</div>' +
+        h += '<div class="extypes">' + types.concat(showMore ? more : []).map(t => '<button class="extype" data-et="' + esc(t) + '" aria-pressed="' + (t === d.type) + '">' + svgI(EX_ICO[t] || EX_ICO['Інше']) + '<span>' + esc(EX_LBL[t] || t) + '</span></button>').join('') + '</div>' +
           (showMore ? '' : '<button class="link exmore" data-emore>Пальне, AdBlue, дорога, харчування, штраф…</button>') +
-          '<label for="exSum">Сума</label><input id="exSum" class="exsum" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(d.sum) + '">' + curChips(curs) +
+          '<label for="exSum">Скільки заплатили</label><input id="exSum" class="exsum" inputmode="decimal" autocomplete="off" value="' + esc(d.sum) + '">' + curChips(curs) +
           (fuel ? '<label for="exLit">Літри</label><input id="exLit" inputmode="decimal" value="' + esc(d.liters) + '">' : '') +
           // ADR-067: картка фірми — теж записуємо (є у звіті), але вона не зменшує готівку під звіт
           '<label>Чим платили</label><div class="chips" role="group" aria-label="Чим платили">' + ['Готівка', 'Картка фірми'].map(p => '<button class="chip" data-ep="' + p + '" aria-pressed="' + (p === (d.pay || 'Готівка')) + '">' + p + '</button>').join('') + '</div>';
       } else if (d.mode === 'got') {
         h += '<p class="muted small">Скільки грошей вам видали під звіт (або аванс). Офіс затвердить — і сума піде у звіт кругорейсу.</p>' +
-          '<label for="exSum">Отримав</label><input id="exSum" class="exsum" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(d.sum) + '">' + curChips(curs);
+          '<label for="exSum">Отримав</label><input id="exSum" class="exsum" inputmode="decimal" autocomplete="off" value="' + esc(d.sum) + '">' + curChips(curs);
       } else if (d.mode === 'xch') {
-        h += '<label for="exSum">Купив валюти</label><input id="exSum" class="exsum" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(d.sum) + '">' + curChips(curs) +
-          '<label for="exUah">Віддав гривень</label><input id="exUah" class="exsum" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(d.uah) + '">' +
+        h += '<label for="exSum">Купив валюти</label><input id="exSum" class="exsum" inputmode="decimal" autocomplete="off" value="' + esc(d.sum) + '">' + curChips(curs) +
+          '<label for="exUah">Віддав гривень</label><input id="exUah" class="exsum" inputmode="decimal" autocomplete="off" value="' + esc(d.uah) + '">' +
           '<p class="muted small" id="exRate">' + (+d.sum > 0 && +d.uah > 0 ? 'Курс: ' + (d.uah / d.sum).toFixed(2).replace('.', ',') + ' грн за 1 ' + d.cur : 'Курс порахується сам.') + '</p>';
       } else {
         h += '<p class="muted small">Готівка, яку ви взяли в клієнта (експедиційні, оплата за рейс). Офіс побачить і внесе в розрахунок.</p>' +
-          '<label for="exSum">Скільки взяли</label><input id="exSum" class="exsum" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(d.sum) + '">' + curChips(curs.concat(['USD'].filter(c => curs.indexOf(c) < 0)));
+          '<label for="exSum">Скільки взяли</label><input id="exSum" class="exsum" inputmode="decimal" autocomplete="off" value="' + esc(d.sum) + '">' + curChips(curs.concat(['USD'].filter(c => curs.indexOf(c) < 0)));
       }
       h += photoStrip('exF', d.photo ? 1 : 0, false) + (d.photo ? '<div class="tdthumbs"><span><img class="exthumb" alt="Фото чека" src="data:image/jpeg;base64,' + d.photo + '"><button class="link" data-exdel>прибрати</button></span></div>' : '') +
-        '<label for="exNote">Примітка (можна не писати)</label><input id="exNote" value="' + esc(d.note) + '" placeholder="' + (d.mode === 'cli' ? 'від кого, за який рейс' : 'напр. стоянка біля кордону') + '">' +
+        '<label for="exNote">Примітка (можна не писати)</label><input id="exNote" value="' + esc(d.note) + '" placeholder="' + ({ cli: 'від кого, за який рейс', got: 'хто видав, на яку поїздку', xch: 'де міняли' }[d.mode] || 'напр. стоянка біля кордону') + '">' +
         '<p class="msg" id="exMsg"></p><button class="primary" id="exSave">' + (d.mode === 'xch' ? 'Записати обмін' : d.mode === 'cli' ? 'Записати гроші від клієнта' : d.mode === 'got' ? 'Записати — офіс затвердить' : 'Записати витрату') + '</button></section>';
     }
     const list = (office ? [] : expPending()).concat(ex.list);
@@ -861,11 +867,12 @@
         const gotT = x.type === 'Отримав під звіт';
         const st = x.pending ? '<span class="exst pend">ще на телефоні</span>' : x.status === 'перевірено' ? '<span class="exst ok">✓ ' + (gotT ? 'затверджено' : 'перевірено') + '</span>' : gotT && x.status === 'нова' ? '<span class="exst new">чекає затвердження</span>' : x.status === 'питання' ? '<span class="exst q">? питання' + (x.statusNote ? ': ' + esc(x.statusNote) : '') + '</span>' : '<span class="exst new">нова</span>';
         const canUndo = !office && !x.pending && x.status === 'нова' && Date.now() - (x.saved || x.at) < (ex.undoMin || 15) * 60000;
-        return '<div class="exitem"><div class="exmain">' + svgI(EX_ICO[x.type] || EX_ICO['Інше']) + '<div><b>' + esc(fmtSum(x.sum, x.cur)) + '</b> · ' + esc(x.type === 'Обмін валюти' ? 'купив валюту' + (x.uah ? ' за ' + fmtSum(x.uah, 'UAH') : '') : x.type) + (x.liters ? ' · ' + x.liters + ' л' : '') +
+        return '<div class="exitem"><div class="exmain">' + svgI(EX_ICO[x.type] || EX_ICO['Інше']) + '<div><b>' + esc(fmtSum(x.sum, x.cur)) + '</b> · ' + esc(x.type === 'Обмін валюти' ? 'купив валюту' + (x.uah ? ' за ' + fmtSum(x.uah, 'UAH') : '') : EX_LBL[x.type] || x.type) + (x.liters ? ' · ' + x.liters + ' л' : '') +
           '<small>' + (office ? esc(x.name || x.worker) + ' · ' : '') + new Date(x.at).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + (x.truck ? ' · ' + esc(x.truck) : '') + (x.pay && x.pay !== 'Готівка' ? ' · ' + esc(x.pay) : '') + (x.note ? ' · ' + esc(x.note) : '') + '</small>' + st + '</div></div>' +
           '<div class="exact">' + (x.photo && !x.pending ? '<button class="btn" data-eph="' + esc(x.id) + '">Чек</button>' : '') + (canUndo ? '<button class="btn" data-eun="' + esc(x.id) + '">Скасувати</button>' : '') +
           (office && x.status !== 'перевірено' ? '<button class="btn" data-eok="' + esc(x.id) + '">✓ ' + (gotT ? 'Затвердити' : 'Перевірено') + '</button>' : '') + (office && x.status !== 'питання' ? '<button class="btn" data-eq="' + esc(x.id) + '">? Питання</button>' : '') + '</div></div>';
-      }).join('') : '<p class="muted">' + (office ? 'Тут порожньо.' : 'Витрат за 31 день ще немає.') + '</p>') + '</section>';
+      }).join('') : '<p class="muted">' + (office ? 'Тут порожньо.' : 'Записів за 31 день ще немає.') + '</p>') +
+      (office ? '' : '<button class="btn rptlink" id="exRpt">' + svgI('M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h4') + 'Здати звіт за поїздку</button>') + '</section>';
     b.innerHTML = h;
     // форма водія
     const keep = () => { if ($('exSum')) d.sum = $('exSum').value; if ($('exNote')) d.note = $('exNote').value; if ($('exLit')) d.liters = $('exLit').value; if ($('exUah')) d.uah = $('exUah').value; };
@@ -964,7 +971,7 @@
       photoStrip('td', d.photos.length, true) +
       (d.photos.length ? '<div class="tdthumbs">' + d.photos.map((p, i) => '<span><img class="exthumb" alt="Сторінка ' + (i + 1) + '" src="data:image/jpeg;base64,' + p + '"><button class="link" data-tdel="' + i + '">прибрати</button></span>').join('') + '</div>' : '') +
       '<label for="tdNote">Примітка (можна не писати)</label><input id="tdNote" value="' + esc(d.note) + '" placeholder="напр. CMR з печаткою отримувача">' +
-      '<p class="msg" id="tdMsg"></p><button class="primary" id="tdSave">Зберегти' + (d.photos.length > 1 ? ' (' + d.photos.length + ' фото)' : '') + '</button></section>';
+      '<p class="msg" id="tdMsg"></p><button class="primary' + (d.photos.length ? '' : ' dim') + '" id="tdSave">' + (d.photos.length > 1 ? 'Записати (' + d.photos.length + ' фото)' : 'Записати фото') + '</button></section>';
     const list = tdPending().map(x => Object.assign(x, { photo: false })).concat(td.list);
     h += tdocCard(list, false);
     b.innerHTML = h;
@@ -1087,7 +1094,7 @@
       const r = last, o = r && r.odo;
       info.innerHTML = (o ? 'Freetrack: <b>' + Number(o.odo).toLocaleString('uk-UA') + ' км</b> (на ' + when(o.at) + ').' : truckFn() ? 'У Freetrack ще немає показань цієї машини.' : '') +
         (r && r.next ? ' Наступне автоматичне оновлення — ' + when(r.next) + '.' : '') + (note ? ' <b>' + esc(note) + '</b>' : '') +
-        (truckFn() ? ' <button class="link odo-live" type="button">Оновити з Freetrack зараз</button>' : '') + '<br>Якщо на приладі інакше — впишіть з приладу.';
+        (truckFn() ? ' <button class="link odo-live" type="button">Взяти з GPS</button>' : '') + '<br>Якщо на приладі інакше — впишіть з приладу.';
       const b = info.querySelector('.odo-live'); if (b) b.onclick = () => load(true);
     };
     async function load(live) {
