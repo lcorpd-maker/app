@@ -866,3 +866,13 @@ body[data-role="водій"] .who { min-width: 0; }
 .addrc .adrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .addrc .adrow .btn { text-decoration: none; }
 .addrc .kv b a { color: var(--ink); overflow-wrap: anywhere; }
+/* форма рейсу логіста (ADR-072) */
+.tfsheet { width: min(760px, 96vw); }
+.tform fieldset { border: 1px solid var(--line); border-radius: 14px; padding: 8px 14px 12px; margin: 0 0 12px; }
+.tform legend { font-weight: 700; padding: 0 6px; }
+.tfgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0 14px; }
+.tfgrid label { margin-top: 8px; }
+.tform textarea { width: 100%; font: inherit; font-size: 16px; padding: 10px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); }
+.tfchk { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-weight: 600; min-height: 44px; }
+.tfchk input { width: 22px; height: 22px; }
+.thead .ttl #tripEdit { margin-left: auto; }
