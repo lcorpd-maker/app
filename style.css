@@ -437,3 +437,189 @@ html[data-zoom] body { zoom: var(--zoom); }
 .pos { font-size: 14px; }
 .pos a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .pos.stale { opacity: .6; }
+
+/* ── Підказки за GPS (Hints.gs) ── */
+.hintcard { display: grid; gap: 8px; margin: 0 0 14px; padding: 16px; border-radius: 18px; background: #FFF4E0; color: #5A3300; border: 1.5px solid #F2C66D; font-size: 17px; }
+.hintcard b { font-size: 19px; }
+.hintcard .ask-btns { align-items: stretch; }
+.hintcard .ask-btns button { min-height: 56px; height: auto; font-size: 17px; padding: 8px 12px; line-height: 1.2; }
+.gpshint { margin-top: 4px; padding: 3px 8px; border-radius: 8px; background: #FFF4E0; color: #6B3D00; font-size: 13px; font-weight: 600; display: inline-block; }
+[data-theme="dark"] .hintcard, [data-theme="dark"] .gpshint { background: #3A2A0A; color: #FFE2A8; border-color: #7A5A1A; }
+
+/* ═══ Кабінет логіста: дошка машин і картка рейсу за прототипом «Перехрестя» (пілот 07.12) ═══
+   Додати в КІНЕЦЬ style.css. Правила доступності §5: текст ≥ 16 px, ціль ≥ 48 px, контраст ≥ 4,5:1,
+   статус = колір + іконка + слово. Усе обмежено #board / #trip або новими класами, щоб не зачепити інші екрани. */
+
+/* ── токени статусів (дизайн-система §5) ── */
+:root {
+  --st-plan-fg: #4A535A; --st-plan-bg: #EEF0F2; --st-plan-bd: #9AA2A7;
+  --st-go-fg: #0C1333;   --st-go-bg: #D4EAFC;   --st-go-bd: #A9CBEF;
+  --st-wait-fg: #4E3C94; --st-wait-bg: #EEEAF8; --st-wait-bd: #C5B8EA;
+  --ok-bg: #DFF2E8; --ok-bd: #A6D9BE;
+  --plate-bd: #0C1333; --plate-strip: #0C1333;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --st-plan-fg: #C2CAD0; --st-plan-bg: #1E2645; --st-plan-bd: #4B5578;
+    --st-go-fg: #D4EAFC;   --st-go-bg: #172447;   --st-go-bd: #34508A;
+    --st-wait-fg: #B3A3E6; --st-wait-bg: #26204A; --st-wait-bd: #4D3F86;
+    --ok-bg: #0F2E24; --ok-bd: #1F5A45;
+    --plate-bd: #A5B0BA; --plate-strip: #34508A;
+  }
+}
+:root[data-theme="dark"] {
+  --st-plan-fg: #C2CAD0; --st-plan-bg: #1E2645; --st-plan-bd: #4B5578;
+  --st-go-fg: #D4EAFC;   --st-go-bg: #172447;   --st-go-bd: #34508A;
+  --st-wait-fg: #B3A3E6; --st-wait-bg: #26204A; --st-wait-bd: #4D3F86;
+  --ok-bg: #0F2E24; --ok-bd: #1F5A45;
+  --plate-bd: #A5B0BA; --plate-strip: #34508A;
+}
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ── загальне для дошки й картки: шрифт ≥ 16, цілі ≥ 48 ── */
+#board .small, #trip .small, #board .count, #trip .count, #board .pill, #board .gpshint { font-size: 16px; }
+#board .back, #trip .back { min-height: 48px; font-size: 16px; }
+#board .btn { min-height: 48px; font-size: 16px; }
+/* посилання в тексті: зона натиску 48 px без зміни висоти рядка */
+.tlink, .bdetail a, .pos a { display: inline-flex; align-items: center; gap: 4px; min-height: 48px; padding: 0; margin: -13px 0; }
+
+/* ── дошка: ширина й шапка ── */
+body:has(#board:not([hidden])) main { max-width: 1440px; }
+@media (min-width: 1200px) { body:has(#board:not([hidden])) main { padding-left: 28px; padding-right: 28px; } }
+#bSub { font-size: 16px; margin-top: 4px; }
+#board .toolbar { gap: 12px; margin: 16px 0; }
+#bSearch { max-width: 360px; min-height: 48px; font-size: 16px; padding: 10px 14px 10px 42px; background: var(--card) var(--ico-search) 12px 50% / 20px no-repeat; }
+
+/* фільтри-чіпи: вибраний — світло-блакитний (як у прототипі), лічильник поруч */
+#bChips { gap: 8px; }
+#bChips .chip { display: inline-flex; align-items: center; gap: 6px; min-height: 48px; padding: 0 16px; border: 1px solid var(--line-strong);
+  border-radius: 999px; background: var(--card); color: var(--ink); font-size: 16px; font-weight: 600; white-space: nowrap; }
+#bChips .chip small { margin: 0; font-size: 16px; font-weight: 400; color: var(--muted); opacity: 1; }
+#bChips .chip[aria-pressed="true"] { background: var(--sky); border-color: var(--accent); color: var(--sky-ink); }
+#bChips .chip[aria-pressed="true"] small { color: inherit; }
+
+/* ── таблиця дошки ── */
+.btable { font-size: 16px; }
+.btable th { padding: 10px 12px; font-size: 16px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.btable td { padding: 12px; line-height: 1.4; vertical-align: top; }
+.btable tbody tr:nth-child(even) td { background: var(--card); }
+.btable tbody tr.brow:hover td { background: var(--surface-2); color: var(--ink); }
+.brow.open td, .btable tbody tr.brow.open:hover td { background: var(--sky); color: var(--sky-ink); }
+.brow.open td:first-child { box-shadow: inset 4px 0 0 var(--accent); }
+.brow.open .badge.b-go { background: var(--card); }
+.btable td:nth-child(3) { min-width: 170px; }
+.btable td:nth-child(5) { min-width: 150px; }
+.btable td:nth-child(6) { min-width: 190px; }
+.btable td:nth-child(7) { min-width: 200px; max-width: 300px; }
+.bopen { display: inline-flex; align-items: center; min-width: 48px; min-height: 48px; margin: -8px 0; padding: 0; border: 0; background: none; border-radius: 6px; }
+
+/* номер машини — як номерний знак; причіп — пунктир з «П» (тільки на дошці й у картці) */
+.plate.ua { display: inline-flex; align-items: stretch; padding: 0 8px 0 0; border: 1.5px solid var(--plate-bd); border-radius: 4px; background: #fff; color: #0C1333;
+  font-size: 17px; font-weight: 800; line-height: 28px; letter-spacing: .03em; overflow: hidden; white-space: nowrap; vertical-align: middle; }
+.plate.ua::before { content: "UA"; display: grid; place-items: center; margin-right: 7px; padding: 0 4px; background: var(--plate-strip); color: #fff; font-size: 11px; font-weight: 600; line-height: 1; letter-spacing: .04em; }
+.plate.trl { display: inline-flex; align-items: stretch; padding: 0 8px 0 0; border: 1.5px dashed var(--line-strong); border-radius: 4px; background: var(--card); color: var(--ink-2);
+  font-size: 16px; font-weight: 800; line-height: 26px; overflow: hidden; white-space: nowrap; }
+.plate.trl::before { content: "П"; display: grid; place-items: center; margin-right: 7px; padding: 0 6px; background: #9AA2A7; color: #0C1333; font-size: 16px; font-weight: 600; line-height: 1; }
+
+.bdrv { display: grid; gap: 6px; justify-items: start; }
+.bdrv b, .bwho b { font-weight: 600; }
+.bdrv .ok-mark, .bwho .ok-mark { font-size: 16px; font-weight: 600; white-space: nowrap; }
+.bwho .ok-mark { white-space: normal; }
+.broute { font-weight: 600; }
+.bsub { color: var(--muted); font-size: 16px; }
+.bst { display: grid; gap: 6px; justify-items: start; }
+
+/* бейдж статусу: рамка + іконка + слово; «заплановано / немає рейсів» — пунктир */
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px 3px 8px; border: 1px solid; border-radius: 999px;
+  font-size: 16px; font-weight: 600; line-height: 1.35; white-space: nowrap; }
+.badge .ico, .flag .ico, .bhint .ico, .pos a .ico { width: 18px; height: 18px; flex: none; }
+.b-plan { color: var(--st-plan-fg); background: var(--st-plan-bg); border-color: var(--st-plan-bd); border-style: dashed; }
+.b-go   { color: var(--st-go-fg);   background: var(--st-go-bg);   border-color: var(--st-go-bd); }
+.b-wait { color: var(--st-wait-fg); background: var(--st-wait-bg); border-color: var(--st-wait-bd); }
+.b-ok   { color: var(--ok-fg);      background: var(--ok-bg);      border-color: var(--ok-bd); }
+.b-warn { color: var(--warn-fg);    background: var(--warn-bg);    border-color: var(--warn-bd); }
+.b-bad  { color: var(--bad-fg);     background: var(--bad-bg);     border-color: var(--bad-bd); }
+
+/* прапорці проблем: іконка + повний текст з сервера; термінове — червоне з товстою смугою зліва (не лише колір) */
+.flags { display: flex; flex-wrap: wrap; gap: 6px; }
+.flag { display: inline-flex; align-items: flex-start; gap: 6px; padding: 4px 10px 4px 8px; border: 1px solid; border-radius: 6px;
+  font-size: 16px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.flag .ico { margin-top: 1px; }
+.flag.w { color: var(--warn-fg); background: var(--warn-bg); border-color: var(--warn-bd); }
+.flag.b { color: var(--bad-fg);  background: var(--bad-bg);  border-color: var(--bad-bd); border-left-width: 4px; }
+/* підказка за GPS (Hints.gs) — під статусом, тим самим тоном «увага» */
+.bhint { display: inline-flex; align-items: flex-start; gap: 6px; padding: 4px 10px 4px 8px; border-radius: 6px; background: var(--warn-bg); color: var(--warn-fg); font-size: 16px; font-weight: 600; }
+
+/* де зараз: без прозорості (контраст), давні дані — сірим і словами */
+.pos { font-size: 16px; }
+.pos.stale { opacity: 1; color: var(--muted); }
+.pos .muted.small { font-size: 16px; }
+
+/* розгорнутий рядок */
+.bdet td { padding: 16px 16px 20px 20px; box-shadow: inset 4px 0 0 var(--accent); }
+.bdetail { gap: 10px; font-size: 16px; }
+
+/* порожній стан */
+.empty { display: grid; justify-items: center; gap: 8px; margin-top: 12px; padding: 40px 16px; text-align: center; color: var(--muted); font-size: 16px;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--r); }
+.empty > svg { width: 40px; height: 40px; fill: none; stroke: #9AA2A7; stroke-width: 1.5; stroke-linecap: round; }
+.empty strong { color: var(--ink); font-size: 18px; }
+.empty .btn { margin-top: 8px; }
+
+/* ── телефон: один список карток з роздільниками, як у прототипі ── */
+.bmore .m2 { display: none; }
+.bcard[open] .bmore .m1 { display: none; }
+.bcard[open] .bmore .m2 { display: inline; }
+@media (max-width: 760px) {
+  #board .bhead h1 { font-size: 24px; }
+  #board .toolbar { display: grid; }
+  #bSearch { max-width: none; }
+  #bChips { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px; padding: 0 16px 4px; scrollbar-width: none; }
+  #bChips .chip { flex: none; }
+  .bcards { gap: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+  .bcard { border: 0; border-top: 1px solid var(--line); border-radius: 0; padding: 14px 16px 6px; font-size: 16px; }
+  .bcard:first-child { border-top: 0; }
+  .bcard[open] { background: var(--surface-2); box-shadow: inset 4px 0 0 var(--accent); }
+  .bcard summary { gap: 6px; }
+  .bcard[open] summary { border-bottom-color: var(--line); }
+  .bc1 { gap: 8px; flex-wrap: wrap; }
+  .bc1 .badge { margin-left: auto; }
+  .bwho { order: 3; flex-basis: 100%; font-weight: 600; }   /* водій — окремим рядком під номером і статусом */
+  .bmore { display: inline-flex; align-items: center; min-height: 48px; color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+}
+@media (max-width: 560px) { #bChips { margin: 0 -14px; padding: 0 14px 4px; } }
+
+/* ── картка рейсу ── */
+#trip .ttl { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+#trip .ttl h1 { margin: 8px 0 4px; }
+.tplates { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; color: var(--muted); font-size: 16px; margin: 0; }
+#trip .kv { font-size: 16px; min-height: 44px; align-items: center; }
+#trip .kv.big b { font-size: 20px; font-variant-numeric: tabular-nums; }
+#trip table, #trip .jrow, #trip .cnote { font-size: 16px; }
+#trip th { font-size: 16px; }
+#trip .tgrid h2, .tsteps h2 { font-size: 18px; }
+.tsteps { margin: 0 0 12px; padding: 18px; }
+.tsteps h2 { margin: 0 0 14px; }
+/* хронологія кроків: зроблено — темна точка, зараз — фіолетове кільце + жирний, попереду — порожнє коло */
+.tl { list-style: none; margin: 0 0 10px; padding: 0; display: grid; }
+.tl li { position: relative; display: grid; grid-template-columns: 20px 1fr auto; gap: 12px; align-items: start; min-height: 40px; padding: 0 0 12px; font-size: 16px; }
+.tl li::before { content: ""; position: absolute; left: 9px; top: 20px; bottom: 0; width: 2px; background: var(--line); }
+.tl li.done::before { background: var(--ink); }
+.tl li:last-child { padding-bottom: 0; }
+.tl li:last-child::before { display: none; }
+.tl .dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line-strong); background: var(--card); z-index: 1; }
+.tl .done .dot { background: var(--ink); border-color: var(--ink); }
+.tl .now .dot { border: 6px solid var(--accent); }
+.tl .now .tl-t { font-weight: 800; }
+.tl .todo { color: var(--muted); }
+.tl small { font-size: 16px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#tripBack { gap: 6px; }
+@media (max-width: 760px) {
+  /* телефон: темна смуга «‹ Дошка» прилипає зверху, як у прототипі */
+  #tripBack { position: sticky; top: 0; z-index: 6; display: flex; width: calc(100% + 32px); margin: -20px -16px 12px; padding: 0 16px;
+    background: var(--chrome); color: var(--chrome-ink); font-weight: 600; text-decoration: none; }
+  #tripBack:hover { color: var(--chrome-ink); }
+  #trip .kv { display: grid; gap: 2px; align-items: start; }
+  #trip .kv b { text-align: left; }
+}
+@media (max-width: 560px) { #tripBack { width: calc(100% + 28px); margin: -14px -14px 12px; padding: 0 14px; } }
