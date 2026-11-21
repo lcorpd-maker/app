@@ -854,3 +854,15 @@ body[data-role="водій"] .who { min-width: 0; }
 .dcrow.st-over .dcmark, .dcrow.st-over small, .dcrow.st-over b { color: var(--bad-fg); }
 .docalert { display: block; width: 100%; min-height: 52px; margin: -4px 0 14px; padding: 10px 14px; border-radius: 14px; border: 1.5px solid var(--warn-bd); background: var(--warn-bg); color: var(--warn-fg); font: inherit; font-size: 16px; font-weight: 700; text-align: left; cursor: pointer; }
 .docalert.st-over { border-color: var(--bad-fg); background: var(--bad-bg); color: var(--bad-fg); }
+/* RMPD і адреси рейсу (ADR-070) */
+.rmpdc { border-left: 6px solid var(--line-strong); }
+.rmpdc.st-ok { border-left-color: var(--ok-fg); } .rmpdc.st-warn { border-left-color: var(--bad-fg); } .rmpdc.st-ai, .rmpdc.st-wait { border-left-color: var(--warn-bd); }
+.rmpdh { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; font-size: 17px; }
+.rmpdh b { font-size: 18px; }
+.rmpdc.st-ok .rmpdh span { color: var(--ok-fg); font-weight: 700; } .rmpdc.st-warn .rmpdh span { color: var(--bad-fg); font-weight: 700; }
+.rmpdgo { width: 100%; justify-content: center; margin-top: 10px; min-height: 56px; font-size: 18px; }
+.docalert.st-ok { border-color: var(--ok-fg); background: color-mix(in srgb, var(--ok-fg) 12%, var(--card)); color: var(--ok-fg); }
+.navbtn { display: flex; align-items: center; justify-content: center; min-height: 52px; border-radius: 14px; background: #fff; color: #0C1333; font-weight: 700; font-size: 17px; text-decoration: none; padding: 8px 12px; text-align: center; }
+.addrc .adrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.addrc .adrow .btn { text-decoration: none; }
+.addrc .kv b a { color: var(--ink); overflow-wrap: anywhere; }
