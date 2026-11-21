@@ -198,7 +198,7 @@
   function drawDriverHome(st, sv) {
     sv = applyOutbox(sv); tk = st; stCur = sv;
     const has = st && st.planned && st.planned.length;
-    const prof = '<div class="profile"><span>' + esc(me.name) + '</span><button class="btn" id="pushBtn">🔔 Сповіщення</button><button class="btn" id="drvOut">Вийти</button></div>';
+    const prof = '<div class="profile"><span>' + esc(me.name) + '</span><a class="btn" href="tel:' + LOGIST_TEL + '">📞 Логіст</a><button class="btn" id="pushBtn">🔔 Сповіщення</button><button class="btn" id="drvOut">Вийти</button></div>';
     if ($('drvOutBox')) $('drvOutBox').innerHTML = '';
     if (has && sv && sv.trip) { $('homeWork').innerHTML = '<div id="timeBox"></div><div id="stBox"></div>' + prof; renderTimeBox(); $('tiles').hidden = true; renderStatus(); $('drvOut').onclick = askLogout; $('pushBtn').onclick = openPush; return; }
     // немає поточного рейсу — коротка картка роботи (або «поки немає») і звичайні плитки
@@ -226,6 +226,7 @@
     'замитнення': 'Натисніть, коли пройшли митне оформлення.', 'на кордоні': 'Натисніть, коли стали в чергу або під\'їхали до кордону.', 'кордон пройдено': 'Натисніть, коли перетнули кордон.',
     'розмитнення': 'Натисніть, коли пройшли розмитнення.', 'на розвантаженні': 'Натисніть, коли приїдете на склад розвантаження.', 'розвантажено': 'Натисніть, коли машину розвантажили.' };
   // ADR-065: на головній — лише 4 кнопки (за звітами водіїв-тестувальників і побажанням власниці): заправки йдуть картками UTA, «Спідометр» — у «Моя машина»
+  const LOGIST_TEL = '+380970864081';   // «Подзвонити логісту» (поки тестовий номер від власниці, 21.11)
   const QUICK = [['Моя машина', 'truck', 'M3 16V7a1 1 0 011-1h10v10M14 9h4l3 3v4h-7M6.5 18.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm11 0a1.5 1.5 0 100-3 1.5 1.5 0 000 3z'],
     ['Гроші', 'exp', 'M3 7h18v10H3zM12 15a3 3 0 100-6 3 3 0 000 6zM6 10v4M18 10v4'], ['Документ', 'tdoc', 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7'], ['Проблема', 'problem', 'M12 4l9 16H3zM12 10v4M12 17h.01']];
   const svgI = d => '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>';
@@ -257,7 +258,7 @@
     if (msg) h += '<p class="stmsg" role="status">' + msg + '</p>';
     h += '<div class="quick">' + QUICK.map(q => '<button class="q' + (q[1] === 'problem' ? ' problem' : '') + '" data-q="' + q[1] + '">' + svgI(q[2]) + esc(q[0]) + '</button>').join('') + '</div>';
     // «Проблема»: спершу великі готові причини — одне натискання й надіслано; свій текст — за бажанням (без автоматичної клавіатури)
-    h += '<div class="stprob card" id="stProbBox" hidden><b>Що сталося? Натисніть — логіст отримає одразу</b><div class="probgrid">' + ['Довга черга', 'Поломка', 'Документи', 'Затримка на складі', 'ДТП'].map(c => '<button class="btn probone" data-pq="' + c + '">' + c + '</button>').join('') + '</div>' +
+    h += '<div class="stprob card" id="stProbBox" hidden><a class="btn calllog" href="tel:' + LOGIST_TEL + '">📞 Подзвонити логісту</a><b>Що сталося? Натисніть — логіст отримає одразу</b><div class="probgrid">' + ['Довга черга', 'Поломка', 'Документи', 'Затримка на складі', 'ДТП'].map(c => '<button class="btn probone" data-pq="' + c + '">' + c + '</button>').join('') + '</div>' +
       '<details class="probown"><summary>Інше — написати своїми словами</summary><textarea id="stText" rows="3" placeholder="Коротко опишіть. Можна надиктувати — мікрофон на клавіатурі."></textarea><button class="primary" id="stProb">Надіслати логісту</button></details></div>';
     (v.problems || []).slice(-2).forEach(x => h += '<p class="cnote">Проблема ' + tkTime(x.at) + ': ' + esc(x.text) + '</p>');
     h += '<details class="card ststeps"><summary>Усі кроки рейсу · ' + doneN + ' з ' + v.steps.length + '</summary><ol class="stlist">' + v.steps.map((x, i) => '<li class="' + (x.at ? 'done' : x.step === v.next ? 'next' : '') + '"><span>' + (x.at ? '✓' : '○') + '</span><b>' + esc(x.step) + '</b>' +
@@ -825,14 +826,19 @@
       const curChips = list => '<div class="chips" role="group" aria-label="Валюта">' + list.filter(c => !(d.mode === 'xch' && c === 'UAH')).map(c => '<button class="chip" data-ec="' + c + '" aria-pressed="' + (c === d.cur) + '">' + c + '</button>').join('') +
         (curMore.length && !d.curAll && curMore.indexOf(d.cur) < 0 ? '<button class="chip chipmore" data-ecm>ще…</button>' : curMore.map(c => '<button class="chip" data-ec="' + c + '" aria-pressed="' + (c === d.cur) + '">' + c + '</button>').join('')) + '</div>';
       h += '<button class="btn rptlink" id="exRpt">' + svgI('M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h4') + 'Звіт кругорейсу — перевірити й надіслати</button>';
-      h += '<div class="seg" role="tablist">' + [['exp', 'Витрата'], ['xch', 'Обмін валюти'], ['cli', 'Гроші від клієнта']].map(m => '<button role="tab" data-em="' + m[0] + '" aria-selected="' + (d.mode === m[0]) + '">' + m[1] + '</button>').join('') + '</div>';
+      h += '<div class="seg" role="tablist">' + [['exp', 'Витрата'], ['got', 'Отримав під звіт'], ['xch', 'Обмін валюти'], ['cli', 'Від клієнта']].map(m => '<button role="tab" data-em="' + m[0] + '" aria-selected="' + (d.mode === m[0]) + '">' + m[1] + '</button>').join('') + '</div>';
       h += '<section class="card exform">';
       if (d.mode === 'exp') {
         const showMore = d.more || more.indexOf(d.type) >= 0, fuel = d.type === 'Пальне' || d.type === 'AdBlue';
         h += '<div class="extypes">' + types.concat(showMore ? more : []).map(t => '<button class="extype" data-et="' + esc(t) + '" aria-pressed="' + (t === d.type) + '">' + svgI(EX_ICO[t] || EX_ICO['Інше']) + '<span>' + esc(t) + '</span></button>').join('') + '</div>' +
           (showMore ? '' : '<button class="link exmore" data-emore>Пальне, AdBlue, дорога, харчування, штраф…</button>') +
           '<label for="exSum">Сума</label><input id="exSum" class="exsum" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(d.sum) + '">' + curChips(curs) +
-          (fuel ? '<label for="exLit">Літри</label><input id="exLit" inputmode="decimal" value="' + esc(d.liters) + '">' : '');
+          (fuel ? '<label for="exLit">Літри</label><input id="exLit" inputmode="decimal" value="' + esc(d.liters) + '">' : '') +
+          // ADR-067: картка фірми — теж записуємо (є у звіті), але вона не зменшує готівку під звіт
+          '<label>Чим платили</label><div class="chips" role="group" aria-label="Чим платили">' + ['Готівка', 'Картка фірми'].map(p => '<button class="chip" data-ep="' + p + '" aria-pressed="' + (p === (d.pay || 'Готівка')) + '">' + p + '</button>').join('') + '</div>';
+      } else if (d.mode === 'got') {
+        h += '<p class="muted small">Скільки грошей вам видали під звіт (або аванс). Офіс затвердить — і сума піде у звіт кругорейсу.</p>' +
+          '<label for="exSum">Отримав</label><input id="exSum" class="exsum" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(d.sum) + '">' + curChips(curs);
       } else if (d.mode === 'xch') {
         h += '<label for="exSum">Купив валюти</label><input id="exSum" class="exsum" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(d.sum) + '">' + curChips(curs) +
           '<label for="exUah">Віддав гривень</label><input id="exUah" class="exsum" inputmode="decimal" autocomplete="off" placeholder="0" value="' + esc(d.uah) + '">' +
@@ -843,7 +849,7 @@
       }
       h += photoStrip('exF', d.photo ? 1 : 0, false) + (d.photo ? '<div class="tdthumbs"><span><img class="exthumb" alt="Фото чека" src="data:image/jpeg;base64,' + d.photo + '"><button class="link" data-exdel>прибрати</button></span></div>' : '') +
         '<label for="exNote">Примітка (можна не писати)</label><input id="exNote" value="' + esc(d.note) + '" placeholder="' + (d.mode === 'cli' ? 'від кого, за який рейс' : 'напр. стоянка біля кордону') + '">' +
-        '<p class="msg" id="exMsg"></p><button class="primary" id="exSave">' + (d.mode === 'xch' ? 'Записати обмін' : d.mode === 'cli' ? 'Записати гроші від клієнта' : 'Записати витрату') + '</button></section>';
+        '<p class="msg" id="exMsg"></p><button class="primary" id="exSave">' + (d.mode === 'xch' ? 'Записати обмін' : d.mode === 'cli' ? 'Записати гроші від клієнта' : d.mode === 'got' ? 'Записати — офіс затвердить' : 'Записати витрату') + '</button></section>';
     }
     const list = (office ? [] : expPending()).concat(ex.list);
     const flt = office ? (store.get('exFlt') || 'нова') : 'all';
@@ -852,17 +858,19 @@
     const wk = Date.now() - 7 * 86400000, sums = {}; list.filter(x => x.at >= wk).forEach(x => { sums[x.cur] = (sums[x.cur] || 0) + x.sum; });
     h += '<section class="card exlist"><h2>' + (office ? 'Витрати водіїв за 31 день' : 'Мої гроші за 31 день') + '</h2>' + (Object.keys(sums).length ? '<p class="muted">За 7 днів: ' + Object.keys(sums).map(c => fmtSum(sums[c], c)).join(' · ') + '</p>' : '') +
       (shown.length ? shown.map(x => {
-        const st = x.pending ? '<span class="exst pend">ще на телефоні</span>' : x.status === 'перевірено' ? '<span class="exst ok">✓ перевірено</span>' : x.status === 'питання' ? '<span class="exst q">? питання' + (x.statusNote ? ': ' + esc(x.statusNote) : '') + '</span>' : '<span class="exst new">нова</span>';
+        const gotT = x.type === 'Отримав під звіт';
+        const st = x.pending ? '<span class="exst pend">ще на телефоні</span>' : x.status === 'перевірено' ? '<span class="exst ok">✓ ' + (gotT ? 'затверджено' : 'перевірено') + '</span>' : gotT && x.status === 'нова' ? '<span class="exst new">чекає затвердження</span>' : x.status === 'питання' ? '<span class="exst q">? питання' + (x.statusNote ? ': ' + esc(x.statusNote) : '') + '</span>' : '<span class="exst new">нова</span>';
         const canUndo = !office && !x.pending && x.status === 'нова' && Date.now() - (x.saved || x.at) < (ex.undoMin || 15) * 60000;
         return '<div class="exitem"><div class="exmain">' + svgI(EX_ICO[x.type] || EX_ICO['Інше']) + '<div><b>' + esc(fmtSum(x.sum, x.cur)) + '</b> · ' + esc(x.type === 'Обмін валюти' ? 'купив валюту' + (x.uah ? ' за ' + fmtSum(x.uah, 'UAH') : '') : x.type) + (x.liters ? ' · ' + x.liters + ' л' : '') +
           '<small>' + (office ? esc(x.name || x.worker) + ' · ' : '') + new Date(x.at).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + (x.truck ? ' · ' + esc(x.truck) : '') + (x.pay && x.pay !== 'Готівка' ? ' · ' + esc(x.pay) : '') + (x.note ? ' · ' + esc(x.note) : '') + '</small>' + st + '</div></div>' +
           '<div class="exact">' + (x.photo && !x.pending ? '<button class="btn" data-eph="' + esc(x.id) + '">Чек</button>' : '') + (canUndo ? '<button class="btn" data-eun="' + esc(x.id) + '">Скасувати</button>' : '') +
-          (office && x.status !== 'перевірено' ? '<button class="btn" data-eok="' + esc(x.id) + '">✓ Перевірено</button>' : '') + (office && x.status !== 'питання' ? '<button class="btn" data-eq="' + esc(x.id) + '">? Питання</button>' : '') + '</div></div>';
+          (office && x.status !== 'перевірено' ? '<button class="btn" data-eok="' + esc(x.id) + '">✓ ' + (gotT ? 'Затвердити' : 'Перевірено') + '</button>' : '') + (office && x.status !== 'питання' ? '<button class="btn" data-eq="' + esc(x.id) + '">? Питання</button>' : '') + '</div></div>';
       }).join('') : '<p class="muted">' + (office ? 'Тут порожньо.' : 'Витрат за 31 день ще немає.') + '</p>') + '</section>';
     b.innerHTML = h;
     // форма водія
     const keep = () => { if ($('exSum')) d.sum = $('exSum').value; if ($('exNote')) d.note = $('exNote').value; if ($('exLit')) d.liters = $('exLit').value; if ($('exUah')) d.uah = $('exUah').value; };
     b.querySelectorAll('[data-em]').forEach(e => e.onclick = () => { keep(); d.mode = e.dataset.em; d.cur = ''; d.type = ''; renderExp(); });
+    b.querySelectorAll('[data-ep]').forEach(e => e.onclick = () => { keep(); d.pay = e.dataset.ep; renderExp(); });
     b.querySelectorAll('[data-et]').forEach(e => e.onclick = () => { keep(); d.type = e.dataset.et; renderExp(); $('exSum').focus(); });
     b.querySelectorAll('[data-ec]').forEach(e => e.onclick = () => { keep(); d.cur = e.dataset.ec; renderExp(); });
     if ($('exRpt')) $('exRpt').onclick = () => openRpt();
@@ -875,18 +883,18 @@
     if ($('exFC')) $('exFC').onchange = exPick; if ($('exFG')) $('exFG').onchange = exPick;
     if ($('exSave')) $('exSave').onclick = () => {
       keep(); const num = v => String(v).replace(/\s/g, '').replace(',', '.'), sum = num(d.sum), uah = num(d.uah);
-      const type = d.mode === 'xch' ? 'Обмін валюти' : d.mode === 'cli' ? 'Від клієнта' : d.type;
+      const type = d.mode === 'xch' ? 'Обмін валюти' : d.mode === 'cli' ? 'Від клієнта' : d.mode === 'got' ? 'Отримав під звіт' : d.type;
       if (!type) { $('exMsg').textContent = 'Оберіть, на що витрата'; return; }
       if (!/^\d+(\.\d{1,2})?$/.test(sum) || +sum <= 0) { $('exMsg').textContent = d.mode === 'xch' ? 'Скільки валюти купили — цифрами' : 'Вкажіть суму цифрами'; $('exSum').focus(); return; }
       if (d.mode === 'xch' && (!/^\d+(\.\d{1,2})?$/.test(uah) || +uah <= 0)) { $('exMsg').textContent = 'Скільки гривень віддали — цифрами'; $('exUah').focus(); return; }
-      const op = { id: 'EX-' + newId().slice(0, 18), type, sum: +sum, cur: d.cur, pay: 'Готівка', liters: String(d.liters).replace(',', '.'), odo: '', note: d.note.trim(), photo: d.photo, uah: d.mode === 'xch' ? +uah : '',
+      const op = { id: 'EX-' + newId().slice(0, 18), type, sum: +sum, cur: d.cur, pay: d.mode === 'exp' ? (d.pay || 'Готівка') : 'Готівка', liters: String(d.liters).replace(',', '.'), odo: '', note: d.note.trim(), photo: d.photo, uah: d.mode === 'xch' ? +uah : '',
         country: (tc && tc.hint && tc.hint.country) || '' };
-      vib(30); const label = (d.mode === 'xch' ? 'обмін ' : d.mode === 'cli' ? 'від клієнта ' : '') + fmtSum(op.sum, op.cur);
+      vib(30); const label = (d.mode === 'xch' ? 'обмін ' : d.mode === 'cli' ? 'від клієнта ' : d.mode === 'got' ? 'отримав під звіт ' : '') + fmtSum(op.sum, op.cur);
       apiQ('expense.add', { op, truck: (tk && tk.current && tk.current.truck) || (tc && tc.truck) || '', trip: (stCur && stCur.trip && stCur.trip.id) || '', opId: op.id }, label)
         .then(r => { if (r.queued) toast('Збережено на телефоні: <b>' + esc(label) + '</b>. Надішлеться само, щойно з\'явиться зв\'язок.'); else ex = r; if (!$('exp').hidden) renderExp(); })
         .catch(e => { toast('<b>Не записано</b>: ' + esc(e.message), 'err'); });
       toast('Записано: ' + esc(label) + (d.mode === 'exp' ? ' · ' + esc(op.type) : ''), '', { label: 'Скасувати', run: () => expUndo(op.id) });
-      exDraft = { mode: d.mode, type: '', sum: '', cur: d.cur, pay: '', liters: '', odo: '', note: '', photo: '', uah: '', more: false }; renderExp();
+      exDraft = { mode: d.mode, type: '', sum: '', cur: d.cur, pay: d.pay, liters: '', odo: '', note: '', photo: '', uah: '', more: false }; renderExp();
       const nl = document.querySelector('.exlist'); if (nl) nl.scrollIntoView({ block: 'start', behavior: 'smooth' });
     };
     // список
@@ -1017,7 +1025,8 @@
     h += '<section class="card rpsum"><h2>Гроші</h2>' +
       '<div class="kv"><span>Залишок на початок</span><b>' + sums(d.open) + '</b></div>' +
       '<div class="kv"><span>Отримав під звіт / аванс</span><b>' + sums(d.got) + '</b></div>' +
-      '<div class="kv"><span>Витратив</span><b>' + sums(d.spent) + '</b></div>' +
+      '<div class="kv"><span>Витратив готівкою</span><b>' + sums(d.spent) + '</b></div>' +
+      (d.card && Object.keys(d.card).length ? '<div class="kv"><span>Оплачено карткою фірми (не з готівки)</span><b>' + sums(d.card) + '</b></div>' : '') +
       (Object.keys(d.xch).length ? '<div class="kv"><span>Обмін валюти</span><b>' + Object.keys(d.xch).map(c => (d.xch[c] > 0 ? '+' : '') + fmtSum(d.xch[c], c)).join(' · ') + '</b></div>' : '') +
       '<div class="kv big"><span>Має лишитись</span><b>' + sums(d.calc) + '</b></div>' +
       (Object.keys(d.client).length ? '<div class="kv"><span>Гроші від клієнта (передати в офіс)</span><b>' + sums(d.client) + '</b></div>' : '') + '</section>';
