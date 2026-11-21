@@ -843,3 +843,14 @@ body[data-role="водій"] .who { min-width: 0; }
 /* без автопереносів довгі рядки (час «06:30–23:28:») не повинні розпирати картки */
 .tc-gps, .tsheet, .timebox { grid-template-columns: minmax(0, 1fr); }
 .tc-gps > *, .tsheet > * { min-width: 0; overflow-wrap: anywhere; }
+/* документи машини й водія за терміном дії (ADR-069): значок + слово + колір */
+.dcard h2 { font-size: 18px; margin: 0 0 6px; }
+.dcard h3 { font-size: 15px; font-weight: 700; color: var(--muted); margin: 10px 0 2px; text-transform: none; }
+.dcrow { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; align-items: start; padding: 8px 0; border-top: 1px solid var(--line); font-size: 17px; }
+.dcrow small { display: block; font-size: 15px; color: var(--muted); }
+.dcmark { font-weight: 800; text-align: center; line-height: 1.4; }
+.dcrow.st-ok .dcmark { color: var(--ok-fg); }
+.dcrow.st-soon .dcmark, .dcrow.st-soon small { color: var(--warn-fg); }
+.dcrow.st-over .dcmark, .dcrow.st-over small, .dcrow.st-over b { color: var(--bad-fg); }
+.docalert { display: block; width: 100%; min-height: 52px; margin: -4px 0 14px; padding: 10px 14px; border-radius: 14px; border: 1.5px solid var(--warn-bd); background: var(--warn-bg); color: var(--warn-fg); font: inherit; font-size: 16px; font-weight: 700; text-align: left; cursor: pointer; }
+.docalert.st-over { border-color: var(--bad-fg); background: var(--bad-bg); color: var(--bad-fg); }
