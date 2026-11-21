@@ -43,7 +43,7 @@
   async function api(action, data = {}) {
     if (!CFG.API_URL) throw new Error('Програму ще не підключено до сервера (немає API_URL у config.js)');
     // кожне «Зберегти» має свій opId: якщо зв'язок обірвався і запит повторено, сервер не створить дубль (ADR-038)
-    const ONCE = action === 'save' || action === 'truck.take' || action === 'truck.give' || action === 'trip.status.add';
+    const ONCE = action === 'save' || action === 'truck.take' || action === 'truck.give' || action === 'trip.status.add' || action === 'tacho.add';
     if (ONCE && !data.opId) data = { ...data, opId: newId() };
     const perf = perfQ.splice(0, 10), t0 = performance.now();
     const body = JSON.stringify({ action, token: store.get('token'), ...data, ...(perf.length ? { perf } : {}) });
@@ -82,7 +82,7 @@
     try {
       while (outbox().length) {
         const it = outbox()[0];
-        try { await api(it.action, it.data); sent++; }
+        try { const r = await api(it.action, it.data); sent++; if (it.action === 'tacho.add' && r && r.log) { tc = r; saveHomeTc(); } }
         catch (e) { if (isNet(e)) break; toast('<b>Не прийнято</b> «' + esc(it.label || it.action) + '»: ' + esc(e.message), 'err'); }
         outboxSet(outbox().filter(x => x.data.opId !== it.data.opId));
       }
@@ -141,7 +141,7 @@
 
   /* ── Екрани ── */
   let navSeq = 0, meFresh = false;   // кожен перехід між екранами; пізня відповідь сервера не перемикає екран, якщо людина вже пішла далі
-  function show(id) { navSeq++; ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
+  function show(id) { navSeq++; ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck', 'tacho'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
 
   function showLogin(msg) {
     $('who').hidden = true; show('login'); $('loginMsg').textContent = msg || '';
@@ -182,9 +182,11 @@
       let cache = null; try { cache = JSON.parse(store.get('homeDrv') || 'null'); } catch (e) {}
       if (cache && cache.login === me.login) drawDriverHome(cache.st, cache.sv); else $('homeWork').innerHTML = '<div class="card tkwork"><p class="muted">Завантаження вашого рейсу…</p></div>';
       const nav = navSeq + 1;   // show('home') нижче
-      const calls = [{ action: 'truck.state' }, { action: 'trip.status' }]; if (!meFresh) calls.push({ action: 'me' });
-      apiBatch(calls).then(([st, sv, mr]) => {
+      if (!tc) { try { tc = JSON.parse(store.get('tacho_' + me.login) || 'null'); } catch (e) {} }
+      const calls = [{ action: 'truck.state' }, { action: 'trip.status' }, { action: 'tacho' }]; if (!meFresh) calls.push({ action: 'me' });
+      apiBatch(calls).then(([st, sv, tr, mr]) => {
         if (st instanceof Error) throw st; if (sv instanceof Error) sv = null;
+        if (tr && !(tr instanceof Error)) { tc = tr; saveHomeTc(); if (nav === navSeq) renderTimeBox(); }
         if (mr && !(mr instanceof Error)) { meFresh = true; enter(mr, true); }
         const fresh = JSON.stringify({ login: me.login, st, sv });
         if (store.get('homeDrv') !== fresh) { store.set('homeDrv', fresh); if (nav === navSeq) drawDriverHome(st, sv); }
@@ -198,10 +200,10 @@
     const has = st && st.planned && st.planned.length;
     const prof = '<div class="profile"><span>Ви увійшли як <b>' + esc(me.name) + '</b></span><button class="btn" id="drvOut">Вийти з програми</button></div>';
     if ($('drvOutBox')) $('drvOutBox').innerHTML = '';
-    if (has && sv && sv.trip) { $('homeWork').innerHTML = '<div id="stBox"></div>' + prof; $('tiles').hidden = true; renderStatus(); $('drvOut').onclick = askLogout; return; }
+    if (has && sv && sv.trip) { $('homeWork').innerHTML = '<div id="timeBox"></div><div id="stBox"></div>' + prof; renderTimeBox(); $('tiles').hidden = true; renderStatus(); $('drvOut').onclick = askLogout; return; }
     // немає поточного рейсу — коротка картка роботи (або «поки немає») і звичайні плитки
-    $('homeWork').innerHTML = has ? '<div id="homeWorkCard">' + workHtml(st.planned, true) + '</div>' : '<div class="card tkwork"><b>Запланованої роботи поки немає.</b><div class="muted small">Щойно логіст призначить рейс — він з\'явиться тут.</div></div>';
-    $('tiles').hidden = false; bindWork();
+    $('homeWork').innerHTML = '<div id="timeBox"></div>' + (has ? '<div id="homeWorkCard">' + workHtml(st.planned, true) + '</div>' : '<div class="card tkwork"><b>Запланованої роботи поки немає.</b><div class="muted small">Щойно логіст призначить рейс — він з\'явиться тут.</div></div>');
+    $('tiles').hidden = false; bindWork(); renderTimeBox();
     if (!$('drvOutBox')) { const d = document.createElement('div'); d.id = 'drvOutBox'; $('tiles').after(d); }
     $('drvOutBox').innerHTML = prof; $('drvOut').onclick = askLogout;
   }
@@ -306,6 +308,198 @@
     try { if (me && me.role === 'водій' && tk) store.set('homeDrv', JSON.stringify({ login: me.login, st: tk, sv: stCur })); } catch (e) {}
     if (me.role === 'водій' && $('tiles')) $('tiles').hidden = true;      // усе потрібне — у швидких кнопках «Мого рейсу»                 // рейс показано в «Мій рейс» — коротка картка роботи не потрібна
   }
+  /* ── «Мій час» і ручний тахограф (ADR-058). Розрахунок — drive.js (той самий код, що на сервері), тож працює й без зв'язку ── */
+  let tc = null, tcLocal = [];                 // tc — відповідь сервера 'tacho'; tcLocal — щойно натиснуте, ще без відповіді
+  const TM = { drive: ['Керую', '', 'M12 3a9 9 0 100 18 9 9 0 000-18zm0 6a3 3 0 100 6 3 3 0 000-6zM3.5 10.5h5.6M14.9 10.5h5.6M12 15v6'],
+    work: ['Інша робота', 'склад, митниця, огляд', 'M14 6l4 4M4 20l8-8M13 7l4 4 3-3-4-4z'],
+    avail: ['Очікування', 'черга, готовність', 'M4 4h16v16H4zM4 20L20 4'],
+    rest: ['Перерва / відпочинок', '', 'M3 18V8M3 14h18v4M21 14v-2a3 3 0 00-3-3h-7v5M7 12a2 2 0 100-4 2 2 0 000 4z'] };
+  const CC = [['UA', 'Україна'], ['PL', 'Польща'], ['DE', 'Німеччина'], ['LT', 'Литва'], ['SK', 'Словаччина'], ['HU', 'Угорщина'], ['RO', 'Румунія'], ['CZ', 'Чехія']];
+  const hm = ms => new Date(ms).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+  const fmtD = m => window.DRV ? DRV.fmtDur(m) : Math.round(m) + ' хв';
+  /** Журнал: сервер + черга без зв'язку + щойно натиснуте. */
+  function tcLog() {
+    const base = (tc && tc.log) || [], seen = new Set(base.map(r => r.id + '|' + (r.saved || '')));
+    const q = outbox().filter(x => x.action === 'tacho.add').map(x => Object.assign({}, x.data.op, { at: x.data.op.fix ? x.data.op.at : (x.data.op.at || x.data.clientAt), saved: x.data.clientAt, pending: true }));
+    return base.concat(q, tcLocal).filter(r => r.pending || seen.has(r.id + '|' + (r.saved || '')));
+  }
+  function tcCalc() {
+    if (!window.DRV || !tc) return null;
+    const now = Date.now(), cur = tc.cur ? Object.assign({}, tc.cur, { stale: tc.cur.stale || now - tc.now > 40 * 60000 }) : null;
+    const r = DRV.driverTime({ now, recs: tcLog(), rows: tc.rows || [], cur, dailyMovingSec: tc.daily || {} });
+    r.text = DRV.shortText(r.ev, now, me && me.role === 'водій' ? 'driver' : 'logist'); r.now = now; return r;
+  }
+  const todayStarted = r => r.list.some(x => x.kind === 'dayStart' && new Date(x.at).toDateString() === new Date().toDateString()) || (r.ev.dayOpen && r.list.length && Date.now() - r.list[r.list.length - 1].at < 20 * 3600000);
+  /** Блок «Мій час» на головній водія: 3 рядки і одна кнопка. */
+  function renderTimeBox() {
+    const box = $('timeBox'); if (!box) return;
+    const r = tcCalc(); if (!r) { box.innerHTML = ''; return; }
+    const x = r.text, started = todayStarted(r), m = r.ev.mode && started ? r.ev.mode : null;
+    box.innerHTML = '<section class="card timebox tone-' + x.tone + '"><div class="tb-head"><b>Мій час</b><button class="link" id="tbOpen">Мій час і тахограф ›</button></div>' +
+      (started && m ? '<button class="btn tb-mode" id="tbMode">' + svgI(TM[m][2]) + '<span><b>' + esc(TM[m][0]) + '</b> · змінити</span></button>' : '<button class="primary tb-start" id="tbStart">Почати день</button>') +
+      (started || r.ev.source !== 'gps' ? '<div class="tb-main"><span class="tb-ico" aria-hidden="true">' + esc(x.icon) + '</span>' + esc(x.main) + '</div>' + (x.sub ? '<div class="tb-sub">' + esc(x.sub) + '</div>' : '') : '<div class="tb-sub">Відмітьте час і спідометр — програма підкаже, коли перерва.</div>') + '</section>';
+    $('tbOpen').onclick = () => openTacho();
+    if ($('tbMode')) $('tbMode').onclick = () => openTacho();
+    if ($('tbStart')) $('tbStart').onclick = () => openTacho('dayStart');
+  }
+  async function openTacho(then, who) {
+    const office = me.role !== 'водій';
+    if (office) { tc = null; $('tachoBack').textContent = '‹ Дошка'; $('tachoTitle').textContent = 'Час водія' + (who && who.name ? ' — ' + who.name : ''); }
+    show('tacho'); const nav = navSeq;
+    if (tc) renderTacho(); else $('tcBody').innerHTML = '<p class="muted">Завантаження…</p>';
+    if (then) tachoDay(then);
+    try { const r = await api('tacho', office ? { workerId: who.id, truck: who.truck } : {}); tc = r; if (nav === navSeq && !$('tacho').hidden && !document.querySelector('.tsheet')) renderTacho(); saveHomeTc(); }
+    catch (e) { if (!tc) $('tcBody').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
+  }
+  const saveHomeTc = () => { if (me.role === 'водій') try { store.set('tacho_' + me.login, JSON.stringify(tc)); } catch (e) {} };
+  /** Надіслати запис (через чергу без зв'язку). Час — натискання на телефоні. */
+  function tachoSend(op, okText) {
+    op = Object.assign({ id: 'TH-' + newId().slice(0, 18) }, op);
+    const loc = Object.assign({}, op, { at: op.fix ? op.at : (op.at || Date.now()), saved: Date.now(), pending: true }); tcLocal.push(loc);
+    vib(30); renderTacho(); renderTimeBox();
+    const drop = () => { tcLocal = tcLocal.filter(x => x !== loc); };
+    apiQ('tacho.add', { op, truck: (tc && tc.truck) || '', workerId: me.role === 'водій' ? undefined : tc.worker, opId: op.id }, op.fix ? 'виправлення в «Мій час»' : 'режим «' + (TM[op.mode] ? TM[op.mode][0] : op.kind) + '»')
+      .then(r => { drop(); if (!r.queued) { tc = r; saveHomeTc(); } if (!$('tacho').hidden && !document.querySelector('.tsheet')) renderTacho(); renderTimeBox(); })
+      .catch(e => { drop(); renderTacho(); renderTimeBox(); toast('<b>Не записано</b>: ' + esc(e.message), 'err'); });
+    if (okText) toast(okText, '', op.fix || op.del ? null : { label: 'Скасувати', run: () => tachoUndo(op.id) });
+    return op.id;
+  }
+  function tachoUndo(id) {
+    const q = outbox().find(x => x.action === 'tacho.add' && x.data.op.id === id);
+    if (q) { outboxSet(outbox().filter(x => x !== q && x.data.opId !== q.data.opId)); renderTacho(); renderTimeBox(); toast('Скасовано.'); return; }
+    tachoSend({ fix: id, del: true }, 'Запис прибрано.');
+  }
+  /** Екран «Мій час». */
+  function renderTacho() {
+    const b = $('tcBody'); if (!b) return;
+    if (!window.DRV) { b.innerHTML = '<p class="msg">Оновіть програму (потягніть сторінку вниз).</p>'; return; }
+    const r = tcCalc(); if (!r) return;
+    const office = me.role !== 'водій', ev = r.ev, x = r.text, now = r.now, started = todayStarted(r) && !office, m = todayStarted(r) ? ev.mode : null;
+    const moving = tc.cur && tc.cur.moving && !tc.cur.stale && (tc.cur.speed || 0) > 10;
+    let h = '<div class="tc-top"><div class="tc-now">' + (m ? 'Зараз: <b>' + esc(TM[m][0]) + '</b> з ' + hm(ev.modeFrom) : 'День ще не почато') + '</div>' +
+      (office ? '<span class="muted small">' + (tc.truck ? 'машина ' + esc(tc.truck) : '') + '</span>' : started ? '<button class="btn" id="tcEnd"' + (moving ? ' disabled' : '') + '>Кінець дня</button>' : '<button class="primary" id="tcStart">Почати день</button>') + '</div>';
+    h += '<section class="card timebox tone-' + x.tone + '"><div class="tb-main"><span class="tb-ico" aria-hidden="true">' + esc(x.icon) + '</span>' + esc(x.main) + '</div>' + (x.sub ? '<div class="tb-sub">' + esc(x.sub) + '</div>' : '') + '</section>';
+    if (started) {
+      h += '<p class="muted tc-hint">' + (moving ? 'Машина їде — доступні лише «Керую» і «Перерва». Виправлення — на стоянці.' : 'Змінився режим — натисніть один раз:') + '</p><div class="tc-modes">' +
+        Object.keys(TM).filter(k => !moving || k === 'drive' || k === 'rest').map(k => '<button class="tc-mode' + (k === m ? ' on' : '') + '" data-mode="' + k + '">' + svgI(TM[k][2]) + '<b>' + esc(TM[k][0]) + '</b>' + (TM[k][1] ? '<small>' + esc(TM[k][1]) + '</small>' : '') + (k === m ? '<em>зараз</em>' : '') + '</button>').join('') + '</div>';
+    }
+    // GPS бачить інакше — одна підказка, найновіша, якщо водій її ще не закрив
+    const dif = (ev.diffs || []).filter(d => !store.get('gpsAck_' + d.id)).pop();
+    if (office) h += (ev.diffs || []).length ? '<section class="card tc-gps"><b>Відмітки водія і GPS розходяться</b>' + ev.diffs.map(d => '<p>' + hm(d.start) + '–' + hm(d.end) + ': водій — «' + esc(TM[d.mode][0]) + '», GPS — ' + d.gps + ' ' + fmtD(d.min) + '</p>').join('') + '<p class="muted small">Це не порушення: GPS не бачить завантаження, митницю, пором. Уточніть у водія, якщо важливо.</p></section>' : '';
+    else if (dif && !moving) h += '<section class="card tc-gps"><b>GPS бачить інакше</b><p>' + hm(dif.start) + '–' + hm(dif.end) + ': у вас «' + esc(TM[dif.mode][0]) + '», а GPS ' + (dif.gps === 'рух' ? 'бачив рух ' + fmtD(dif.min) : 'бачив стоянку ' + fmtD(dif.min)) + '.</p>' +
+      '<div class="ask-btns"><button class="btn" id="gpsOk">Усе правильно</button><button class="primary" id="gpsFix">Виправити</button></div></section>';
+    h += '<section class="card tc-nums"><h2>Орієнтовно на сьогодні</h2>' +
+      '<div><span>За кермом без перерви</span><b>' + fmtD(ev.cont || 0) + ' з 4 год 30 хв</b></div>' +
+      '<div><span>За кермом сьогодні</span><b>' + fmtD(ev.day || 0) + ' з ' + (ev.dayLimit > 540 ? '9 (можна 10)' : '9') + '</b></div>' +
+      '<div><span>Цей тиждень</span><b>' + fmtD(ev.week || 0) + ' з 56 год</b></div>' +
+      '<div><span>Два тижні</span><b>' + fmtD(ev.twoWeek || 0) + ' з 90 год</b></div>' +
+      (ev.source !== 'manual' ? '<p class="muted small">' + (ev.source === 'gps' ? 'Поки за GPS. Відмічайте режими — буде точніше.' : 'Частина часу — за GPS (схоже, режим не перемкнули).') + '</p>' : '') + '</section>';
+    h += sheetHtml(r, now);
+    h += recordsHtml(r, now);
+    h += weekHtml(r, now);
+    h += '<p class="muted small tc-foot">' + (office ? 'Орієнтовно: відмітки водія, де їх немає — GPS. Остаточно — тахограф водія. Оцінка не є доказом проти водія.' : 'Це ваш облік і підказка, не штраф і не контроль. Числа приблизні. Офіційно рахує тахограф.') + '</p>';
+    b.innerHTML = h;
+    b.querySelectorAll('[data-mode]').forEach(e => e.onclick = () => {
+      const k = e.dataset.mode; if (k === m) return;
+      tachoSend({ kind: 'mode', mode: k }, '«' + esc(TM[k][0]) + '» з ' + hm(Date.now()) + ' записано');
+    });
+    if ($('tcStart')) $('tcStart').onclick = () => tachoDay('dayStart');
+    if ($('tcEnd')) $('tcEnd').onclick = () => tachoDay('dayEnd');
+    if ($('gpsOk')) $('gpsOk').onclick = () => { store.set('gpsAck_' + dif.id, '1'); renderTacho(); };
+    if ($('gpsFix')) $('gpsFix').onclick = () => tachoEdit(r.list.find(y => y.id === dif.id), dif.gpsAt);
+    b.querySelectorAll('[data-edit]').forEach(e => e.onclick = () => tachoEdit(r.list.find(y => y.id === e.dataset.edit)));
+    if ($('tcAdd')) $('tcAdd').onclick = () => tachoEdit(null);
+  }
+  /** Стрічка доби «як на аркуші»: 4 доріжки ручних відміток + доріжка GPS. */
+  function sheetHtml(r, now, day) {
+    const d0 = new Date(day || now); d0.setHours(0, 0, 0, 0); const a = d0.getTime(), bnd = a + 86400000, pct = t => ((Math.min(Math.max(t, a), bnd) - a) / 864000).toFixed(2);
+    const lane = (k, segs, cls) => '<div class="lane"><span>' + k + '</span><div class="track">' + segs.filter(s => s.end > a && s.start < bnd).map(s => '<i class="' + cls + '" style="left:' + pct(s.start) + '%;width:' + Math.max(0.3, pct(s.end) - pct(s.start)) + '%"></i>').join('') +
+      (now >= a && now < bnd ? '<u style="left:' + pct(now) + '%"></u>' : '') + '</div></div>';
+    const man = r.man, sums = window.DRV.daySums(man, a + 12 * 3600000, now);
+    const names = { drive: 'Керую', work: 'Робота', avail: 'Чекаю', rest: 'Відпочинок' };
+    return '<section class="card tc-sheet"><h2>Доба ' + d0.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' }) + ' — як на аркуші</h2><div class="hours">' + [0, 6, 12, 18, 24].map(h => '<span style="left:' + (h / 24 * 100) + '%">' + h + '</span>').join('') + '</div>' +
+      Object.keys(names).map(k => lane(names[k] + ' <b>' + fmtD(sums[k]) + '</b>', man.filter(s => s.mode === k), 'm-' + k)).join('') +
+      lane('GPS: рух', r.gps.filter(s => s.type === 'drive'), 'm-gps') + '</section>';
+  }
+  function recordsHtml(r, now) {
+    const lim = now - ((tc && tc.editDays) || 2) * 86400000, from = now - 2 * 86400000;
+    const list = r.list.filter(x => x.at >= from).slice().reverse();
+    const nextAt = id => { const i = r.list.findIndex(y => y.id === id); return i >= 0 && i + 1 < r.list.length ? r.list[i + 1].at : now; };
+    return '<section class="card tc-recs"><h2>Записи за 2 доби</h2>' + (list.length ? list.map(x => {
+      const mode = window.DRV.recMode(x), lab = x.kind === 'dayStart' ? 'Початок дня · ' + TM[mode][0] : x.kind === 'dayEnd' ? 'Кінець дня' : TM[mode][0];
+      return '<div class="trec"><span class="tt">' + (new Date(x.at).toDateString() === new Date().toDateString() ? '' : new Date(x.at).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' }) + ' ') + hm(x.at) + '</span>' + svgI(TM[mode][2]) +
+        '<div><b>' + esc(lab) + '</b><small>' + fmtD((nextAt(x.id) - x.at) / 60000) + [x.country, x.odo ? x.odo + ' км' : '', x.note].filter(Boolean).map(s => ' · ' + esc(s)).join('') + (x.edited ? ' · виправлено' : '') + (x.pending ? ' · ще на телефоні' : '') + '</small>' +
+        (me.role !== 'водій' && x.hist && x.hist.length ? '<small class="thist">' + x.hist.map(hh => (hh.del ? 'видалено' : 'було ' + (hh.was.at ? hm(hh.was.at) : '?') + ' «' + esc(TM[window.DRV.recMode(hh.was)] ? TM[window.DRV.recMode(hh.was)][0] : '') + '»') + ' — змінено ' + new Date(hh.saved).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + (hh.by ? ' (' + esc(hh.by) + ')' : '')).join('; ') + '</small>' : '') + '</div>' +
+        (x.at >= lim && !x.pending ? '<button class="btn icon" data-edit="' + esc(x.id) + '" aria-label="Виправити запис ' + hm(x.at) + '">' + svgI('M4 20h4L19 9l-4-4L4 16zM14 6l4 4') + '</button>' : '') + '</div>';
+    }).join('') : '<p class="muted">Записів ще немає.</p>') + '<button class="link" id="tcAdd">+ Додати пропущений запис</button>' +
+      '<p class="muted small">Виправити можна записи за ' + ((tc && tc.editDays) || 2) + ' доби. Старші — попросіть логіста.</p></section>';
+  }
+  function weekHtml(r, now) {
+    const ws = new Date(now); ws.setHours(0, 0, 0, 0); ws.setDate(ws.getDate() - ((ws.getDay() + 6) % 7));
+    const days = []; for (let i = 0; i < 7; i++) { const a = ws.getTime() + i * 86400000; days.push({ a, d: 0 }); }
+    (r.segs || []).forEach(s => { if (s.type !== 'drive') return; days.forEach(x => { const lo = Math.max(s.start, x.a), hi = Math.min(s.end, x.a + 86400000, now); if (hi > lo) x.d += (hi - lo) / 60000; }); });
+    const dn = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'нд'];
+    return '<section class="card tc-week"><h2>Тиждень · за кермом</h2><div class="wbars">' + days.map((x, i) => '<div class="wb' + (x.a > now ? ' fut' : '') + '"><i style="height:' + Math.min(100, x.d / 600 * 100).toFixed(1) + '%"></i><b>' + (x.d >= 6 ? (x.d / 60).toFixed(1).replace('.0', '').replace('.', ',') : '') + '</b><span>' + dn[i] + '</span></div>').join('') +
+      '<div class="w9" title="9 год"></div></div><p class="muted small">Пунктир — 9 год на день. Тиждень ' + fmtD(r.ev.week || 0) + ' з 56 · два тижні ' + fmtD(r.ev.twoWeek || 0) + ' з 90.' + (r.ev.weeklyRestDue ? ' Тижневий відпочинок — почати до ≈ ' + window.DRV.kWhen(r.ev.weeklyRestDue, now) + '.' : '') + '</p></section>';
+  }
+  /** Нижній аркуш (вікно знизу) для виправлення / початку і кінця дня. */
+  function tsheet(title, html, onSave, extra) {
+    const w = document.createElement('div'); w.className = 'ask-wrap'; w.innerHTML = '<div class="ask tsheet" role="dialog" aria-modal="true"><h2></h2>' + html + '<p class="msg" id="tsMsg"></p><div class="ask-btns"><button class="btn" data-a="0">Скасувати</button><button class="primary" data-a="1">Зберегти</button></div>' + (extra || '') + '</div>';
+    w.querySelector('h2').textContent = title; document.body.appendChild(w);
+    const close = () => { w.remove(); renderTacho(); };
+    w.onclick = e => { if (e.target === w) close(); const b = e.target.closest('[data-a]'); if (!b) return; if (b.dataset.a === '0') close(); else { const err = onSave(w); if (err) w.querySelector('#tsMsg').textContent = err; else close(); } };
+    return w;
+  }
+  const timeVal = ms => { const d = new Date(ms); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+  function pickTime(w, dayOff) { const v = w.querySelector('#tsTime').value; if (!/^\d\d:\d\d$/.test(v)) return null; const d = new Date(); d.setDate(d.getDate() - (dayOff || 0)); d.setHours(+v.slice(0, 2), +v.slice(3), 0, 0); return d.getTime(); }
+  const timeRow = ms => '<label>Час</label><div class="tsrow"><button class="btn" data-dt="-5">−5</button><input id="tsTime" type="time" value="' + timeVal(ms) + '"><button class="btn" data-dt="5">+5</button></div>';
+  const bindTime = w => w.querySelectorAll('[data-dt]').forEach(b => b.onclick = e => { e.stopPropagation(); const i = w.querySelector('#tsTime'), [h, m] = i.value.split(':').map(Number), t = (h * 60 + m + +b.dataset.dt + 1440) % 1440; i.value = String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); });
+  const chipsSel = (w, sel) => w.querySelectorAll(sel).forEach(c => c.onclick = e => { e.stopPropagation(); w.querySelectorAll(sel).forEach(x => x.setAttribute('aria-pressed', String(x === c))); });
+  const chosen = (w, sel, attr) => { const c = w.querySelector(sel + '[aria-pressed="true"]'); return c ? c.dataset[attr] : ''; };
+  function tachoDay(kind) {
+    const r = tcCalc(), hint = (tc && tc.hint) || {}, start = kind === 'dayStart';
+    const cc = hint.country || ((r && r.list.length && r.list[r.list.length - 1].country) || 'UA');
+    const odoT = hint.odo ? (hint.odo.gpsKm ? 'Підказка: ' + hint.odo.odo + ' км (' + esc(hint.odo.src) + ' ' + hint.odo.base + ' + ' + hint.odo.gpsKm + ' км за GPS). Перевірте з приладом.' : 'Останнє: ' + hint.odo.odo + ' км (' + esc(hint.odo.src) + '). Перевірте з приладом.') : 'Спідометр можна дописати пізніше.';
+    const startRec = r && r.list.slice().reverse().find(x => x.kind === 'dayStart');
+    const html = timeRow(Date.now()) +
+      '<label>Країна</label><div class="chips">' + CC.map(c => '<button class="chip" data-cc="' + c[0] + '" aria-pressed="' + (c[0] === cc) + '">' + c[0] + ' · ' + c[1] + '</button>').join('') + '</div>' +
+      (hint.place ? '<p class="muted small">За GPS ви біля: ' + esc(hint.place) + '</p>' : '') +
+      '<label for="tsOdo">Спідометр, км</label><input id="tsOdo" inputmode="numeric" value="' + (hint.odo ? hint.odo.odo : '') + '"><p class="muted small">' + odoT + '</p>' +
+      (start ? '<label>З чого починаєте</label><div class="chips">' + ['work', 'drive'].map(k => '<button class="chip" data-fm="' + k + '" aria-pressed="' + (k === 'work') + '">' + TM[k][0] + '</button>').join('') + '</div>'
+        : (r ? '<p class="muted">За день: за кермом ' + fmtD(r.ev.day || 0) + (startRec && startRec.odo ? ' · спідометр зранку ' + startRec.odo + ' км' : '') + '.</p><p class="muted small">Далі програма сама почне «Відпочинок» і покаже, коли можна їхати.</p>' : ''));
+    const w = tsheet(start ? 'Початок дня' : 'Кінець дня', html, w => {
+      const at = pickTime(w); if (!at) return 'Вкажіть час';
+      if (at > Date.now() + 5 * 60000) return 'Час ще не настав';
+      const odo = w.querySelector('#tsOdo').value.replace(/\s/g, '');
+      if (odo && !/^\d{3,7}$/.test(odo)) return 'Спідометр — лише цифри';
+      const op = { kind, at, country: chosen(w, '[data-cc]', 'cc'), odo: odo ? +odo : '' };
+      if (start) op.mode = chosen(w, '[data-fm]', 'fm') || 'work';
+      tachoSend(op, start ? 'День почато о ' + hm(at) : 'День закінчено о ' + hm(at) + '. Гарного відпочинку!');
+    });
+    bindTime(w); chipsSel(w, '[data-cc]'); chipsSel(w, '[data-fm]');
+    w.querySelector('[data-a="1"]').textContent = start ? 'Почати день' : 'Закінчити день';
+  }
+  function tachoEdit(rec, gpsAt) {
+    const r = tcCalc(), lim = Date.now() - ((tc && tc.editDays) || 2) * 86400000;
+    const at0 = gpsAt || (rec ? rec.at : Date.now() - 30 * 60000), mode0 = rec ? window.DRV.recMode(rec) : 'drive';
+    const dOff = Math.max(0, Math.round((new Date().setHours(0, 0, 0, 0) - new Date(at0).setHours(0, 0, 0, 0)) / 86400000));
+    const html = '<label>Що робили</label><div class="tc-modes small">' + Object.keys(TM).map(k => '<button class="tc-mode" data-em="' + k + '" aria-pressed="' + (k === mode0) + '">' + svgI(TM[k][2]) + '<b>' + TM[k][0] + '</b></button>').join('') + '</div>' +
+      '<label>День</label><div class="chips">' + ['Сьогодні', 'Вчора', 'Позавчора'].slice(0, ((tc && tc.editDays) || 2) + 1).map((t, i) => '<button class="chip" data-day="' + i + '" aria-pressed="' + (i === Math.min(dOff, 2)) + '">' + t + '</button>').join('') + '</div>' +
+      timeRow(at0).replace('>Час<', '>Почав о<') + (gpsAt ? '<p class="muted small">За GPS машина рушила о ' + hm(gpsAt) + '.</p>' : '') + '<p class="muted small">Закінчив — до наступного запису (сусідні записи зсунуться самі).</p>' +
+      '<label for="tsNote">Примітка (можна не писати)</label><div class="chips">' + ['Завантаження', 'Розвантаження', 'Митниця', 'Огляд машини', 'Заправка', 'Черга на кордоні', 'Пором'].map(c => '<button class="chip" data-note="' + c + '">' + c + '</button>').join('') + '</div><input id="tsNote" value="' + esc((rec && rec.note) || '') + '">' +
+      (rec && rec.hist && rec.hist.length ? '<p class="muted small">Виправлено ' + rec.hist.length + ' раз(и) — логіст бачить історію.</p>' : '');
+    const w = tsheet(rec ? 'Виправити запис' : 'Додати пропущений запис', html, w => {
+      const at = pickTime(w, +chosen(w, '[data-day]', 'day') || 0); if (!at) return 'Вкажіть час';
+      if (at > Date.now() + 5 * 60000) return 'Час ще не настав'; if (at < lim) return 'Так давно — лише через логіста';
+      const op = { at, mode: chosen(w, '[data-em]', 'em') || mode0, note: w.querySelector('#tsNote').value.trim() };
+      if (rec) { op.fix = rec.id; op.kind = rec.kind === 'dayEnd' ? 'mode' : rec.kind; if (rec.kind === 'dayStart') { op.country = rec.country; op.odo = rec.odo; } }
+      else op.kind = 'mode';
+      tachoSend(op, rec ? 'Запис виправлено' : 'Запис додано');
+    }, rec ? '<button class="link danger-link" id="tsDel">Видалити запис</button>' : '');
+    bindTime(w); chipsSel(w, '[data-em]'); chipsSel(w, '[data-day]');
+    w.querySelectorAll('[data-note]').forEach(c => c.onclick = e => { e.stopPropagation(); const i = w.querySelector('#tsNote'); i.value = c.dataset.note; });
+    if (w.querySelector('#tsDel')) w.querySelector('#tsDel').onclick = e => { e.stopPropagation(); w.remove(); tachoSend({ fix: rec.id, del: true }, 'Запис видалено'); };
+  }
   function bindWork() { const c = document.querySelector('#homeWork .tkclick'); if (c) c.onclick = () => openTruck(); }
 
   async function openSheet(t) {
@@ -385,6 +579,12 @@
     return '<div class="pos' + (P.stale ? ' stale' : '') + '"><a href="' + link + '" target="_blank" rel="noopener" title="Відкрити на карті">' + svgI(PROB.gps) + esc(p.place || 'на карті') + '</a> · ' + what +
       (short ? (P.stale ? ' · дані давні' : '') : '<div class="muted small">оновлено ' + tkTime(P.at).split(', ').pop() + (P.stale ? ' — давно: вночі місце не оновлюється' : '') + '</div>') + '</div>';
   }
+  /** Час водія (Tacho.gs): з відміток водія, де їх немає — за GPS. Колір — не єдиний носій: є значок і слова. */
+  function driveHtml(x) {
+    const d = x.drive; if (!d) return '';
+    return '<div class="bdrive tone-' + esc(d.tone) + '"><b>' + esc(d.icon) + ' ' + esc(d.main) + '</b>' + (d.sub ? '<small>' + esc(d.sub) + '</small>' : '') +
+      '<small>' + (d.src === 'manual' ? 'за відмітками водія' : d.src === 'mixed' ? 'відмітки водія + GPS' : 'орієнтовно за GPS') + (d.diffs ? ' · розбіжностей з GPS: ' + d.diffs : '') + '</small></div>';
+  }
   function gpsText(g) {
     if (!g) return '—';
     if (g.standSince) return 'стоїть з ' + dd(g.standSince);
@@ -424,7 +624,7 @@
         '<td>' + route + '</td>' +
         '<td><div class="bst">' + stHtml + '</div></td>' +
         '<td>' + unl + next + '</td>' +
-        '<td>' + posHtml(x.id, true) + '<div class="bsub">пробіг: ' + esc(gpsText(x.gps)) + '</div></td>' +
+        '<td>' + posHtml(x.id, true) + driveHtml(x) + '<div class="bsub">пробіг: ' + esc(gpsText(x.gps)) + '</div></td>' +
         '<td><div class="flags">' + flags + '</div></td>';
       const det = tb.insertRow(); det.className = 'bdet'; det.hidden = true;
       det.innerHTML = '<td colspan="7">' + detail(x) + '</td>';
@@ -433,7 +633,7 @@
       const c = document.createElement('details'); c.className = 'bcard';
       c.innerHTML = '<summary><div class="bc1"><span class="plate ua">' + esc(x.id) + '</span><span class="bwho">' + drv + '</span>' + badgeOf(x) + '</div>' +
         route + (x.trip && x.trip.unload ? '<div class="bsub">розвантаження ' + dd(x.trip.unload) + '</div>' : '') + (stSub ? '<div class="bsub">' + esc(stSub) + '</div>' : '') +
-        posHtml(x.id, true) + (x.ech ? '<div class="bsub">' + esc(echShort(x.ech)) + '</div>' : '') + (x.gpsHint ? '<div class="bhint">' + svgI(PROB.gps) + esc(x.gpsHint.text) + '</div>' : '') +
+        posHtml(x.id, true) + driveHtml(x) + (x.ech ? '<div class="bsub">' + esc(echShort(x.ech)) + '</div>' : '') + (x.gpsHint ? '<div class="bhint">' + svgI(PROB.gps) + esc(x.gpsHint.text) + '</div>' : '') +
         (flags ? '<div class="flags">' + flags + '</div>' : '') + '<span class="bmore"><span class="m1">Деталі</span><span class="m2">Згорнути</span></span></summary>' + detail(x);
       cards.appendChild(c);
     });
@@ -477,6 +677,7 @@
       row('Далі:', x.next ? tripLink(x.next) + ' · ' + tripText(x.next) + ' · ' + dd(x.next.load) + (x.next.order ? ' (заявка' + (x.next.status ? ': ' + esc(x.next.status) : '') + ')' : '') : '') +
       row('Кругорейс:', x.circle ? esc(x.circle.id) + (x.circle.status ? ' · ' + esc(x.circle.status) : '') : '') +
       row('Держномер:', esc(x.plate)) + echRow(x) +
+      (x.drive && x.drive.worker ? '<div><button class="btn tdrv" data-tdrv="' + esc(x.drive.worker) + '" data-truck="' + esc(x.id) + '" data-name="' + esc((x.drivers[0] || {}).name || '') + '">Час водія докладно — аркуш доби, відмітки, GPS</button></div>' : '') +
       (x.problems.length ? '<div class="flags">' + x.problems.map(p => flag(p.k, p.t, p.urgent)).join('') + '</div>' : '<div class="muted">Проблем не знайдено.</div>') +
       '</div>';
   }
@@ -488,6 +689,8 @@
     return '<a href="#" class="tlink" data-trip="' + esc(t.id) + '">' + esc(t.id) + '</a>';
   }
   document.addEventListener('click', e => {
+    const t = e.target.closest && e.target.closest('[data-tdrv]');
+    if (t) { e.preventDefault(); e.stopPropagation(); openTacho(null, { id: t.dataset.tdrv, truck: t.dataset.truck, name: t.dataset.name }); return; }
     const a = e.target.closest && e.target.closest('[data-trip]');
     if (a) { e.preventDefault(); e.stopPropagation(); openTrip(a.dataset.trip, 'board'); }
   }, true);
@@ -895,6 +1098,7 @@
   applyTheme(); setInterval(applyTheme, 5 * 60 * 1000);
   $('back').onclick = () => renderHome();
   document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => renderHome());
+  $('tachoBack').onclick = () => me && me.role !== 'водій' ? openBoard() : renderHome();
   $('search').addEventListener('input', () => renderTable());
   $('bSearch').addEventListener('input', () => board && renderBoard());
   $('bReset').onclick = () => { $('bSearch').value = ''; bFilter = 'all'; store.set('bFilter', 'all'); if (board) renderBoard(); $('bSearch').focus(); };
