@@ -818,6 +818,7 @@
         (fuel ? '<div class="exrow"><div><label for="exLit">Літри</label><input id="exLit" inputmode="decimal" value="' + esc(d.liters) + '"></div>' + (d.type === 'Пальне' ? '<div><label for="exOdo">Спідометр (можна не писати)</label><input id="exOdo" inputmode="numeric" value="' + esc(d.odo) + '"></div>' : '') + '</div>' : '') +
         '<label>Як платили</label><div class="chips" role="group" aria-label="Оплата">' + ex.pay.map(p => '<button class="chip" data-ep="' + esc(p) + '" aria-pressed="' + (p === payDef) + '">' + esc(p) + '</button>').join('') + '</div>' +
         '<label class="btn exphoto" for="exFile">' + svgI('M4 8h3l2-2h6l2 2h3v11H4zM12 16a3 3 0 100-6 3 3 0 000 6z') + (d.photo ? 'Фото чека є — переробити' : 'Сфотографувати чек') + '</label><input id="exFile" type="file" accept="image/*" capture="environment" hidden>' +
+        '<label class="btn exphoto exgal" for="exGal">' + svgI('M4 5h16v14H4zM4 15l5-5 4 4 3-3 4 4M15 9h.01') + 'З галереї</label><input id="exGal" type="file" accept="image/*" hidden>' +
         (d.photo ? '<img class="exthumb" alt="Фото чека" src="data:image/jpeg;base64,' + d.photo + '">' : '') +
         '<label for="exNote">Примітка (можна не писати)</label><input id="exNote" value="' + esc(d.note) + '" placeholder="напр. платна дорога A4">' +
         '<p class="msg" id="exMsg"></p><button class="primary" id="exSave">Зберегти витрату</button></section>';
@@ -842,7 +843,8 @@
     b.querySelectorAll('[data-et]').forEach(e => e.onclick = () => { keep(); d.type = e.dataset.et; renderExp(); $('exSum').focus(); });
     b.querySelectorAll('[data-ec]').forEach(e => e.onclick = () => { keep(); d.cur = e.dataset.ec; renderExp(); });
     b.querySelectorAll('[data-ep]').forEach(e => e.onclick = () => { keep(); d.pay = e.dataset.ep; renderExp(); });
-    if ($('exFile')) $('exFile').onchange = async e => { const f = e.target.files[0]; if (!f) return; keep(); try { d.photo = await shrinkPhoto(f); } catch (er) { toast('Не вдалося прочитати фото — спробуйте ще раз', 'err'); } renderExp(); };
+    const exPick = async e => { const f = e.target.files[0]; if (!f) return; keep(); try { d.photo = await shrinkPhoto(f); } catch (er) { toast('Не вдалося прочитати фото — спробуйте ще раз', 'err'); } renderExp(); };
+    if ($('exFile')) $('exFile').onchange = exPick; if ($('exGal')) $('exGal').onchange = exPick;
     if ($('exSave')) $('exSave').onclick = () => {
       keep(); const sum = String(d.sum).replace(/\s/g, '').replace(',', '.');
       if (!d.type) { $('exMsg').textContent = 'Оберіть, на що витрата'; return; }
@@ -920,7 +922,8 @@
     if (!td.trip) { b.innerHTML = h + '<section class="card"><p>Зараз немає поточного рейсу. Коли логіст призначить рейс, тут можна буде сфотографувати CMR та інші документи.</p></section>'; return; }
     h += '<p class="muted">Рейс <b>' + esc(td.trip.id) + '</b>' + (td.trip.from || td.trip.to ? ' · ' + esc(td.trip.from || '—') + ' → ' + esc(td.trip.to || '—') : '') + '</p>';
     h += '<section class="card exform"><h2>Що фотографуєте?</h2><div class="extypes">' + td.kinds.map(k => '<button class="extype" data-tk="' + esc(k) + '" aria-pressed="' + (k === d.kind) + '">' + svgI(tdIco(k)) + '<span>' + esc(k) + '</span></button>').join('') + '</div>' +
-      '<label class="btn exphoto" for="tdFile">' + svgI(tdIco('')) + (d.photos.length ? 'Додати ще сторінку' : 'Сфотографувати') + '</label><input id="tdFile" type="file" accept="image/*" capture="environment" hidden>' +
+      '<label class="btn exphoto" for="tdFile">' + svgI(tdIco('')) + (d.photos.length ? 'Сфотографувати ще сторінку' : 'Сфотографувати') + '</label><input id="tdFile" type="file" accept="image/*" capture="environment" hidden>' +
+      '<label class="btn exphoto exgal" for="tdGal">' + svgI('M4 5h16v14H4zM4 15l5-5 4 4 3-3 4 4M15 9h.01') + 'З галереї (можна кілька)</label><input id="tdGal" type="file" accept="image/*" multiple hidden>' +
       (d.photos.length ? '<div class="tdthumbs">' + d.photos.map((p, i) => '<span><img class="exthumb" alt="Сторінка ' + (i + 1) + '" src="data:image/jpeg;base64,' + p + '"><button class="link" data-tdel="' + i + '">прибрати</button></span>').join('') + '</div>' : '') +
       '<label for="tdNote">Примітка (можна не писати)</label><input id="tdNote" value="' + esc(d.note) + '" placeholder="напр. CMR з печаткою отримувача">' +
       '<p class="msg" id="tdMsg"></p><button class="primary" id="tdSave">Зберегти' + (d.photos.length > 1 ? ' (' + d.photos.length + ' фото)' : '') + '</button></section>';
@@ -930,7 +933,10 @@
     const keep = () => { if ($('tdNote')) d.note = $('tdNote').value; };
     b.querySelectorAll('[data-tk]').forEach(e => e.onclick = () => { keep(); d.kind = e.dataset.tk; renderTdoc(); });
     b.querySelectorAll('[data-tdel]').forEach(e => e.onclick = () => { keep(); d.photos.splice(+e.dataset.tdel, 1); renderTdoc(); });
-    $('tdFile').onchange = async e => { const f = e.target.files[0]; if (!f) return; keep(); try { d.photos.push(await shrinkPhoto(f)); } catch (er) { toast('Не вдалося прочитати фото — спробуйте ще раз', 'err'); } renderTdoc(); };
+    const tdPick = async e => { const fs = [...e.target.files].slice(0, 10); if (!fs.length) return; keep(); let bad = 0;
+      for (const f of fs) { try { d.photos.push(await shrinkPhoto(f)); } catch (er) { bad++; } }
+      if (bad) toast('Не вдалося прочитати ' + bad + ' фото — спробуйте ще раз', 'err'); renderTdoc(); };
+    $('tdFile').onchange = tdPick; $('tdGal').onchange = tdPick;
     $('tdSave').onclick = () => {
       keep();
       if (!d.kind) { $('tdMsg').textContent = 'Оберіть, що за документ'; return; }
