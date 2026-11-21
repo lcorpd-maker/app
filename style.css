@@ -693,3 +693,41 @@ body:has(#board:not([hidden])) main { max-width: 1440px; }
 html[data-theme="dark"] .tc-gps { background: #12304F; color: #D4EAFC; border-color: #2F5F8F; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tc-gps { background: #12304F; color: #D4EAFC; border-color: #2F5F8F; } }
 .tc-recs .thist { color: var(--warn-fg); }
+
+/* ── Витрата за 10 секунд (ADR-060) ── */
+.exform h2, .exlist h2 { font-size: 18px; margin: 0 0 10px; }
+.extypes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.extype { min-height: 72px; padding: 8px 4px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: 14px; display: grid; justify-items: center; align-content: center; gap: 4px; text-align: center; cursor: pointer; }
+.extype .ico { width: 26px; height: 26px; }
+.extype[aria-pressed="true"] { border-width: 3px; border-color: var(--ink); background: var(--sky); font-weight: 700; }
+.exsum { font-size: 32px !important; font-weight: 800; min-height: 64px; text-align: center; font-variant-numeric: tabular-nums; }
+.exform .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 4px; }
+.exform .chip { min-height: 44px; font-size: 16px; }
+.exrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.exphoto { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; margin: 12px 0 6px; font-size: 17px; cursor: pointer; }
+.exthumb { display: block; max-width: 100%; max-height: 200px; border-radius: 12px; margin: 6px auto; }
+#exSave { min-height: 60px; font-size: 19px; margin-top: 10px; }
+.exflt { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.exitem { padding: 10px 0; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.exmain { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; font-size: 17px; }
+.exmain .ico { width: 24px; height: 24px; margin-top: 2px; }
+.exmain small { display: block; color: var(--muted); font-size: 14px; }
+.exact { display: flex; flex-wrap: wrap; gap: 8px; }
+.exact .btn { min-height: 44px; width: auto; padding: 0 14px; }
+.exst { display: inline-block; margin-top: 4px; font-size: 13px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.exst.new { background: var(--surface-2); color: var(--ink-2); } .exst.ok { background: var(--ok-bg, #E3F4EA); color: var(--ok-fg); }
+.exst.q { background: var(--warn-bg); color: var(--warn-fg); } .exst.pend { background: #EAF4FD; color: #0C2D52; }
+.exqbox { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.exphotobox img { display: block; max-width: 100%; max-height: 75vh; margin: 0 auto 10px; border-radius: 10px; }
+
+/* ── Здоров'я програми (ADR-061): колір + значок + слово ── */
+.hl-sum { font-size: 20px; font-weight: 800; padding: 14px 16px; border-radius: 16px; margin-bottom: 14px; border-left: 6px solid; }
+.hl-sum small { display: block; font-size: 14px; font-weight: 400; color: var(--muted); }
+.hl-sum.lv-ok { border-color: var(--ok-fg); } .hl-sum.lv-warn { border-color: var(--warn-bd); background: var(--warn-bg); } .hl-sum.lv-bad { border-color: var(--bad-fg); background: var(--bad-bg); }
+.hl-group h2 { font-size: 18px; margin: 0 0 8px; }
+.hl-row { display: grid; grid-template-columns: 28px 1fr; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 16px; }
+.hl-row small { display: block; color: var(--muted); font-size: 14px; }
+.hl-dot { font-size: 16px; line-height: 1.5; } .lv-ok .hl-dot { color: var(--ok-fg); } .lv-warn .hl-dot { color: var(--warn-fg); } .lv-bad .hl-dot { color: var(--bad-fg); }
+.hl-n { font-weight: 800; }
+.hl-tab { width: 100%; border-collapse: collapse; font-size: 15px; } .hl-tab th, .hl-tab td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+#hlAgain { margin-top: 12px; width: auto; padding: 0 18px; min-height: 48px; }
