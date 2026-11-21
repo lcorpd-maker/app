@@ -12,11 +12,13 @@
   <link rel="stylesheet" href="style.css">
   <script src="config.js"></script>
   <script>/* тема ще до малювання сторінки — без «блимання» */try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
+  <script>try{var z=localStorage.getItem("fontScale");if(z&&z!=="1")document.documentElement.style.setProperty("--zoom",z),document.documentElement.dataset.zoom=z}catch(e){}</script>
 </head>
 <body>
   <header class="top">
     <div class="brand"><span class="logo">ЛК</span> Л-КОРП</div>
     <button class="theme" id="theme" title="Тема: авто (за сходом і заходом сонця) / світла / темна">◐ Авто</button>
+    <button class="theme" id="fontBtn" title="Розмір шрифту: звичайний / великий / дуже великий" aria-label="Розмір шрифту">Аа</button>
     <div class="who" id="who" hidden>
       <span id="whoName"></span><span class="dot"> · </span><span id="whoRole" class="role"></span>
       <button class="link" id="logout">Вийти</button>
@@ -69,12 +71,12 @@
         <input id="bSearch" type="search" placeholder="Машина, водій, місто, рейс">
         <div class="chips" id="bChips" role="group" aria-label="Фільтр"></div>
       </div>
-      <div class="tablewrap bdesk"><table class="btable"><thead><tr><th>Авто</th><th>Водій і причіп</th><th>Рейс</th><th>Стан</th><th>Далі</th><th>GPS</th><th>Увага</th></tr></thead><tbody id="bRows"></tbody></table></div>
+      <div class="tablewrap bdesk"><table class="btable"><thead><tr><th>Авто</th><th>Водій і причіп</th><th>Рейс</th><th>Стан</th><th>Далі</th><th>Де зараз</th><th>Увага</th></tr></thead><tbody id="bRows"></tbody></table></div>
       <div class="bcards" id="bCards"></div>
       <p class="muted" id="bEmpty" hidden>Нічого не знайдено.</p>
       <section class="card bwait" id="bQueue" hidden><h2>Причепи в черзі <span class="count" id="bQueueN"></span></h2><p class="muted small">Завантажені причепи, що чекають тягач (реєстр бота «Заявки → рейси»).</p><div id="bQueueList"></div></section>
       <section class="card bwait" id="bWait" hidden><h2>Заявки без машини <span class="count" id="bWaitN"></span></h2><div id="bWaitList"></div></section>
-      <p class="muted small">Дані з бази (рейси, заявки, «Водій на авто») і GPS Freetrack за вчора. Поки лише перегляд — зміни вносяться як раніше.</p>
+      <p class="muted small">Дані з бази (рейси, заявки, «Водій на авто») і Freetrack: де машина зараз (оновлюється раз на 15 хв з 6:00 до 22:00) і пробіг за вчора. Поки лише перегляд — зміни вносяться як раніше.</p>
     </section>
 
     <!-- Картка рейсу (етап 2, перегляд) -->
