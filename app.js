@@ -203,6 +203,7 @@
     if (has && sv && sv.trip) { $('homeWork').innerHTML = '<div id="stBox"></div><div id="timeBox"></div>' + prof; renderTimeBox(); $('tiles').hidden = true; renderStatus(); $('drvOut').onclick = askLogout; $('pushBtn').onclick = openPush; return; }
     // немає поточного рейсу — коротка картка роботи (або «поки немає») і звичайні плитки
     $('homeWork').innerHTML = '<div id="timeBox"></div>' + (has ? '<div id="homeWorkCard">' + workHtml(st.planned, true) + '</div>' : '<div class="card tkwork"><b>Запланованої роботи поки немає.</b><div class="muted small">Щойно логіст призначить рейс — він з\'явиться тут.</div></div>');
+    $('homeWork').insertAdjacentHTML('beforeend', docsAlert(st && st.docs)); $('homeWork').querySelectorAll('.docalert').forEach(b => b.onclick = () => openTruck());
     $('tiles').hidden = false; bindWork(); renderTimeBox();
     if (!$('drvOutBox')) { const d = document.createElement('div'); d.id = 'drvOutBox'; $('tiles').after(d); }
     $('drvOutBox').innerHTML = prof; $('drvOut').onclick = askLogout; $('pushBtn').onclick = openPush;
@@ -257,6 +258,7 @@
       h += '<p class="undo-line"><button class="link" id="stUndo">' + svgI('M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3') + 'Скасувати «' + esc(v.last.event) + '»' + (left ? ' (ще ' + left + ' хв)' : '') + '</button></p>'; }
     if (msg) h += '<p class="stmsg" role="status">' + msg + '</p>';
     h += '<div class="quick">' + QUICK.map(q => '<button class="q' + (q[1] === 'problem' ? ' problem' : '') + '" data-q="' + q[1] + '">' + svgI(q[2]) + esc(q[0]) + '</button>').join('') + '</div>';
+    h += docsAlert(tk && tk.docs);
     // «Проблема»: спершу великі готові причини — одне натискання й надіслано; свій текст — за бажанням (без автоматичної клавіатури)
     h += '<div class="stprob card" id="stProbBox" hidden><a class="btn calllog" href="tel:' + LOGIST_TEL + '">📞 Подзвонити логісту</a><b>Що сталося? Натисніть — логіст отримає одразу</b><div class="probgrid">' + ['Довга черга', 'Поломка', 'Документи', 'Затримка на складі', 'ДТП'].map(c => '<button class="btn probone" data-pq="' + c + '">' + c + '</button>').join('') + '</div>' +
       '<details class="probown"><summary>Інше — написати своїми словами</summary><textarea id="stText" rows="3" placeholder="Коротко опишіть. Можна надиктувати — мікрофон на клавіатурі."></textarea><button class="primary" id="stProb">Надіслати логісту</button></details></div>';
@@ -1114,6 +1116,22 @@
   /* ── Моя машина (етап 3): прийняти / здати ── */
   let tk = null, tkMode = '';
   const tkTime = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); };
+  /* ── Документи машини й водія за терміном дії (ADR-069): статус рахується сам від дати «Діє до» ── */
+  const dmy = iso => String(iso || '').slice(0, 10).split('-').reverse().join('.');
+  const docLeft = d => d.left < 0 ? 'прострочено з ' + dmy(d.until) : d.left === 0 ? 'сьогодні останній день' : d.left <= 30 ? 'ще ' + d.left + ' дн. · до ' + dmy(d.until) : 'до ' + dmy(d.until);
+  function docsCard(list) {
+    if (!list || !list.length) return '';
+    const row = d => '<div class="dcrow st-' + d.state + '"><span class="dcmark" aria-hidden="true">' + (d.state === 'over' ? '✗' : d.state === 'soon' ? '⚠' : '✓') + '</span><span><b>' + esc(d.type) + '</b><small>' + esc(docLeft(d)) + '</small></span></div>';
+    const tr = list.filter(d => d.kind === 'truck'), me_ = list.filter(d => d.kind === 'driver');
+    return '<section class="card dcard"><h2>Документи</h2>' + (tr.length ? '<h3>Машина</h3>' + tr.map(row).join('') : '') + (me_.length ? '<h3>Мої</h3>' + me_.map(row).join('') : '') +
+      (list.some(d => d.state !== 'ok') ? '<p class="muted small">Строк спливає — повідомте логіста. Дати оновлює офіс.</p>' : '') + '</section>';
+  }
+  /** На головній — один рядок, лише якщо щось прострочено або спливає за 14 днів. */
+  function docsAlert(list) {
+    const bad = (list || []).filter(d => d.left <= 14).sort((a, b) => a.left - b.left); if (!bad.length) return '';
+    const d = bad[0];
+    return '<button class="docalert st-' + d.state + '" data-q="truck">' + (d.state === 'over' ? '✗ ' : '⚠ ') + esc((d.kind === 'truck' ? 'Машина: ' : '') + d.type) + ' — ' + esc(d.left < 0 ? 'прострочено' : d.left === 0 ? 'сьогодні останній день' : 'ще ' + d.left + ' дн.') + (bad.length > 1 ? ' · і ще ' + (bad.length - 1) : '') + ' ›</button>';
+  }
   async function openTruck(msg) {
     show('truck'); tkMode = '';
     if (!tk) $('tkBody').innerHTML = '<p class="muted">Завантаження…</p>';
@@ -1142,6 +1160,7 @@
         '<label for="tkOdo">Спідометр, км</label><input id="tkOdo" inputmode="numeric" placeholder="напр. 512 000"><p class="muted small odo-info" id="tkOdoI"></p>' +
         '<button class="primary" id="tkTake">Прийняти машину</button>' + (c ? '<button class="link" id="tkCancel" style="margin-top:14px">Скасувати</button>' : '') + '<p class="msg" id="tkMsg"></p></div>';
     }
+    h += docsCard(tk.docs);
     h += '<p class="muted small">Якщо помилились — просто прийміть правильну машину: попередня здасться сама. Логіст бачить усі зміни.</p>';
     $('tkBody').innerHTML = h;
     const warn = () => { const t = T[$('tkTruck').value]; $('tkWarn').hidden = !(t && t.holder); if (t && t.holder) $('tkWarn').textContent = 'За програмою на цій машині зараз ' + t.holder + '. Якщо ви її справді прийняли — продовжуйте, логіст перевірить.'; };
