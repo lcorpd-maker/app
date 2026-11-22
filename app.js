@@ -15,14 +15,14 @@
     'адмін': [{ title: 'Дошка машин', hint: 'де кожна машина зараз', action: 'board' }, { title: 'Калькулятор', hint: 'чи вигідна заявка', action: 'calc' }, { title: 'Витрати водіїв', hint: 'чеки, перевірка', action: 'exp' }, { title: 'Здоров\'я програми', hint: 'збої, швидкість, нічні роботи', action: 'health' }, T('Рейси', 'усі машини', 'Рейси'), T('Кругорейси', '', 'Кругорейси'), T('Заявки', 'актуальні', 'Заявки'),
       T('Рухи коштів', 'аванси, витрати', 'Рухи коштів'), T('Нарахування', 'зарплата за рейси', 'Нарахування'),
       T('Клієнти', '', 'Клієнти'), T('Авто', '', 'Авто'), T('Працівники', '', 'Працівники'),
-      { title: 'Документи', hint: 'що спливає', action: 'docs' }, T('Користувачі', 'хто має доступ', 'Користувачі'),
+      { title: 'Документи', hint: 'що спливає', action: 'docs' }, { title: 'Боржники', hint: 'без позначки оплати', action: 'debts' }, T('Користувачі', 'хто має доступ', 'Користувачі'),
       T('Журнал змін', 'хто що змінив', 'Журнал змін'), { title: 'Видати код', hint: 'вхід для водія', action: 'codes' }, { title: 'Сповіщення на телефон', hint: 'проблеми водіїв одразу', action: 'push' }],
     'керівник': [{ title: 'Дошка машин', hint: 'де кожна машина зараз', action: 'board' }, { title: 'Калькулятор', hint: 'чи вигідна заявка', action: 'calc' }, { title: 'Витрати водіїв', hint: 'чеки, перевірка', action: 'exp' }, { title: 'Здоров\'я програми', hint: 'збої, швидкість, нічні роботи', action: 'health' }, T('Рейси', 'усі машини', 'Рейси'), T('Кругорейси', '', 'Кругорейси'), T('Нарахування', 'зарплата', 'Нарахування'),
       T('Виплати й доплати', '', 'Виплати й доплати'), T('Рухи коштів', '', 'Рухи коштів'), T('Клієнти', '', 'Клієнти'),
-      { title: 'Документи', hint: 'що спливає', action: 'docs' }, T('Журнал змін', '', 'Журнал змін'), { title: 'Видати код', hint: 'вхід для водія', action: 'codes' }, { title: 'Сповіщення на телефон', hint: 'проблеми водіїв одразу', action: 'push' }],
+      { title: 'Документи', hint: 'що спливає', action: 'docs' }, { title: 'Боржники', hint: 'без позначки оплати', action: 'debts' }, T('Журнал змін', '', 'Журнал змін'), { title: 'Видати код', hint: 'вхід для водія', action: 'codes' }, { title: 'Сповіщення на телефон', hint: 'проблеми водіїв одразу', action: 'push' }],
     'логіст': [{ title: 'Дошка машин', hint: 'де кожна машина зараз', action: 'board' }, { title: 'Калькулятор', hint: 'чи вигідна заявка', action: 'calc' }, { title: 'Витрати водіїв', hint: 'чеки, перевірка', action: 'exp' }, T('Рейси', 'усі машини', 'Рейси'), T('Заявки', 'актуальні', 'Заявки'), T('Кругорейси', '', 'Кругорейси'),
-      T('Клієнти', '', 'Клієнти'), T('Водій на авто', 'хто на якій машині', 'Водій на авто'), T('Відстані', '', 'Відстані'), { title: 'Документи', hint: 'що спливає', action: 'docs' }, { title: 'Сповіщення на телефон', hint: 'проблеми водіїв одразу', action: 'push' }],
-    'бухгалтер': [{ title: 'Витрати водіїв', hint: 'чеки, перевірка', action: 'exp' }, T('Рейси', 'оплати клієнтів', 'Рейси'), T('Рухи коштів', '', 'Рухи коштів'), T('Виплати й доплати', '', 'Виплати й доплати'),
+      T('Клієнти', '', 'Клієнти'), T('Водій на авто', 'хто на якій машині', 'Водій на авто'), T('Відстані', '', 'Відстані'), { title: 'Документи', hint: 'що спливає', action: 'docs' }, { title: 'Боржники', hint: 'без позначки оплати', action: 'debts' }, { title: 'Сповіщення на телефон', hint: 'проблеми водіїв одразу', action: 'push' }],
+    'бухгалтер': [{ title: 'Витрати водіїв', hint: 'чеки, перевірка', action: 'exp' }, { title: 'Боржники', hint: 'хто не оплатив', action: 'debts' }, T('Рейси', 'оплати клієнтів', 'Рейси'), T('Рухи коштів', '', 'Рухи коштів'), T('Виплати й доплати', '', 'Виплати й доплати'),
       T('Готівка від клієнтів', '', 'Готівка від клієнтів'), T('Клієнти', '', 'Клієнти')],
     'механік': [{ title: 'Дошка машин', hint: 'машини, документи, GPS', action: 'board' }, T('Авто', '', 'Авто'), T('Причепи', '', 'Причепи'), { title: 'Документи', hint: 'що спливає', action: 'docs' },
       T('Спідометр і пальне', '', 'Спідометр і пальне')],
@@ -141,7 +141,7 @@
 
   /* ── Екрани ── */
   let navSeq = 0, meFresh = false;   // кожен перехід між екранами; пізня відповідь сервера не перемикає екран, якщо людина вже пішла далі
-  function show(id) { navSeq++; ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck', 'tacho', 'exp', 'health', 'tdoc', 'rpt'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
+  function show(id) { navSeq++; ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck', 'tacho', 'exp', 'health', 'tdoc', 'rpt', 'debts', 'bank'].forEach(s => $(s) && ($(s).hidden = s !== id)); window.scrollTo(0, 0); }
 
   function showLogin(msg) {
     $('who').hidden = true; show('login'); $('loginMsg').textContent = msg || '';
@@ -172,7 +172,7 @@
       b.innerHTML = '<b></b><span></span>';
       b.querySelector('b').textContent = t.title;
       b.querySelector('span').textContent = ok ? (t.hint || '') : 'скоро';
-      if (ok) b.onclick = () => t.action === 'codes' ? openCodes() : t.action === 'board' ? openBoard() : t.action === 'docs' ? openDocs() : t.action === 'calc' ? openCalc() : t.action === 'truck' ? openTruck() : t.action === 'exp' ? openExp() : t.action === 'health' ? openHealth() : t.action === 'push' ? openPush() : openSheet(t);
+      if (ok) b.onclick = () => t.action === 'codes' ? openCodes() : t.action === 'board' ? openBoard() : t.action === 'docs' ? openDocs() : t.action === 'calc' ? openCalc() : t.action === 'truck' ? openTruck() : t.action === 'exp' ? openExp() : t.action === 'health' ? openHealth() : t.action === 'push' ? openPush() : t.action === 'debts' ? openDebts() : openSheet(t);
       box.appendChild(b);
     });
     $('homeWork').innerHTML = ''; $('tiles').hidden = false; if ($('drvOutBox')) $('drvOutBox').innerHTML = '';
@@ -542,12 +542,15 @@
     let rows = current.rows.slice().reverse();
     if (q) rows = rows.filter(r => cols.some(c => fmt(r[c]).toLowerCase().includes(q)));
     $('count').textContent = rows.length + ' записів' + (rows.length > 300 ? ' (показано 300 — уточніть пошук)' : '');
+    if (current.sheet === 'Заявки' && canTrip()) $('count').textContent += ' · натисніть заявку без рейсу, щоб створити рейс';
     const t = $('table'); t.innerHTML = '';
     const hr = t.createTHead().insertRow(); cols.forEach(c => { const th = document.createElement('th'); th.textContent = c; hr.appendChild(th); });
     const tb = t.createTBody();
-    const isTrips = current.title && current.sheet === 'Рейси';
+    const isTrips = current.title && current.sheet === 'Рейси', isOrders = current.sheet === 'Заявки';
     rows.slice(0, 300).forEach(r => { const tr = tb.insertRow(); cols.forEach(c => { tr.insertCell().textContent = fmt(r[c]); });
-      if (isTrips && r['Рейс ID']) { tr.className = 'brow'; tr.title = 'Відкрити картку рейсу'; tr.onclick = () => openTrip(r['Рейс ID'], 'view'); } });
+      if (isTrips && r['Рейс ID']) { tr.className = 'brow'; tr.title = 'Відкрити картку рейсу'; tr.onclick = () => openTrip(r['Рейс ID'], 'view'); }
+      else if (isOrders && r['Рейс ID']) { tr.className = 'brow'; tr.title = 'Відкрити рейс ' + r['Рейс ID']; tr.onclick = () => openTrip(r['Рейс ID'], 'view'); }
+      else if (isOrders && canTrip() && !/відмов/i.test(String(r['Статус'] || ''))) { tr.className = 'brow zrow'; tr.title = 'Створити рейс із цієї заявки'; tr.dataset.zid = r['Заявка ID']; tr.onclick = () => tripForm(null, { order: r }); } });
   }
 
   /* ── Дошка машин (етап 2, Board.gs) ── */
@@ -740,24 +743,34 @@
   /** r — рядок рейсу (виправлення) або null (новий). opts.truck — машина для нового. */
   async function tripForm(r, opts) {
     opts = opts || {}; busy(true);
-    let L; try { L = await tfLoad(); } catch (e) { toast(esc(e.message), 'err'); return; } finally { busy(false); }
-    const isNew = !r, v = r || { 'Авто ID': opts.truck || '', 'Валюта': 'EUR', 'Оплата': 'безгот' };
+    let L, TPL = []; try { L = await tfLoad(); if (!r && !opts.order) { try { TPL = (await api('list', { sheet: 'Шаблони рейсів' })).rows.filter(x => x['Назва']).sort((a, b) => (+b['Використано'] || 0) - (+a['Використано'] || 0)); } catch (e) {} } }
+    catch (e) { toast(esc(e.message), 'err'); return; } finally { busy(false); }
+    const isNew = !r, z = opts.order || null;
+    const TPL_F = ['Клієнт ID', 'Клієнт (як записано)', 'Звідки', 'Куди', 'Перехід', 'Вантаж', 'АДР', 'Фрахт', 'Валюта', 'Сума для рахунку', 'Готівкою', 'Оплата', 'Відстрочка, днів', 'Контакт клієнта', 'Адреса завантаження', 'Адреса розвантаження', 'Замитнення', 'Розмитнення', 'Примітки'];
+    // ADR-075: рейс із заявки — поля підставляються з заявки, логіст лише перевіряє
+    const fromZ = z ? { 'Авто ID': String(z['Авто ID'] || ''), 'Номер': z['Номер рейсу'] || '', 'Звідки': z['Звідки'] || '', 'Дата завантаження': z['Дата завантаження'] || '', 'Куди': z['Куди'] || '', 'Дата розвантаження': z['Дата розвантаження'] || '',
+      'Фрахт': z['Фрахт'] == null ? '' : z['Фрахт'], 'Валюта': z['Валюта'] || 'EUR', 'Клієнт (як записано)': z['Клієнт (як записано)'] || '', 'Вантаж': z['Вантаж'] || '', 'Перехід': z['Перехід'] || '', 'Оплата': z['Оплата'] || 'безгот' } : null;
+    const v = r || fromZ || { 'Авто ID': opts.truck || '', 'Валюта': 'EUR', 'Оплата': 'безгот' };
     const has = c => !L.cols || L.cols.indexOf(c) >= 0;
     const inp = (c, extra, type) => has(c) ? '<label for="tf_' + c.replace(/\W/g, '') + '">' + esc(c.replace(' (як записано)', '')) + '</label><input id="tf_' + c.replace(/\W/g, '') + '" data-c="' + esc(c) + '"' + (type ? ' type="' + type + '"' : '') + ' value="' + esc(type === 'date' ? tfDate(v[c]) : (v[c] == null ? '' : v[c])) + '"' + (extra || '') + '>' : '';
     const sel = (c, list, empty) => has(c) ? '<label for="tf_' + c.replace(/\W/g, '') + '">' + esc(c) + '</label><select id="tf_' + c.replace(/\W/g, '') + '" data-c="' + esc(c) + '">' + (empty ? '<option value="">' + empty + '</option>' : '') + list.map(o => '<option value="' + esc(o[0]) + '"' + (String(v[c] || '') === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select>' : '';
     const truckOpts = L.trucks.concat(v['Авто ID'] && L.trucks.indexOf(String(v['Авто ID'])) < 0 ? [String(v['Авто ID'])] : []).map(t => [t, t]);
     const drvOpts = L.drivers.map(d => [d.id, d.name + ' · ' + d.id]);
     const html = '<div class="tform">' +
-      (isNew ? '' : '<p class="muted small">Рейс <b>' + esc(v['Рейс ID']) + '</b>. Під час пілоту головні — «Маршрути»: зміну внесіть і там, інакше нічне перенесення збереже обидві версії (програма не затре вашу правку).</p>') +
+      (z ? '<p class="muted small">З заявки <b>' + esc(z['Заявка ID']) + '</b>: перевірте поля й оберіть водія. Після створення заявка отримає позначку «рейс створено».</p>' : '') + (isNew ? '' : '<p class="muted small">Рейс <b>' + esc(v['Рейс ID']) + '</b>. Під час пілоту головні — «Маршрути»: зміну внесіть і там, інакше нічне перенесення збереже обидві версії (програма не затре вашу правку).</p>') +
+      (isNew && !z && canTrip() ? '<fieldset class="tftpl"><legend>Шаблон</legend>' + (TPL.length ? '<label for="tfTpl">Із шаблону (постійні клієнти без заявок)</label><select id="tfTpl"><option value="">— заповнити вручну —</option>' + TPL.map((t, i) => '<option value="' + i + '">' + esc(t['Назва']) + (+t['Використано'] ? ' · ' + t['Використано'] + '×' : '') + '</option>').join('') + '</select>' : '<p class="muted small">Шаблонів ще немає. Заповніть рейс вручну — програма запропонує зберегти його як шаблон.</p>') +
+        '<label class="tfchk" id="tfSaveTplW" hidden><input type="checkbox" id="tfSaveTpl" checked> Зберегти як шаблон:</label><input id="tfTplName" hidden placeholder="назва шаблону"></fieldset>' : '') +
       '<fieldset><legend>Машина і водій</legend><div class="tfgrid">' + (isNew ? sel('Авто ID', truckOpts, '— оберіть —') + inp('Номер', ' inputmode="numeric" placeholder="номер рейсу машини"') : '') + sel('Водій ID', drvOpts, '— ще не вирішили —') + '</div></fieldset>' +
       '<fieldset><legend>Маршрут</legend><div class="tfgrid">' + inp('Звідки', ' placeholder="місто завантаження"') + inp('Дата завантаження', '', 'date') + inp('Куди', ' placeholder="місто розвантаження"') + inp('Дата розвантаження', '', 'date') +
         inp('Перехід', ' list="tfCross" placeholder="Краківець, Шегині, по Україні…"') + inp('Вантаж') + '</div>' +
         (has('АДР') ? '<label class="tfchk"><input type="checkbox" id="tf_adr"' + (v['АДР'] ? ' checked' : '') + '> АДР (небезпечний вантаж)</label>' : '') + '<p class="muted small" id="tfType"></p></fieldset>' +
       (has('Фрахт') ? '<fieldset><legend>Клієнт і оплата</legend><div class="tfgrid">' + inp('Клієнт (як записано)', ' list="tfClients"') + inp('Фрахт', ' inputmode="decimal"') + sel('Валюта', ['EUR', 'UAH', 'USD', 'PLN'].map(x => [x, x])) +
-        inp('Оплата', ' list="tfPay"') + inp('Відстрочка, днів', ' inputmode="numeric"') + inp('Контакт клієнта') + '</div></fieldset>' : '') +
+        inp('Сума для рахунку', ' inputmode="decimal" placeholder="порожньо — як фрахт"') + inp('Причина різниці', ' placeholder="напр. повернення клієнту за…"') +
+        inp('Оплата', ' list="tfPay"') + '<span class="tfcash" id="tfCashW">' + inp('Готівкою', ' inputmode="decimal" placeholder="скільки клієнт платить готівкою"') + '</span>' + inp('Відстрочка, днів', ' inputmode="numeric"') + inp('Контакт клієнта') + '</div>' +
+        (has('Сума для рахунку') ? '<p class="muted small" id="tfInv"></p>' : '') + '<p class="muted small">Зарплата водію рахується від фрахту. Рахунок клієнту — на «Суму для рахунку» (більша, коли є повернення). Оплата «безгот + готівка» — вкажіть, скільки готівкою; рахунок — на решту.</p></fieldset>' : '') +
       '<fieldset><legend>Примітки</legend>' + (has('Примітки') ? '<textarea data-c="Примітки" rows="3">' + esc(v['Примітки'] || '') + '</textarea>' : '') + '</fieldset>' +
       '<datalist id="tfCross">' + ['Краківець', 'Шегині', 'Ягодин', 'Рава-Руська', 'Устилуг', 'Переїзд на експорт', 'Контейнеровоз', 'по Україні', 'Ставка по Україні'].map(x => '<option value="' + x + '">').join('') + '</datalist>' +
-      '<datalist id="tfPay">' + ['безгот', 'готівка', 'карта', 'безгот на розв', 'готівка на розв'].map(x => '<option value="' + x + '">').join('') + '</datalist>' +
+      '<datalist id="tfPay">' + ['безгот', 'готівка', 'безгот + готівка', 'карта', 'безгот на розв', 'готівка на розв'].map(x => '<option value="' + x + '">').join('') + '</datalist>' +
       '<datalist id="tfClients">' + L.clients.map(x => '<option value="' + esc(x) + '">').join('') + '</datalist>' +
       '<p class="msg" id="tfMsg"></p></div>';
     const w = document.createElement('div'); w.className = 'ask-wrap';
@@ -765,34 +778,77 @@
     document.body.appendChild(w);
     const q = s => w.querySelector(s), typeUpd = () => { if (q('#tfType')) q('#tfType').textContent = 'Тип рейсу: ' + tfType(q('[data-c="Перехід"]') ? q('[data-c="Перехід"]').value : v['Перехід'], q('#tf_adr') && q('#tf_adr').checked) + ' (рахується сам — для зарплати водія)'; };
     typeUpd(); w.querySelectorAll('[data-c="Перехід"], #tf_adr').forEach(e => e.oninput = e.onchange = typeUpd);
+    // ADR-073: дві суми — фрахт (від нього зарплата водію) і сума для рахунку (більша, коли є повернення клієнту)
+    const tfNum = x => { const t = String(x == null ? '' : x).replace(/[\s\u00a0]/g, '').replace(',', '.'); return t === '' ? null : +t; };
+    // ADR-078: «безгот + готівка» — поле «Готівкою»; рахунок — на решту
+    const isMix = () => { const p = q('[data-c="Оплата"]'); return !!p && /безгот/i.test(p.value) && /готів/i.test(p.value); };
+    const cashOf = () => { const c = q('[data-c="Готівкою"]'); return c && isMix() ? (tfNum(c.value) || 0) : 0; };
+    const invUpd = () => { if (q('#tfCashW')) q('#tfCashW').hidden = !isMix() && !tfNum(q('[data-c="Готівкою"]') && q('[data-c="Готівкою"]').value);
+      const el = q('#tfInv'); if (!el) return; const fr = tfNum(q('[data-c="Фрахт"]') && q('[data-c="Фрахт"]').value), iv = tfNum(q('[data-c="Сума для рахунку"]').value), cash = cashOf();
+      el.className = 'muted small'; if (fr == null || isNaN(fr)) { el.textContent = ''; return; }
+      const bill = iv == null || isNaN(iv) ? Math.round((fr - cash) * 100) / 100 : iv, diff = Math.round((bill + cash - fr) * 100) / 100;
+      if (iv == null) { el.textContent = cash ? 'Готівкою ' + money(cash) + ', рахунок буде на ' + money(bill) + '.' : 'Рахунок буде на суму фрахту.'; return; }
+      if (!diff) { el.textContent = cash ? 'Готівкою ' + money(cash) + ' + рахунок ' + money(bill) + ' = фрахт.' : ''; return; }
+      if (diff > 0) el.textContent = 'Повернення клієнту: ' + money(diff) + '. Вкажіть причину різниці.';
+      else { el.textContent = '⚠ Рахунок' + (cash ? ' + готівка' : '') + ' менші за фрахт на ' + money(-diff) + '. Якщо частину платять готівкою — оберіть оплату «безгот + готівка».'; el.className = 'small bad'; } };
+    invUpd(); w.querySelectorAll('[data-c="Фрахт"], [data-c="Сума для рахунку"], [data-c="Готівкою"], [data-c="Оплата"]').forEach(e => e.addEventListener('input', invUpd));
+    // ADR-079: шаблони рейсів
+    const tplSel = q('#tfTpl'), tplName = () => { const g = c => (q('[data-c="' + c + '"]') || {}).value || ''; return [g('Клієнт (як записано)'), [g('Звідки'), g('Куди')].filter(Boolean).join(' → ')].filter(Boolean).join(' · '); };
+    const tplUpd = () => { const w0 = q('#tfSaveTplW'); if (!w0) return; const cl = ((q('[data-c="Клієнт (як записано)"]') || {}).value || '').trim(); const on = !(tplSel && tplSel.value) && !!cl;
+      w0.hidden = q('#tfTplName').hidden = !on; if (on && !q('#tfTplName').dataset.touched) q('#tfTplName').value = tplName(); };
+    if (tplSel) tplSel.onchange = () => { const t = TPL[+tplSel.value]; if (t) TPL_F.forEach(c => { const e = q('[data-c="' + c + '"]'); if (e && t[c] != null && String(t[c]) !== '') e.value = String(t[c]); if (c === 'АДР' && q('#tf_adr')) q('#tf_adr').checked = !!t['АДР']; }); typeUpd(); invUpd(); tplUpd(); };
+    if (q('#tfTplName')) { q('#tfTplName').oninput = e => e.target.dataset.touched = '1'; w.querySelectorAll('[data-c="Клієнт (як записано)"], [data-c="Звідки"], [data-c="Куди"]').forEach(e => e.addEventListener('input', tplUpd)); tplUpd(); }
     // новий рейс: номер — наступний для машини (як у «Маршрутах»), можна виправити
     const sugg = async () => { const t = q('[data-c="Авто ID"]') && q('[data-c="Авто ID"]').value; if (!t || !q('[data-c="Номер"]') || q('[data-c="Номер"]').dataset.touched) return;
       try { const o = await api('list', { sheet: 'Рейси', filter: { 'Авто ID': t } }); const n = Math.max(0, ...o.rows.map(x => +x['Номер'] || 0)) + 1; if (!q('[data-c="Номер"]').dataset.touched) q('[data-c="Номер"]').value = n; } catch (e) {} };
-    if (isNew) { if (q('[data-c="Номер"]')) q('[data-c="Номер"]').oninput = e => e.target.dataset.touched = '1'; if (q('[data-c="Авто ID"]')) q('[data-c="Авто ID"]').onchange = sugg; sugg(); }
+    if (isNew) { if (q('[data-c="Номер"]')) { q('[data-c="Номер"]').oninput = e => e.target.dataset.touched = '1'; if (fromZ && /^\d+$/.test(String(fromZ['Номер']))) q('[data-c="Номер"]').dataset.touched = '1'; } if (q('[data-c="Авто ID"]')) q('[data-c="Авто ID"]').onchange = sugg; sugg(); }
     const close = () => w.remove();
     const save = async reason => {
-      const row = {}; w.querySelectorAll('[data-c]').forEach(e => { const c = e.dataset.c; let val = e.value.trim(); if (c === 'Фрахт' || c === 'Відстрочка, днів' || c === 'Номер') val = val.replace(/\s/g, '').replace(',', '.');
+      const row = {}; w.querySelectorAll('[data-c]').forEach(e => { const c = e.dataset.c; let val = e.value.trim(); if (c === 'Фрахт' || c === 'Сума для рахунку' || c === 'Готівкою' || c === 'Відстрочка, днів' || c === 'Номер') val = val.replace(/\s/g, '').replace(',', '.');
         const old = c in v ? (e.type === 'date' ? tfDate(v[c]) : String(v[c] == null ? '' : v[c])) : ''; if (isNew || val !== old) row[c] = val; });
       if (q('#tf_adr')) { const a = q('#tf_adr').checked ? 'так' : ''; if (isNew || a !== String(v['АДР'] || '')) row['АДР'] = a; }
       const cross = 'Перехід' in row ? row['Перехід'] : v['Перехід'], adr = 'АДР' in row ? row['АДР'] : v['АДР'], tp = tfType(cross, adr);
       if (has('Тип') && (isNew || tp !== String(v['Тип'] || ''))) row['Тип'] = tp;
       if ('Водій ID' in row) { const d = L.drivers.find(x => x.id === row['Водій ID']); if (has('Водій (як записано)')) row['Водій (як записано)'] = d ? d.name : ''; }
+      { const g = c => c in row ? row[c] : (v[c] == null ? '' : String(v[c])), fr = tfNum(g('Фрахт')), iv = tfNum(g('Сума для рахунку')), mix = /безгот/i.test(g('Оплата')) && /готів/i.test(g('Оплата')), cash = tfNum(g('Готівкою'));
+        if (iv != null && (isNaN(iv) || iv < 0)) { q('#tfMsg').textContent = 'Сума для рахунку — числом'; return; }
+        if (cash != null && (isNaN(cash) || cash < 0)) { q('#tfMsg').textContent = '«Готівкою» — числом'; return; }
+        if (mix && !(cash > 0)) { q('#tfMsg').textContent = 'Оплата «безгот + готівка» — вкажіть, скільки готівкою'; return; }
+        if (mix && fr != null && cash >= fr) { q('#tfMsg').textContent = 'Готівкою не може бути весь фрахт — тоді оберіть оплату «готівка»'; return; }
+        if (!mix && cash > 0) row['Готівкою'] = '';
+        const c0 = mix ? cash : 0;
+        if (iv != null && fr != null && Math.abs(iv + c0 - fr) > 0.009 && !String(g('Причина різниці')).trim()) { q('#tfMsg').textContent = 'Рахунок' + (c0 ? ' + готівка' : '') + ' не дорівнює фрахту — вкажіть причину різниці'; return; } }
       if (isNew) {
         if (!row['Авто ID']) { q('#tfMsg').textContent = 'Оберіть машину'; return; }
         if (!/^\d+$/.test(row['Номер'] || '')) { q('#tfMsg').textContent = 'Номер рейсу — цифрами'; return; }
         if (!row['Звідки'] || !row['Куди'] || !row['Дата завантаження']) { q('#tfMsg').textContent = 'Заповніть: звідки, куди, дата завантаження'; return; }
-        if (has('Джерело')) row['Джерело'] = 'програма (логіст ' + (me.name || me.login) + ')';
+        if (has('Джерело')) row['Джерело'] = 'програма (логіст ' + (me.name || me.login) + ')' + (z ? ' · заявка ' + z['Заявка ID'] : '');
         Object.keys(row).forEach(k => { if (row[k] === '') delete row[k]; });
       } else { if (!Object.keys(row).length) { close(); toast('Без змін.'); return; } row['Рейс ID'] = v['Рейс ID']; }
       const b = q('[data-a="1"]'); b.disabled = true; busy(true);
       try {
         const out = await api('save', { sheet: 'Рейси', row, ifHash: isNew ? undefined : v._h, reason });
         close(); board = null; try { store.set('boardCache', ''); } catch (e) {}
-        toast(isNew ? '✔ Рейс <b>' + esc(out.row['Рейс ID']) + '</b> створено.' : (out.saved ? '✔ Зміни збережено.' : 'Без змін.'));
-        openTrip(out.row['Рейс ID'], tripFrom);
+        if (z && isNew) { try { await api('save', { sheet: 'Заявки', row: { 'Заявка ID': z['Заявка ID'], 'Рейс ID': out.row['Рейс ID'], 'Статус': 'рейс створено' }, ifHash: z._h }); z['Рейс ID'] = out.row['Рейс ID']; z['Статус'] = 'рейс створено'; } catch (e) { toast('Рейс створено, але заявку не позначено: ' + esc(e.message), 'err'); } }
+        let tplMsg = '';
+        if (isNew && !z && q('#tfSaveTplW')) {
+          try {
+            const used = tplSel && tplSel.value !== '' ? TPL[+tplSel.value] : null;
+            if (used) await api('save', { sheet: 'Шаблони рейсів', row: { 'Шаблон ID': used['Шаблон ID'], 'Використано': (+used['Використано'] || 0) + 1, 'Останнє використання': new Date().toISOString().slice(0, 10) }, ifHash: used._h });
+            else if (!q('#tfSaveTplW').hidden && q('#tfSaveTpl').checked) {
+              const name = (q('#tfTplName').value || tplName()).trim(), same = TPL.find(t => String(t['Назва']).toLowerCase() === name.toLowerCase());
+              const tr = { 'Назва': name, 'Використано': 1, 'Останнє використання': new Date().toISOString().slice(0, 10), 'Хто створив': me.name || me.login };
+              TPL_F.forEach(c => { if (row[c] != null && row[c] !== '') tr[c] = row[c]; });
+              if (same) { tr['Шаблон ID'] = same['Шаблон ID']; tr['Використано'] = (+same['Використано'] || 0) + 1; }
+              await api('save', { sheet: 'Шаблони рейсів', row: tr, ifHash: same ? same._h : undefined }); tplMsg = ' Шаблон «' + esc(name) + '» ' + (same ? 'оновлено' : 'збережено') + '.';
+            }
+          } catch (e) { tplMsg = ' Шаблон не збережено: ' + esc(e.message); }
+        }
+        toast((isNew ? '✔ Рейс <b>' + esc(out.row['Рейс ID']) + '</b> створено.' : (out.saved ? '✔ Зміни збережено.' : 'Без змін.')) + tplMsg);
+        openTrip(out.row['Рейс ID'], z ? 'view' : tripFrom);
       } catch (e) {
         b.disabled = false;
-        if (e.code === 'reason') { const why = await askText('Чому змінюється фрахт?', 'Напр. клієнт погодив доплату за простій'); if (why) return save(why); q('#tfMsg').textContent = 'Без причини змінити фрахт не можна.'; }
+        if (e.code === 'reason') { const m = String(e.message || ''), both = /Фрахт/.test(m) && /Сума для рахунку/.test(m); const why = await askText('Чому змінюється ' + (both ? 'фрахт і сума для рахунку' : /Сума для рахунку/.test(m) ? 'сума для рахунку' : 'фрахт') + '?', 'Напр. клієнт погодив доплату за простій'); if (why) return save(why); q('#tfMsg').textContent = 'Без причини змінити суму не можна.'; }
         else if (e.code === 'conflict') { q('#tfMsg').textContent = 'Поки ви редагували, рейс змінив хтось інший. Закрийте вікно й відкрийте рейс заново.'; }
         else q('#tfMsg').textContent = e.message;
       } finally { busy(false); }
@@ -873,7 +929,7 @@
     return q ? { k, q, exact: !!a[k] } : null;
   }
   async function openTrip(id, from) {
-    tripFrom = from || 'board'; $('tripBackT').textContent = tripFrom === 'view' ? 'Таблиця' : board ? 'Дошка' : 'Назад';
+    tripFrom = from || 'board'; $('tripBackT').textContent = tripFrom === 'view' ? 'Таблиця' : tripFrom === 'debts' ? 'Боржники' : board ? 'Дошка' : 'Назад';
     show('trip'); const nav = navSeq; $('tripBody').innerHTML = '<p class="muted">Завантаження рейсу ' + esc(id) + '…</p>';
     const can = new Set(sheets.map(s => s.name));
     const ask = (sheet, filter) => can.has(sheet) ? api('list', { sheet, filter }).catch(() => null) : Promise.resolve(null);
@@ -898,6 +954,17 @@
   }
   function tripHtml(r, cols, orders, moves, journal) {
     const has = c => cols.indexOf(c) >= 0 && r[c] !== '' && r[c] !== null && r[c] !== undefined;
+    const invKv = r => { if (cols.indexOf('Сума для рахунку') < 0 || !has('Фрахт')) return ''; const n = x => { const t = String(x == null ? '' : x).replace(/[\s ]/g, '').replace(',', '.'); return t === '' ? null : +t; };
+      const fr = n(r['Фрахт']), iv0 = n(r['Сума для рахунку']), cash = n(r['Готівкою']) || 0, cur = ({ EUR: '€', PLN: 'zł', USD: '$', UAH: 'грн' })[String(r['Валюта'] || '').toUpperCase()] || r['Валюта'] || '';
+      const mm = x => esc(money(Math.round(x * 100) / 100)) + ' ' + esc(cur);
+      let h = cash ? '<div class="kv"><span>Готівкою</span><b>' + mm(cash) + '</b></div>' : '';
+      if ((iv0 == null || isNaN(iv0)) && !cash) return fr != null ? '<div class="kv"><span>Сума для рахунку</span><b class="muted">як фрахт</b></div>' : '';
+      const iv = iv0 == null || isNaN(iv0) ? (fr || 0) - cash : iv0;
+      h += '<div class="kv"><span>Сума для рахунку</span><b>' + mm(iv) + (iv0 == null ? ' <span class="muted small">(фрахт − готівка)</span>' : '') + '</b></div>';
+      const diff = fr != null && !isNaN(fr) ? Math.round((iv + cash - fr) * 100) / 100 : 0;
+      if (diff) h += '<div class="kv' + (diff < 0 ? ' bad' : '') + '"><span>' + (diff > 0 ? 'Повернення клієнту' : 'Рахунок' + (cash ? ' + готівка' : '') + ' менші за фрахт') + '</span><b>' + mm(Math.abs(diff)) + '</b></div>';
+      if (r['Причина різниці']) h += '<div class="kv"><span>Причина різниці</span><b>' + esc(r['Причина різниці']) + '</b></div>';
+      return h; };
     const f = (label, c, cls) => has(c) ? '<div class="kv' + (cls ? ' ' + cls : '') + '"><span>' + esc(label) + '</span><b>' + esc(fmt(typeof r[c] === 'number' ? money(r[c]) : r[c])) + '</b></div>' : '';
     const unl = r['Дата розвантаження'], due = r['Очікувана оплата'];
     const late = due && !r['Оплачено'] && new Date(due) < new Date(new Date().toDateString());
@@ -906,7 +973,7 @@
     h += '<div class="route card"><div><span class="muted small">Завантаження</span><b>' + esc(r['Звідки'] || '—') + '</b><span>' + esc(fmt(r['Дата завантаження'])) + '</span></div>' +
       '<div class="arrow">→</div><div><span class="muted small">Розвантаження</span><b>' + esc(r['Куди'] || '—') + '</b><span>' + (unl ? esc(fmt(unl)) : '<span class="muted">дата не вказана</span>') + '</span></div></div><div id="tripSt"></div><div id="tripDocs"></div>';
     const cargo = [f('Вантаж', 'Вантаж'), f('Тонн', 'Тонн'), f('Перехід', 'Перехід'), f('Км', 'Км'), f('Пальне, л', 'Пальне, л'), f('Допомагав вантажити', 'Допомагав'), f('ТТН документів', 'ТТН документів')].join('');
-    const pay = [f('Клієнт', 'Клієнт (як записано)'), f('Клієнт ID', 'Клієнт ID'), f('Контакт клієнта', 'Контакт клієнта'), (has('Фрахт') ? '<div class="kv big"><span>Фрахт</span><b>' + esc(money(r['Фрахт'])) + '\u00a0' + esc(({ EUR: '€', PLN: 'zł', USD: '$', UAH: 'грн' })[String(r['Валюта'] || '').toUpperCase()] || r['Валюта'] || '') + '</b></div>' : ''), f('Оплата', 'Оплата'),
+    const pay = [f('Клієнт', 'Клієнт (як записано)'), f('Клієнт ID', 'Клієнт ID'), f('Контакт клієнта', 'Контакт клієнта'), (has('Фрахт') ? '<div class="kv big"><span>Фрахт</span><b>' + esc(money(r['Фрахт'])) + '\u00a0' + esc(({ EUR: '€', PLN: 'zł', USD: '$', UAH: 'грн' })[String(r['Валюта'] || '').toUpperCase()] || r['Валюта'] || '') + '</b></div>' : ''), invKv(r), f('Оплата', 'Оплата'),
       f('Відстрочка, днів', 'Відстрочка, днів'), f('Очікувана оплата', 'Очікувана оплата', late ? 'bad' : ''), f('Оплачено', 'Оплачено', 'ok'), f('Коментар оплати', 'Коментар оплати')].join('');
     const sal = [f('Зарплата (Аналітика)', 'Зарплата (Аналітика)'), f('Зарплата (нова)', 'Зарплата (нова)'), f('Особлива ставка', 'Особлива ставка'), f('Як порахована', 'Як порахована')].join('');
     h += '<div class="tgrid">';
@@ -1408,6 +1475,133 @@
     $('dList').innerHTML = h || '<p class="muted">Нічого не знайдено.</p>';
   }
 
+  /* ── Боржники (ADR-074): безготівкові рейси без позначки оплати, за клієнтом. Сума — «Сума для рахунку» (ADR-073) ── */
+  let debts = null, dbOld = false;
+  const DBCUR = { EUR: '€', PLN: 'zł', USD: '$', UAH: 'грн' };
+  const dbSums = o => Object.keys(o || {}).map(c => money(o[c]) + ' ' + (DBCUR[c] || c)).join(' + ') || '—';
+  async function openDebts(force) {
+    show('debts'); $('dbBank').hidden = !me || ['адмін', 'керівник', 'бухгалтер'].indexOf(me.role) < 0; if (!debts || force) $('dbList').innerHTML = '<p class="muted">Завантаження…</p>';
+    try { debts = await api('debts', {}); renderDebts(); } catch (e) { $('dbList').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
+  }
+  function remindText(g) {
+    const tr = g.trips.filter(t => t.late >= 0);
+    return 'Добрий день! Нагадуємо про оплату за перевезення:\n' + tr.map(t => '• ' + t.route + (t.unload ? ', розвантаження ' + t.unload.split('-').reverse().join('.') : '') + ' — ' + money(t.sum) + ' ' + t.cur + ', строк оплати ' + t.due.split('-').reverse().join('.')).join('\n') +
+      '\nЯкщо оплату вже здійснено — дякуємо, надішліть, будь ласка, платіжку.\nТОВ «Л-КОРП»';
+  }
+  function renderDebts() {
+    const d = debts, q = $('dbSearch').value.trim().toLowerCase(), R = d.recentDays;
+    $('dbSub').textContent = 'Прострочено (до ' + R + ' дн.): ' + dbSums(d.total.recent) + ' · строк за ' + d.soonDays + ' дн.: ' + dbSums(d.total.soon);
+    $('dbChips').innerHTML = '';
+    [['Актуальні', false], ['+ старіші за ' + R + ' дн.', true]].forEach(([l, v]) => { const c = document.createElement('button'); c.className = 'chip'; c.setAttribute('aria-pressed', String(dbOld === v)); c.textContent = l; c.onclick = () => { dbOld = v; renderDebts(); }; $('dbChips').appendChild(c); });
+    const vis = t => t.late < 0 || t.late <= R || t.flagged || dbOld;
+    const list = d.clients.map(g => ({ ...g, show: g.trips.filter(vis) })).filter(g => g.show.length && (!q || (g.client + ' ' + g.trips.map(t => t.trip + ' ' + t.truck + ' ' + t.route).join(' ')).toLowerCase().includes(q)));
+    let h = '';
+    list.forEach((g, gi) => {
+      const late = g.show.filter(t => t.late >= 0).length, cls = g.flagged || g.maxLate > 30 ? 'bad' : late ? 'warn' : '';
+      h += '<section class="card dgroup dbg ' + cls + '"><div class="dbhead"><div><h2>' + esc(g.client) + (g.flagged ? ' <span class="badge b-bad">у списку боржників</span>' : '') + '</h2>' +
+        '<p class="muted small">' + (late ? 'прострочено: ' + dbSums(g.recent) + (dbOld && Object.keys(g.old).length ? ' · старіші: ' + dbSums(g.old) : '') : '') + (Object.keys(g.soon).length ? (late ? ' · ' : '') + 'скоро строк: ' + dbSums(g.soon) : '') + (g.contact ? ' · ' + esc(g.contact) : '') + '</p></div>' +
+        (late ? '<button class="btn" data-remind="' + gi + '">Текст нагадування</button>' : '') + '</div>' +
+        g.show.map(t => '<a href="#" class="drow dbrow" data-dtrip="' + esc(t.trip) + '"><div class="dmain"><b>' + esc(t.trip) + '</b> <span class="muted small">' + esc(t.route) + '</span>' +
+          '<div class="muted small">строк ' + esc(t.due.split('-').reverse().join('.')) + (t.guessed ? ' (розвантаження + відстрочка)' : '') + (t.note && !t.flagged ? ' · ' + esc(t.note) : '') + '</div></div>' +
+          '<div class="dwhen"><b>' + esc(money(t.sum)) + ' ' + esc(DBCUR[t.cur] || t.cur) + '</b><span class="pill ' + (t.late < 0 ? 'st-none' : t.late <= 7 ? 'st-idle' : 'st-bad') + '">' +
+          (t.late < 0 ? 'через ' + (-t.late) + ' дн' : t.late === 0 ? 'сьогодні' : t.late + ' дн прострочки') + '</span></div></a>').join('') + '</section>';
+    });
+    $('dbList').innerHTML = h || '<p class="muted">Боржників немає' + (dbOld ? '' : ' (за останні ' + R + ' днів)') + '.</p>';
+    $('dbList').onclick = async e => {
+      const a = e.target.closest('[data-dtrip]'); if (a) { e.preventDefault(); openTrip(a.dataset.dtrip, 'debts'); return; }
+      const b = e.target.closest('[data-remind]'); if (!b) return;
+      const txt = remindText(list[+b.dataset.remind]);
+      try { await navigator.clipboard.writeText(txt); toast('Текст скопійовано — вставте в лист чи месенджер клієнту.'); }
+      catch (err) { const w = document.createElement('div'); w.className = 'ask-wrap'; w.innerHTML = '<div class="ask" role="dialog" aria-modal="true"><h2>Скопіюйте текст нагадування</h2><textarea rows="8" readonly style="width:100%"></textarea><div class="ask-btns"><button class="primary" data-a="1">Готово</button></div></div>'; w.querySelector('textarea').value = txt; document.body.appendChild(w); w.querySelector('textarea').select(); w.onclick = ev => { if (ev.target.closest('[data-a]')) w.remove(); }; }
+    };
+  }
+
+  /* ── Виписка банку → «Оплачено» (ADR-077). Файл читається тут, на сервер ідуть лише надходження ── */
+  let bk = null;
+  function openBank() { show('bank'); bk = null; $('bkFile').value = ''; $('bkMap').innerHTML = ''; $('bkList').innerHTML = ''; $('bkBar').hidden = true; }
+  const bkNum = v => { if (typeof v === 'number') return v; let t = String(v == null ? '' : v).replace(/[\s ']/g, '').replace(/[^\d,.\-]/g, ''); if (!t) return NaN;
+    const c = t.lastIndexOf(','), d = t.lastIndexOf('.'); if (c > d) t = t.replace(/\./g, '').replace(',', '.'); else t = t.replace(/,/g, ''); return +t; };
+  const bkDate = v => { if (v instanceof Date && !isNaN(v)) return v.getFullYear() + '-' + String(v.getMonth() + 1).padStart(2, '0') + '-' + String(v.getDate()).padStart(2, '0');
+    const t = String(v == null ? '' : v).trim(); let m = t.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/); if (m) return (m[3].length === 2 ? '20' + m[3] : m[3]) + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
+    m = t.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return m[0]; if (/^\d{5}(\.\d+)?$/.test(t)) { const d = new Date(Math.round((+t - 25569) * 864e5)); return d.toISOString().slice(0, 10); } return ''; };
+  function bkCsv(text) {
+    const first = text.split(/\r?\n/).slice(0, 15).join('\n'), dl = [';', '\t', ','].sort((a, b) => first.split(b).length - first.split(a).length)[0];
+    const rows = []; let row = [], cell = '', q = false;
+    for (let i = 0; i < text.length; i++) { const ch = text[i];
+      if (q) { if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; } else if (ch === '"') q = false; else cell += ch; }
+      else if (ch === '"') q = true; else if (ch === dl) { row.push(cell); cell = ''; } else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; } else cell += ch; }
+    if (cell || row.length) { row.push(cell); rows.push(row); } return rows;
+  }
+  const BKF = [['date', 'Дата', /дата/i], ['credit', 'Надходження (кредит)', /кредит|надходж|зарахов|credit|прихід/i], ['debit', 'Списання (дебет)', /дебет|списан|debit|витрат/i], ['amount', 'Сума (якщо одна колонка)', /^сума|сума операц|amount|сума в валют/i],
+    ['cur', 'Валюта', /валют|currency/i], ['payer', 'Платник', /контрагент|платник|кореспондент|відправник|найменування|назва/i], ['code', 'Код платника', /єдрпоу|едрпоу|окпо|ідентиф|іпн|код/i], ['purpose', 'Призначення', /призначен|опис|деталі|коментар|purpose|description/i]];
+  async function bankFile(f) {
+    $('bkMap').innerHTML = '<p class="muted">Читаю файл…</p>'; $('bkList').innerHTML = ''; $('bkBar').hidden = true;
+    try {
+      let rows;
+      if (/\.xlsx?$/i.test(f.name)) {
+        if (!window.XLSX) await new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; sc.onload = res; sc.onerror = () => rej(new Error('Не вдалося завантажити читач Excel — збережіть виписку як CSV')); document.head.appendChild(sc); });
+        const wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellDates: true }); rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' });
+      } else {
+        const buf = await f.arrayBuffer(); let text = new TextDecoder('utf-8').decode(buf); if (/�/.test(text.slice(0, 2000))) text = new TextDecoder('windows-1251').decode(buf);
+        rows = bkCsv(text.replace(/^﻿/, ''));
+      }
+      let hi = 0, best = 0; rows.slice(0, 40).forEach((r, i) => { const n = BKF.filter(([, , re]) => r.some(c => re.test(String(c)))).length; if (n > best) { best = n; hi = i; } });
+      if (best < 2) throw new Error('Не знайшла рядок із заголовками (дата, сума, призначення…). Надішліть приклад виписки — налаштую під ваш банк.');
+      const head = rows[hi].map(String), map = {};
+      BKF.forEach(([k, , re]) => { const j = head.findIndex((h, jj) => re.test(h) && !Object.values(map).includes(jj) && !(k === 'code' && /рахун|iban/i.test(h))); if (j >= 0) map[k] = j; });
+      bk = { name: f.name, head, rows: rows.slice(hi + 1).filter(r => r.some(c => String(c).trim())), map, cur: 'UAH' };
+      bankMapUi();
+    } catch (e) { $('bkMap').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
+  }
+  function bankMapUi() {
+    const opt = (k, lbl) => '<label>' + esc(lbl) + '<select data-bk="' + k + '"><option value="">—</option>' + bk.head.map((h, j) => '<option value="' + j + '"' + (bk.map[k] === j ? ' selected' : '') + '>' + esc(h || ('колонка ' + (j + 1))) + '</option>').join('') + '</select></label>';
+    $('bkMap').innerHTML = '<section class="card"><h2>' + esc(bk.name) + ' · ' + bk.rows.length + ' рядків</h2><p class="muted small">Перевірте, які колонки що означають.</p><div class="tfgrid">' + BKF.map(([k, l]) => opt(k, l)).join('') +
+      '<label>Валюта, якщо колонки немає<select id="bkCur">' + ['UAH', 'EUR', 'USD', 'PLN'].map(c => '<option' + (c === bk.cur ? ' selected' : '') + '>' + c + '</option>').join('') + '</select></label></div>' +
+      '<p class="row"><button class="primary" id="bkGo">Знайти оплачені рейси</button> <span class="muted small" id="bkCnt"></span></p></section>';
+    $('bkMap').querySelectorAll('[data-bk]').forEach(s => s.onchange = () => { const v = s.value; if (v === '') delete bk.map[s.dataset.bk]; else bk.map[s.dataset.bk] = +v; bankCnt(); });
+    $('bkCur').onchange = e => { bk.cur = e.target.value; }; $('bkGo').onclick = bankMatch; bankCnt();
+  }
+  function bankPays() {
+    const m = bk.map, g = (r, k) => m[k] == null ? '' : r[m[k]];
+    return bk.rows.map(r => { let a = NaN; if (m.credit != null) a = bkNum(g(r, 'credit')); if (!(a > 0) && m.credit == null && m.amount != null) a = bkNum(g(r, 'amount'));
+      if (m.debit != null && bkNum(g(r, 'debit')) > 0 && !(m.credit != null && a > 0)) a = NaN;
+      return { date: bkDate(g(r, 'date')), amount: Math.round(a * 100) / 100, cur: (String(g(r, 'cur')).trim().toUpperCase().replace('ГРН', 'UAH').replace('UAH.', 'UAH') || bk.cur).slice(0, 3), payer: String(g(r, 'payer')).trim(), code: String(g(r, 'code')).trim(), purpose: String(g(r, 'purpose')).trim() }; })
+      .filter(p => p.amount > 0 && p.date);
+  }
+  function bankCnt() { const n = bankPays().length; $('bkCnt').textContent = n ? 'Надходжень: ' + n : 'Надходжень не знайдено — перевірте колонки дати й суми'; $('bkGo').disabled = !n; }
+  async function bankMatch() {
+    const pays = bankPays(); bk.cur = $('bkCur').value;
+    $('bkList').innerHTML = '<p class="muted">Шукаю рейси…</p>';
+    try { bk.res = await api('bank.match', { payments: pays }); bk.pick = {}; bk.res.payments.forEach(p => { if (p.cands[0] && p.cands[0].sure) bk.pick[p.i] = 0; }); bankRender(); }
+    catch (e) { $('bkList').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
+  }
+  function bankRender() {
+    const R = bk.res, P = R.payments, st = R.stats, fd = d => d ? d.split('-').reverse().join('.') : '';
+    const card = p => { const sel = bk.pick[p.i];
+      const head = '<div class="bkp"><b>' + esc(money(p.amount)) + ' ' + esc(p.cur) + '</b> · ' + esc(fd(p.date)) + ' · ' + esc(p.payer || 'платник не вказаний') + (p.code ? ' <span class="muted small">' + esc(p.code) + '</span>' : '') + '<div class="muted small bkpur">' + esc(p.purpose) + '</div></div>';
+      if (p.done) return '<div class="bkrow done">' + head + '<p class="muted small">Уже розібрано раніше: ' + esc(p.done) + '</p></div>';
+      const cs = p.cands.map((c, k) => '<label class="bkc"><input type="radio" name="bk' + p.i + '" value="' + k + '"' + (sel === k ? ' checked' : '') + '><span><b>' + c.trips.map(t => esc(t.trip)).join(' + ') + '</b> · ' + esc(c.trips[0].client || '') + (c.trips.length === 1 ? ' · ' + esc(c.trips[0].route || '') + (c.trips[0].unload ? ', розвант. ' + esc(fd(c.trips[0].unload)) : '') : ' · ' + c.trips.length + ' рейси') +
+        ' <span class="pill ' + (c.sure ? 'st-ok' : 'st-idle') + '">' + (c.sure ? 'впевнено' : 'перевірте') + '</span></span></label>').join('');
+      return '<div class="bkrow">' + head + (cs ? cs + '<label class="bkc"><input type="radio" name="bk' + p.i + '" value=""' + (sel == null ? ' checked' : '') + '><span class="muted">не цей / пропустити</span></label>' : '<p class="muted small">Рейс не знайдено — платіж лишиться нерозібраним.</p>') + '</div>'; };
+    const sure = P.filter(p => !p.done && p.cands[0] && p.cands[0].sure), check = P.filter(p => !p.done && p.cands.length && !(p.cands[0].sure)), none = P.filter(p => !p.done && !p.cands.length), done = P.filter(p => p.done);
+    const sec = (t, arr, open) => arr.length ? '<details class="card bksec"' + (open ? ' open' : '') + '><summary><h2>' + esc(t) + ' · ' + arr.length + '</h2></summary>' + arr.map(card).join('') + '</details>' : '';
+    $('bkList').innerHTML = sec('Впевнено знайдено', sure, true) + sec('Перевірте — кілька варіантів або схожа сума', check, true) + sec('Рейс не знайдено', none, false) + sec('Уже розібрані раніше', done, false) +
+      (P.length ? '' : '<p class="muted">Надходжень немає.</p>');
+    $('bkList').onchange = e => { const r = e.target.closest('input[type=radio]'); if (!r) return; const i = +r.name.slice(2); if (r.value === '') delete bk.pick[i]; else bk.pick[i] = +r.value; bankSum(); };
+    bankSum();
+  }
+  function bankSum() { const n = Object.keys(bk.pick).length, trips = Object.keys(bk.pick).reduce((a, i) => a + bk.res.payments[i].cands[bk.pick[i]].trips.length, 0);
+    $('bkBar').hidden = !n; $('bkSum').textContent = n ? n + ' платежів → ' + trips + ' рейсів' : ''; }
+  async function bankApply() {
+    const items = Object.keys(bk.pick).map(i => { const p = bk.res.payments[i]; return { key: p.key, date: p.date, amount: p.amount, cur: p.cur, payer: p.payer, code: p.code, purpose: p.purpose, trips: p.cands[bk.pick[i]].trips.map(t => t.trip) }; });
+    const n = items.reduce((a, x) => a + x.trips.length, 0);
+    if (!await ask('Позначити оплаченими ' + n + ' рейсів?', 'У рейсах з\'явиться дата оплати й примітка «оплата за випискою». Зміни видно в журналі змін; помилкову позначку можна виправити в рейсі.', 'Так, позначити')) return;
+    $('bkApply').disabled = true;
+    try { const r = await api('bank.apply', { items }); toast('Позначено оплаченими: ' + r.paid + (r.skipped ? ', уже були розібрані: ' + r.skipped : '') + (r.errors && r.errors.length ? '. Не вдалося: ' + r.errors.join('; ') : ''), r.errors && r.errors.length ? 'err' : '');
+      debts = null; board = null; try { store.set('boardCache', ''); } catch (e) {} openDebts(true); }
+    catch (e) { toast(esc(e.message), 'err'); } finally { $('bkApply').disabled = false; }
+  }
+
   /* ── Калькулятор рейсу / кругорейсу (Calc.gs): той самий розрахунок, що у файлі прибутковості v51 ── */
   let calcInit = null, cTrips = [];
   const CTYPES = ['Міжнародний', 'Україна', 'Україна: окремий рейс (км + дні)', 'Контейнеровоз'], CCURS = ['EUR', 'UAH', 'PLN', 'USD'];
@@ -1606,18 +1800,36 @@
       ['Моя машина і проблема', '«Моя машина» — коли сідаєте на машину або здаєте її. «Проблема» — якщо щось не так у дорозі. Кнопка «Аа» вгорі робить шрифт більшим.']],
     'логіст': [['Дошка машин', 'Головний екран логіста: де кожна машина, рейс, що далі, проблеми. Кроки від водіїв видно одразу.'],
       ['Картка рейсу', 'Натисніть номер рейсу — побачите маршрут, дати, оплату, кроки водія.'],
-      ['Калькулятор', 'Перед тим як погодити заявку — порахуйте рейс або кругорейс у «Калькуляторі». «Аа» вгорі — більший шрифт.']]
+      ['Калькулятор', 'Перед тим як погодити заявку — порахуйте рейс або кругорейс у «Калькуляторі». «Аа» вгорі — більший шрифт.'],
+      ['Новий рейс', '«+ Новий рейс» на дошці — завести рейс вручну. У «Заявках» рядок «+ рейс» — створити рейс із заявки: поля підставляться самі, лишиться обрати водія. Постійні клієнти без заявок — «Із шаблону».']],
+    'бухгалтер': [['Витрати водіїв', 'Чеки й витрати від водіїв — на перевірку. Фото чеків відкриваються лише в програмі.'],
+      ['Дві суми в рейсі', '«Фрахт» — від нього рахується зарплата водію. «Сума для рахунку» — на неї виставляють рахунок клієнту (більша, коли є повернення). Порожня — як фрахт.'],
+      ['Боржники', 'Хто не оплатив: за клієнтом, з прострочкою. «Текст нагадування» копіює готовий лист. Рейс без позначки «Оплачено» може бути вже оплачений — звіряйте з банком.']]
   };
+  // «Що нового» — один раз на пристрої для тих, хто вже бачив підказки (ADR-076)
+  const NEWS = { key: 'news_v34', roles: ['адмін', 'керівник', 'логіст', 'бухгалтер'], title: 'Що нового',
+    items: ['Дві суми в рейсі: «Фрахт» (від нього зарплата водію) і «Сума для рахунку» (на неї рахунок клієнту; більша, коли є повернення). Різна — вкажіть причину.',
+      'Плитка «Боржники»: хто не оплатив, за клієнтом, з прострочкою і готовим текстом нагадування.',
+      'Рейс із заявки: у «Заявках» натисніть рядок «+ рейс» — поля підставляться самі.',
+      'Оплата «безгот + готівка»: вкажіть, скільки готівкою, — рахунок виставиться на решту.',
+      'Шаблони рейсів: ручний рейс постійного клієнта можна зберегти як шаблон і наступного разу обрати «Із шаблону».'] };
+  function news() {
+    if (!me || NEWS.roles.indexOf(me.role) < 0 || store.get(NEWS.key) || document.querySelector('.ask-wrap')) return;
+    const w = document.createElement('div'); w.className = 'ask-wrap';
+    w.innerHTML = '<div class="ask tour" role="dialog" aria-modal="true"><h2>' + esc(NEWS.title) + '</h2><ul class="newsl">' + NEWS.items.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul><div class="ask-btns"><button class="primary" data-a="ok">Зрозуміло</button></div></div>';
+    w.querySelector('[data-a="ok"]').onclick = () => { store.set(NEWS.key, '1'); w.remove(); };
+    document.body.appendChild(w);
+  }
   TOURS['керівник'] = TOURS['логіст']; TOURS['адмін'] = TOURS['логіст'];
   function tour() {
     const steps = me && TOURS[me.role]; if (!steps) return;
-    const key = 'tour1_' + me.role; if (store.get(key)) return;
+    const key = 'tour1_' + me.role; if (store.get(key)) return news();
     let i = 0; const w = document.createElement('div'); w.className = 'ask-wrap';
     const draw = () => { const [t, x] = steps[i];
       w.innerHTML = '<div class="ask tour" role="dialog" aria-modal="true"><div class="tour-dots">' + steps.map((_, k) => '<i class="' + (k === i ? 'on' : '') + '"></i>').join('') + '</div><h2>' + esc(t) + '</h2><p>' + esc(x) + '</p><div class="ask-btns"><button class="btn" data-a="skip">Пропустити</button><button class="primary" data-a="next">' + (i < steps.length - 1 ? 'Далі' : 'Зрозуміло') + '</button></div></div>';
       w.querySelector('[data-a="next"]').onclick = () => { if (++i >= steps.length) close(); else draw(); };
       w.querySelector('[data-a="skip"]').onclick = close; };
-    const close = () => { store.set(key, '1'); w.remove(); };
+    const close = () => { store.set(key, '1'); store.set(NEWS.key, '1'); w.remove(); };   // новачку «Що нового» не потрібне — підказки вже про все
     draw(); document.body.appendChild(w);
   }
   async function askLogout() {
@@ -1652,6 +1864,8 @@
   applyTheme(); setInterval(applyTheme, 5 * 60 * 1000);
   $('back').onclick = () => renderHome();
   document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => renderHome());
+  if ($('dbRefresh')) { $('dbRefresh').onclick = () => openDebts(true); $('dbSearch').oninput = () => debts && renderDebts(); }
+  if ($('dbBank')) { $('dbBank').onclick = openBank; $('bkBack').onclick = () => show('debts'); $('bkFile').onchange = e => e.target.files[0] && bankFile(e.target.files[0]); $('bkApply').onclick = bankApply; }
   $('tachoBack').onclick = () => me && me.role !== 'водій' ? openBoard() : renderHome();
   $('search').addEventListener('input', () => renderTable());
   $('bSearch').addEventListener('input', () => board && renderBoard());
@@ -1661,7 +1875,7 @@
   if ($('viewNewTrip')) $('viewNewTrip').onclick = () => tripForm(null);
   $('dRefresh').onclick = () => openDocs(true);
   $('dSearch').addEventListener('input', () => docs && renderDocs());
-  $('tripBack').onclick = () => tripFrom === 'view' ? show('view') : (board ? (show('board')) : renderHome());
+  $('tripBack').onclick = () => tripFrom === 'debts' ? show('debts') : tripFrom === 'view' ? (show('view'), current && renderTable()) : (board ? (show('board')) : renderHome());
   $('issue').onclick = issue;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
