@@ -97,6 +97,13 @@
       <p class="muted small">Дані — з бази (аркуші «Терміни документів» і «ТІР карнети», переносяться щоночі з «Маршрутів»). Документи звільнених водіїв і здані карнети не показуються.</p>
     </section>
 
+    <section id="probs" hidden>
+      <button class="link back" data-back>← Назад</button>
+      <div class="bhead"><div><h1>Проблеми водіїв</h1><p class="muted small" id="prSub"></p></div><div class="row"><button class="btn" id="prRefresh">↻ Оновити</button></div></div>
+      <div class="toolbar"><input id="prSearch" type="search" placeholder="Текст, рейс, машина, водій" aria-label="Пошук проблем"><select id="prWorker" aria-label="Водій"></select><div class="chips" id="prChips"></div></div>
+      <div id="prList"></div>
+      <p class="muted small">Черга, документи, склад та інше — вирішує логіст (може передати керівнику). Поломка, ДТП і передані — керівник. Натисніть рядок — відкриється рейс з кнопками відповіді.</p>
+    </section>
     <section id="debts" hidden>
       <button class="link back" data-back>← Назад</button>
       <div class="bhead"><div><h1>Боржники</h1><p class="muted small" id="dbSub"></p></div><div class="row"><button class="btn" id="dbBank" hidden>Виписка банку</button><button class="btn" id="dbRefresh">↻ Оновити</button></div></div>
