@@ -1,7 +1,7 @@
 /* L CORP — стиль поточних екранів (вхід, кабінет, перегляд, видача кодів).
    Дизайн-система «Перехрестя», див. 07-Дизайн/Дизайн-система.md.
    Підставляється замість app/style.css без зміни HTML/JS. */
-@import url("https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;600;800&display=swap");
+/* шрифт — системний: без зовнішнього @import, що блокував показ на слабкому зв'язку (a11y-4) */
 
 :root {
   color-scheme: light;
@@ -168,7 +168,7 @@ th:first-child, td:first-child { padding-left: 16px; }
   #whoName { display: none; }
   main { padding: 14px 14px 96px; }
   h1, #homeTitle { font-size: 24px; }
-  .tiles { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tiles { grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 10px; }
   .tile { min-height: 96px; padding: 14px 32px 14px 14px; }
   .tile::after { right: 10px; top: 16px; }
   .card { padding: 20px; }
@@ -262,7 +262,7 @@ th:first-child, td:first-child { padding-left: 16px; }
 .dico { font-size: 20px; width: 26px; text-align: center; }
 .dmain { flex: 1; min-width: 0; }
 .dwhen { display: grid; justify-items: end; gap: 2px; text-align: right; }
-.btn { white-space: nowrap; }
+.btn { white-space: normal; text-align: center; line-height: 1.2; }   /* на Аа і 320 px — перенос, а не вилазить (a11y-3) */
 
 /* ── Калькулятор рейсу ── */
 select { width: 100%; font: inherit; font-size: 16px; min-height: 48px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--card); color: var(--ink); }
@@ -737,7 +737,7 @@ html[data-theme="dark"] .tc-gps { background: #12304F; color: #D4EAFC; border-co
 .exgal{margin-top:6px}
 
 /* ── Кабінет водія 2.0 (ADR-065): менше кнопок, усе під рукою, найбільший шрифт без прокрутки вбік ── */
-html[data-zoom] body { zoom: var(--zoom); overflow-x: hidden; }
+html[data-zoom] body { zoom: var(--zoom); }
 html[data-zoom] main, html[data-zoom] .card, html[data-zoom] section { max-width: 100%; }
 html[data-zoom] .extypes { grid-template-columns: repeat(2, 1fr); }
 html[data-zoom] .tc-modes { grid-template-columns: repeat(2, 1fr); }
@@ -756,7 +756,7 @@ body, .card, .hero, .chip, .btn, .extype span { overflow-wrap: break-word; hyphe
 .undo-line .link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 16px; }
 .undo-line .ico { width: 18px; height: 18px; }
 .stmsg { margin: 0 0 8px; font-size: 15px; text-align: center; color: var(--muted); }
-.probgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.probgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 8px; }
 .probgrid .probone { min-height: 56px; justify-content: center; font-size: 16px; }
 .probown summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
 .probown textarea { font-family: inherit; font-size: 17px; width: 100%; margin: 6px 0 8px; color: var(--ink); background: var(--card); }
@@ -833,7 +833,7 @@ body[data-role="водій"] #whoName { overflow: hidden; text-overflow: ellipsi
 .rptlink .ico { width: 24px; height: 24px; flex: none; }
 /* фото документів: камера — головна */
 #tdoc .phbtn[for="tdC"] { background: var(--ink); color: var(--card); border-color: var(--ink); min-height: 52px; padding: 0 16px; font-size: 16px; }
-#tdSave.dim { opacity: .55; }
+#tdSave.dim { opacity: .75; }
 #tdSave, #exSave, #rpSave { min-height: 60px; font-size: 19px; }
 /* «Аа» на найбільшому шрифті — один стовпчик */
 html[data-zoom="1.4"] .zgrid { grid-template-columns: 1fr; }
@@ -916,9 +916,46 @@ body[data-role="водій"] .who { min-width: 0; }
 .pyh { margin: 18px 0 8px; }
 .pyc summary { display: flex; justify-content: space-between; gap: 10px; align-items: center; cursor: pointer; list-style: none; flex-wrap: wrap; }
 .pyc summary::-webkit-details-marker { display: none; }
-.pycr { display: flex; gap: 8px; align-items: center; }
+.pycr { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 8px; align-items: center; }
 .pyc h3 { margin: 14px 0 6px; font-size: 1rem; }
 .pytext { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: .95rem; background: var(--surface-2); padding: 10px 12px; border-radius: 10px; margin: 0; }
 .pyrow { color: inherit; text-decoration: none; }
 #mypay .kv b, #mypay .dwhen b { white-space: nowrap; }
 #mypay .kv { gap: 12px; }
+
+/* ── Кабінет водія після рев'ю (ADR-082): цілі 48 px, перенос на Аа, без руху при reduce ── */
+body[data-role="водій"] .btn, body[data-role="водій"] .chip, body[data-role="водій"] .link, body[data-role="водій"] .phbtn,
+body[data-role="водій"] input, body[data-role="водій"] .q, body[data-role="водій"] .toast-x, body[data-role="водій"] .back { min-height: 48px; }
+body[data-role="водій"] .toast-x { min-width: 48px; }
+.tile b, .tile span, .kv span, .pyc summary { overflow-wrap: anywhere; }
+.pyc summary { display: flex; flex-wrap: wrap; gap: 6px; justify-content: space-between; }
+.pyq { padding: 8px 0; border-top: 1px solid var(--line); } .pyq:first-of-type { border-top: 0; }
+.pyq p { margin: 4px 0; } .pyans { padding: 8px 10px; border-radius: 10px; background: var(--line); }
+.rmpdbtn { width: 100%; justify-content: center; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+.toast { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); }   /* знизу, біля великого пальця: не перекриває «Логіст», «Аа» і «Назад» */
+body:has(#outboxBar:not([hidden])) .toast, body:has(#offline:not([hidden])) .toast { bottom: calc(max(12px, env(safe-area-inset-bottom)) + 84px); }
+
+/* a11y раунд 2 */
+.extypes { grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr)); }
+.extype, .exrow > *, .kv > *, .drow > * { min-width: 0; }
+.phstrip { flex-wrap: wrap; }
+.ask { max-width: calc(100vw - 24px); box-sizing: border-box; overflow-wrap: anywhere; }
+#mypay b, #mypay .kv b, #mypay .dwhen b, .pycr b { overflow-wrap: anywhere; white-space: normal; }
+.tsrow { grid-template-columns: 56px minmax(0, 1fr) 56px; } #tsTime { min-width: 0; width: 100%; }
+body[data-role="водій"] .theme, body[data-role="водій"] .hdrcall, body[data-role="водій"] .probown summary, body[data-role="водій"] .link, body[data-role="водій"] #fontBtn { min-height: 48px; }
+
+/* UX раунд 2: смужка черги компактна, сторінка не ховається під нею; кнопки діалогів — одна під одною на вузькому */
+body:has(#outboxBar:not([hidden])) main { padding-bottom: 150px; }
+.outbox { flex-wrap: wrap; font-size: 15px; padding: 8px 10px; gap: 6px 8px; }
+.outbox span { flex: 1 1 180px; min-width: 0; }
+.outbox .btn { white-space: normal; flex: 1 1 auto; }
+@media (max-width: 420px) { .ask-btns { grid-template-columns: 1fr; } .ask-btns .primary { order: -1; } }
+.ask-btns button { word-break: normal; overflow-wrap: normal; hyphens: none; }
+/* UX r3: «Аа» не ламається; смужка черги на вузькому — дрібніше */
+#fontBtn { white-space: nowrap; }
+@media (max-width: 380px) { .outbox { font-size: 14px; padding: 6px 8px; } .outbox .btn { min-height: 44px; padding: 0 10px; } }
+body[data-role="водій"] .timebox .tb-head .link, body[data-role="водій"] .docalert, body[data-role="водій"] .rptlink { min-height: 48px; }
+.tsrow { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+@media (max-width: 360px) { html[data-zoom] .tsrow { grid-template-columns: 1fr 1fr; } html[data-zoom] #tsTime { grid-column: 1 / -1; order: -1; } }
+.tsrow { grid-template-columns: 48px minmax(0, 1fr) 48px; }
