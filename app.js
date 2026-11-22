@@ -164,10 +164,11 @@
   }
   function renderOutbox() {
     const n = outbox().length, rj = REJ.filter(mine); let b = $('outboxBar');
-    if (!n && !rj.length) { if (b) b.hidden = true; return; }
-    if (!b) { b = document.createElement('div'); b.id = 'outboxBar'; b.className = 'outbox'; b.setAttribute('role', 'status'); document.body.appendChild(b); }
+    if (!n && !rj.length) { if (b) b.hidden = true; document.documentElement.style.setProperty('--obh', '0px'); return; }
+    if (!b) { b = document.createElement('div'); b.id = 'outboxBar'; b.className = 'outbox'; b.setAttribute('role', 'status'); document.body.appendChild(b);
+      try { new ResizeObserver(() => document.documentElement.style.setProperty('--obh', (b.hidden ? 0 : b.offsetHeight) + 'px')).observe(b); } catch (e) {} }   // висота смужки → відступ сторінки й тосту (дизайнер №3)
     b.hidden = false;
-    b.innerHTML = (n ? '<span>📶 Чекають зв\'язку: <b>' + n + '</b> — збережено на телефоні, надішлеться само</span><button class="btn" data-ob="send">Надіслати зараз</button>' : '') +
+    b.innerHTML = (n ? '<span>📶 Чекають зв\'язку: <b>' + n + '</b><small class="obtail"> — збережено на телефоні, надішлеться само</small></span><button class="btn" data-ob="send">Надіслати зараз</button>' : '') +
       (rj.length ? '<span class="obrej">⚠ Не прийнято: <b>' + rj.length + '</b></span><button class="btn" data-ob="rej">Переглянути</button>' : '');
     if (n) $('offline').hidden = true;                                  // одна плашка замість двох суперечливих (UX-В1)
     b.querySelectorAll('[data-ob]').forEach(x => x.onclick = () => x.dataset.ob === 'send' ? flushOutbox() : showRejected());
@@ -396,10 +397,11 @@
     if (v.last && v.last.canUndo) { const left = me.role === 'водій' ? (String(v.last.id).startsWith('q:') ? 0 : Math.max(1, 15 - Math.floor((Date.now() - new Date(v.last.at)) / 60000))) : 0;
       h += '<p class="undo-line"><button class="link" id="stUndo">' + svgI('M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3') + 'Скасувати «' + esc(v.last.event) + '»' + (left ? ' (ще ' + left + ' хв)' : '') + '</button></p>'; }
     if (msg) h += '<p class="stmsg" role="status">' + msg + '</p>';
-    h += '<div class="quick">' + QUICK.map(q => '<button class="q' + (q[1] === 'problem' ? ' problem' : '') + '" data-q="' + q[1] + '">' + svgI(q[2]) + esc(q[0]) + '</button>').join('') + '</div>';
+    const rmpdQ = v.rmpd && v.rmpd.file && store.get('rmpdSeen_' + v.rmpd.ver) ? '<button class="q rmpdbtn" data-rmpd="' + esc(v.trip.id) + '" data-ver="' + esc(v.rmpd.ver) + '">' + svgI('M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h4') + 'RMPD' + (rmpdCached(v.rmpd.ver) ? '<small>є на телефоні</small>' : '') + '</button>' : '';   // RMPD — плитка поруч із «Проблема» (дизайнер №10)
+    h += '<div class="quick">' + QUICK.map(q => '<button class="q' + (q[1] === 'problem' ? ' problem' : '') + '" data-q="' + q[1] + '">' + svgI(q[2]) + esc(q[0]) + '</button>').join('') + rmpdQ + '</div>';
     h += docsAlert(tk && tk.docs);
     if (v.rmpd && v.rmpd.file && !store.get('rmpdSeen_' + v.rmpd.ver)) h += '<button class="docalert rmpdalert st-' + (v.rmpd.state === 'ok' ? 'ok' : 'soon') + '" data-rmpd="' + esc(v.trip.id) + '" data-ver="' + esc(v.rmpd.ver) + '">📄 RMPD готовий' + (v.rmpd.state === 'ok' ? ' · ✓ перевірено' : ' · ще перевіряється') + ' — відкрити ›</button>';
-    else if (v.rmpd && v.rmpd.file) h += '<p><button class="btn rmpdbtn" data-rmpd="' + esc(v.trip.id) + '" data-ver="' + esc(v.rmpd.ver) + '">📄 RMPD' + (rmpdCached(v.rmpd.ver) ? ' (збережено на телефоні)' : '') + '</button></p>';   // переглянутий RMPD не зникає — на кордоні без зв'язку (QA-5)
+    // переглянутий RMPD — плитка в .quick (вище)
     if (v.rmpd && v.rmpd.file) { const ver = v.rmpd.ver, tid = v.trip.id; setTimeout(() => { if (!rmpdCached(ver) && navigator.onLine) rmpdFetch(tid, ver).catch(() => {}); }, 1500); }   // на кордоні може не бути зв'язку — завантажуємо заздалегідь
     // «Проблема»: спершу великі готові причини — одне натискання й надіслано; свій текст — за бажанням (без автоматичної клавіатури)
     h += '<div class="stprob card" id="stProbBox" hidden><a class="btn calllog" href="tel:' + LOGIST_TEL + '">📞 Подзвонити логісту</a><b>Що сталося? Натисніть — логіст отримає одразу</b><div class="probgrid">' + ['Довга черга', 'Поломка', 'Документи', 'Затримка на складі', 'ДТП'].map(c => '<button class="btn probone" data-pq="' + c + '">' + c + '</button>').join('') + '</div>' +
@@ -1070,7 +1072,7 @@
   function askText(title, ph, okText) {
     return new Promise(res => {
       const w = document.createElement('div'); w.className = 'ask-wrap';
-      w.innerHTML = '<div class="ask" role="dialog" aria-modal="true"><h2></h2><input id="atx" placeholder=""><div class="ask-btns"><button class="btn" data-a="0">Скасувати</button><button class="primary" data-a="1"></button></div></div>';
+      w.innerHTML = '<div class="ask" role="dialog" aria-modal="true"><h2></h2><textarea id="atx" rows="3" placeholder=""></textarea><div class="ask-btns"><button class="btn" data-a="0">Скасувати</button><button class="primary" data-a="1"></button></div></div>';
       w.querySelector('h2').textContent = title; w.querySelector('#atx').placeholder = ph || ''; w.querySelector('[data-a="1"]').textContent = okText || 'Зберегти';
       const hid = 'askT' + Date.now(); w.querySelector('h2').id = hid; w.querySelector('.ask').setAttribute('aria-labelledby', hid); w.querySelector('#atx').setAttribute('aria-labelledby', hid);
       w.querySelector('#atx').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); done(w.querySelector('#atx').value.trim()); } };
@@ -1241,7 +1243,7 @@
   const photoStrip = (id, n, multi) => '<div class="phstrip"><span>' + (n ? '📎 ' + n + ' фото' : 'Фото') + '</span><label class="phbtn" tabindex="0" role="button" for="' + id + 'C">' + svgI(PH_CAM) + 'Камера</label><input id="' + id + 'C" type="file" accept="image/*" capture="environment" hidden>' +
     '<label class="phbtn" tabindex="0" role="button" for="' + id + 'G">' + svgI(PH_GAL) + 'Галерея</label><input id="' + id + 'G" type="file" accept="image/*"' + (multi ? ' multiple' : '') + ' hidden></div>';
   const CC_CUR = { PL: 'PLN', UA: 'UAH', HU: 'HUF', CZ: 'CZK', RO: 'RON' };
-  const fmtSum = (s, c) => Number(s).toLocaleString('uk-UA', { maximumFractionDigits: 2 }) + ' ' + c;
+  const fmtSum = (s, c) => Number(s).toLocaleString('uk-UA', { maximumFractionDigits: 2 }) + '\u00a0' + c;
   const exOffice = () => me && me.role !== 'водій';
   const EXP_DEF = { types: ['Парковка', 'Кордон', 'Зв\'язок', 'Копії / друк', 'Завантаження / розвантаження', 'Митниця', 'Ремонт / мийка', 'Інше'], typesMore: ['Пальне', 'AdBlue', 'Дорога / віньєтка', 'Харчування', 'Штраф'],
     pay: ['Готівка', 'Картка фірми'], cur: ['UAH', 'EUR', 'PLN'], curMore: ['USD', 'HUF', 'CZK', 'RON'], last: {}, list: [], undoMin: 15 };
