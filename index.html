@@ -97,6 +97,24 @@
       <p class="muted small">Дані — з бази (аркуші «Терміни документів» і «ТІР карнети», переносяться щоночі з «Маршрутів»). Документи звільнених водіїв і здані карнети не показуються.</p>
     </section>
 
+    <section id="debts" hidden>
+      <button class="link back" data-back>← Назад</button>
+      <div class="bhead"><div><h1>Боржники</h1><p class="muted small" id="dbSub"></p></div><div class="row"><button class="btn" id="dbBank" hidden>Виписка банку</button><button class="btn" id="dbRefresh">↻ Оновити</button></div></div>
+      <div class="toolbar"><input id="dbSearch" type="search" placeholder="Клієнт, рейс, машина"><div class="chips" id="dbChips"></div></div>
+      <div id="dbList"></div>
+      <p class="muted small">Безготівкові рейси без позначки «Оплачено». Сума — на рахунок клієнту («Сума для рахунку», якщо порожня — фрахт). Оплату поки відмічають вручну, тож рейс без позначки може бути вже оплачений — звіряйте з банком. Програма нікому нічого не надсилає: «Текст нагадування» лише копіює текст.</p>
+    </section>
+
+    <section id="bank" hidden>
+      <button class="link back" id="bkBack">← Боржники</button>
+      <h1>Виписка банку</h1>
+      <p class="muted small">Оберіть файл виписки (CSV або Excel) — програма знайде надходження і запропонує, які рейси ними оплачено. Нічого не позначається без вашого підтвердження. Файл не зберігається — лише розібрані платежі (дата, сума, платник, призначення), щоб та сама виписка вдруге нічого не позначила.</p>
+      <label class="btn filebtn"><input type="file" id="bkFile" accept=".csv,.txt,.xls,.xlsx" hidden>Обрати файл виписки</label>
+      <div id="bkMap"></div>
+      <div id="bkList"></div>
+      <div id="bkBar" class="bkbar" hidden><span id="bkSum"></span><button class="primary" id="bkApply">Позначити оплаченими</button></div>
+    </section>
+
     <!-- Калькулятор рейсу / кругорейсу (етап 10, спрощений) -->
     <section id="calc" hidden>
       <button class="link back" data-back>← Назад</button>
