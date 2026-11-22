@@ -105,6 +105,13 @@
       <p class="muted small">Безготівкові рейси без позначки «Оплачено». Сума — на рахунок клієнту («Сума для рахунку», якщо порожня — фрахт). Оплату поки відмічають вручну, тож рейс без позначки може бути вже оплачений — звіряйте з банком. Програма нікому нічого не надсилає: «Текст нагадування» лише копіює текст.</p>
     </section>
 
+    <section id="mypay" hidden>
+      <button class="link back" data-back>← Назад</button>
+      <div class="bhead"><h1 id="pyTitle">Моя зарплата</h1><button class="btn" id="pyRefresh">↻ Оновити</button></div>
+      <div class="chips" id="pyTabs"></div>
+      <div id="pyBody"></div>
+    </section>
+
     <section id="bank" hidden>
       <button class="link back" id="bkBack">← Боржники</button>
       <h1>Виписка банку</h1>
