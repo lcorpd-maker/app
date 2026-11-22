@@ -26,8 +26,8 @@
       T('Готівка від клієнтів', '', 'Готівка від клієнтів'), T('Клієнти', '', 'Клієнти')],
     'механік': [{ title: 'Дошка машин', hint: 'машини, документи, GPS', action: 'board' }, T('Авто', '', 'Авто'), T('Причепи', '', 'Причепи'), { title: 'Документи', hint: 'що спливає', action: 'docs' },
       T('Спідометр і пальне', '', 'Спідометр і пальне')],
-    'водій': [{ title: 'Моя машина', hint: 'прийняти / здати · моя робота', action: 'truck' }, T('Мої рейси', '', 'Рейси'), { title: 'Гроші', hint: 'витрата, обмін, від клієнта', action: 'exp' }, T('Аванси й витрати', 'з бухгалтерії', 'Рухи коштів'), T('Заправки й спідометр', '', 'Спідометр і пальне'),
-      T('Моя зарплата', 'нарахування', 'Нарахування'), T('Звіт по рейсу', 'з телефона', null, 'етап 5')]
+    'водій': [{ title: 'Моя машина', hint: 'прийняти / здати · моя робота', action: 'truck' }, { title: 'Мої рейси', hint: 'історія · скільки нараховано', action: 'mytrips' }, { title: 'Гроші', hint: 'витрата, обмін, від клієнта', action: 'exp' }, T('Аванси й витрати', 'з бухгалтерії', 'Рухи коштів'), T('Заправки й спідометр', '', 'Спідометр і пальне'),
+      { title: 'Моя зарплата', hint: 'нараховано · виплати · до виплати', action: 'mypay' }]
   };
   const HINT = {
     'адмін': 'Повний доступ. Таблиці поки лише для перегляду — змінювати їх можна буде згодом.',
@@ -141,7 +141,7 @@
 
   /* ── Екрани ── */
   let navSeq = 0, meFresh = false;   // кожен перехід між екранами; пізня відповідь сервера не перемикає екран, якщо людина вже пішла далі
-  function show(id) { navSeq++; ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck', 'tacho', 'exp', 'health', 'tdoc', 'rpt', 'debts', 'bank'].forEach(s => $(s) && ($(s).hidden = s !== id)); window.scrollTo(0, 0); }
+  function show(id) { navSeq++; ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck', 'tacho', 'exp', 'health', 'tdoc', 'rpt', 'debts', 'bank', 'mypay'].forEach(s => $(s) && ($(s).hidden = s !== id)); window.scrollTo(0, 0); }
 
   function showLogin(msg) {
     $('who').hidden = true; show('login'); $('loginMsg').textContent = msg || '';
@@ -172,7 +172,7 @@
       b.innerHTML = '<b></b><span></span>';
       b.querySelector('b').textContent = t.title;
       b.querySelector('span').textContent = ok ? (t.hint || '') : 'скоро';
-      if (ok) b.onclick = () => t.action === 'codes' ? openCodes() : t.action === 'board' ? openBoard() : t.action === 'docs' ? openDocs() : t.action === 'calc' ? openCalc() : t.action === 'truck' ? openTruck() : t.action === 'exp' ? openExp() : t.action === 'health' ? openHealth() : t.action === 'push' ? openPush() : t.action === 'debts' ? openDebts() : openSheet(t);
+      if (ok) b.onclick = () => t.action === 'codes' ? openCodes() : t.action === 'board' ? openBoard() : t.action === 'docs' ? openDocs() : t.action === 'calc' ? openCalc() : t.action === 'truck' ? openTruck() : t.action === 'exp' ? openExp() : t.action === 'health' ? openHealth() : t.action === 'push' ? openPush() : t.action === 'debts' ? openDebts() : t.action === 'mypay' ? openPay('pay') : t.action === 'mytrips' ? openPay('trips') : openSheet(t);
       box.appendChild(b);
     });
     $('homeWork').innerHTML = ''; $('tiles').hidden = false; if ($('drvOutBox')) $('drvOutBox').innerHTML = '';
@@ -229,7 +229,7 @@
   // ADR-065: на головній — лише 4 кнопки (за звітами водіїв-тестувальників і побажанням власниці): заправки йдуть картками UTA, «Спідометр» — у «Моя машина»
   const LOGIST_TEL = '+380970864081';   // «Подзвонити логісту» (поки тестовий номер від власниці, 21.11)
   const QUICK = [['Моя машина', 'truck', 'M3 16V7a1 1 0 011-1h10v10M14 9h4l3 3v4h-7M6.5 18.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm11 0a1.5 1.5 0 100-3 1.5 1.5 0 000 3z'],
-    ['Гроші', 'exp', 'M3 7h18v10H3zM12 15a3 3 0 100-6 3 3 0 000 6zM6 10v4M18 10v4'], ['Фото документів', 'tdoc', 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7'], ['Проблема', 'problem', 'M12 4l9 16H3zM12 10v4M12 17h.01']];
+    ['Гроші', 'exp', 'M3 7h18v10H3zM12 15a3 3 0 100-6 3 3 0 000 6zM6 10v4M18 10v4'], ['Фото документів', 'tdoc', 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7'], ['Рейси й зарплата', 'pay', 'M4 19V5M4 19h16M8 15l3-4 3 2 5-6'], ['Проблема', 'problem', 'M12 4l9 16H3zM12 10v4M12 17h.01']];
   const svgI = d => '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>';
   const dayName = iso => { if (!iso) return ''; const d = new Date(iso + 'T12:00:00'); return isNaN(d) ? '' : dd(iso) + ', ' + d.toLocaleDateString('uk-UA', { weekday: 'long' }); };
   function renderStatus(msg) {
@@ -292,7 +292,7 @@
     };
     box.querySelectorAll('[data-st]').forEach(b => b.onclick = e => { e.stopPropagation(); send(b.dataset.st); });
     box.querySelectorAll('.rmpdalert').forEach(b => b.onclick = () => { rmpdOpen(b.dataset.rmpd, b.dataset.ver); b.remove(); });
-    box.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { if (b.dataset.q === 'truck') openTruck(); else if (b.dataset.q === 'exp') openExp(); else if (b.dataset.q === 'fuel') openExp('Пальне'); else if (b.dataset.q === 'tdoc') openTdoc(); else if (b.dataset.q === 'problem') { $('stProbBox').hidden = !$('stProbBox').hidden; if (!$('stProbBox').hidden) $('stProbBox').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } });
+    box.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { if (b.dataset.q === 'truck') openTruck(); else if (b.dataset.q === 'exp') openExp(); else if (b.dataset.q === 'fuel') openExp('Пальне'); else if (b.dataset.q === 'tdoc') openTdoc(); else if (b.dataset.q === 'pay') openPay('pay'); else if (b.dataset.q === 'problem') { $('stProbBox').hidden = !$('stProbBox').hidden; if (!$('stProbBox').hidden) $('stProbBox').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } });
     box.querySelectorAll('[data-pq]').forEach(b => b.onclick = async () => { if (await ask('Надіслати логісту: «' + b.dataset.pq + '»?', 'Логіст і керівник отримають повідомлення одразу.', 'Так, надіслати')) { $('stProbBox').hidden = true; stLock = 0; send('проблема', b.dataset.pq); } });
     if ($('hintYes')) $('hintYes').onclick = () => { stLock = 0; send(v.hint.step, undefined, true); };
     if ($('hintNo')) $('hintNo').onclick = () => { store.set(hk, String(Date.now() + 3 * 3600000)); renderStatus(); };
@@ -991,7 +991,7 @@
     return q ? { k, q, exact: !!a[k] } : null;
   }
   async function openTrip(id, from) {
-    tripFrom = from || 'board'; $('tripBackT').textContent = tripFrom === 'view' ? 'Таблиця' : tripFrom === 'debts' ? 'Боржники' : board ? 'Дошка' : 'Назад';
+    tripFrom = from || 'board'; $('tripBackT').textContent = tripFrom === 'view' ? 'Таблиця' : tripFrom === 'debts' ? 'Боржники' : tripFrom === 'mypay' ? 'Мої рейси' : board ? 'Дошка' : 'Назад';
     show('trip'); const nav = navSeq; $('tripBody').innerHTML = '<p class="muted">Завантаження рейсу ' + esc(id) + '…</p>';
     const can = new Set(sheets.map(s => s.name));
     const ask = (sheet, filter) => can.has(sheet) ? api('list', { sheet, filter }).catch(() => null) : Promise.resolve(null);
@@ -1664,6 +1664,59 @@
     catch (e) { toast(esc(e.message), 'err'); } finally { $('bkApply').disabled = false; }
   }
 
+  /* ── Мої рейси й моя зарплата (ADR-081) — лише читання; «Є питання» — керівнику ── */
+  let pay = null, payTab = 'pay';
+  const pyUah = v => v == null || v === '' ? '—' : money(Math.round(v * 100) / 100) + ' грн';
+  const pyD = d => d ? d.slice(8, 10) + '.' + d.slice(5, 7) + '.' + d.slice(0, 4) : '';
+  const pyN = n => n + ' ' + (n % 10 === 1 && n % 100 !== 11 ? 'рейс' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'рейси' : 'рейсів');
+  const MONTHS = ['січень', 'лютий', 'березень', 'квітень', 'травень', 'червень', 'липень', 'серпень', 'вересень', 'жовтень', 'листопад', 'грудень'];
+  async function openPay(tab, force) {
+    payTab = tab || payTab; show('mypay'); $('pyTitle').textContent = payTab === 'trips' ? 'Мої рейси' : 'Моя зарплата';
+    if (!pay || force) $('pyBody').innerHTML = '<p class="muted">Завантаження…</p>'; else renderPay();
+    try { pay = await api('my.pay', {}); renderPay(); } catch (e) { $('pyBody').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
+  }
+  function renderPay() {
+    const d = pay, S = d.summary;
+    $('pyTabs').innerHTML = '';
+    [['pay', 'Зарплата'], ['trips', 'Рейси · ' + S.trips]].forEach(([k, l]) => { const b = document.createElement('button'); b.className = 'chip'; b.setAttribute('aria-pressed', String(payTab === k)); b.textContent = l; b.onclick = () => { payTab = k; $('pyTitle').textContent = k === 'trips' ? 'Мої рейси' : 'Моя зарплата'; renderPay(); }; $('pyTabs').appendChild(b); });
+    const tripRow = t => '<a href="#" class="drow pyrow" data-ptrip="' + esc(t.id) + '"><div class="dmain"><b>' + esc([t.from, t.to].filter(Boolean).join(' → ') || t.id) + '</b>' +
+      '<div class="muted small">' + esc(t.id) + (t.type ? ' · ' + esc(t.type) : '') + (t.load || t.unload ? ' · ' + [t.load, t.unload].filter(Boolean).map(pyD).map(esc).join('–') : '') + (t.cross ? ' · ' + esc(t.cross) : '') + '</div>' +
+      (t.how ? '<div class="muted small">' + esc(t.how) + (t.special ? ' · ' + esc(t.special) : '') + '</div>' : '') + '</div>' +
+      '<div class="dwhen"><b>' + (t.salary != null ? esc(pyUah(t.salary)) : '<span class="muted">ще не нараховано</span>') + '</b></div></a>';
+    let h = '';
+    if (payTab === 'trips') {
+      const by = {}; d.trips.forEach(t => { const k = (t.load || t.unload || '').slice(0, 7) || '—'; (by[k] = by[k] || []).push(t); });
+      Object.keys(by).sort().reverse().forEach(k => { const L = by[k], sum = L.reduce((a, t) => a + (t.salary || 0), 0), nm = k === '—' ? 'Без дати' : MONTHS[+k.slice(5, 7) - 1] + ' ' + k.slice(0, 4);
+        h += '<section class="card dgroup"><div class="dbhead"><h2>' + esc(nm.charAt(0).toUpperCase() + nm.slice(1)) + '</h2><span class="muted small">' + pyN(L.length) + ' · нараховано ' + esc(pyUah(sum)) + '</span></div>' + L.map(tripRow).join('') + '</section>'; });
+      $('pyBody').innerHTML = h || '<p class="muted">Рейсів ще немає.</p>';
+    } else {
+      const b = S.balance;
+      h += '<section class="card pysum">' + (b ? '<div class="pybig ' + (b.sum < 0 ? 'neg' : '') + '"><span>До виплати на ' + esc(pyD(b.date)) + '</span><b>' + esc(pyUah(b.sum)) + '</b></div>' +
+          (b.sum < 0 ? '<p class="muted small">Мінус — аванси й виплати були більші за нараховане; закриється наступними рейсами.</p>' : '') : '<p class="muted">Розрахунку «до виплати» ще немає в програмі.</p>') +
+        (S.fresh.sum ? '<div class="kv"><span>Нараховано за рейси ' + (S.fresh.since ? 'після ' + esc(pyD(S.fresh.since)) : '') + ' (' + pyN(S.fresh.trips) + ')</span><b>' + esc(pyUah(S.fresh.sum)) + '</b></div><p class="muted small">Увійде в наступний розрахунок керівника.</p>' : '') +
+        '<div class="kv"><span>Нараховано за ' + esc(S.year) + ' рік</span><b>' + esc(pyUah(S.yearSum)) + '</b></div></section>';
+      if (d.circles.length) h += '<h2 class="pyh">Кругорейси</h2>' + d.circles.map((c, i) => {
+        const ts = d.trips.filter(t => c.trips.indexOf(t.id) >= 0);
+        return '<details class="card pyc"' + (i === 0 ? ' open' : '') + '><summary><div><b>' + esc(pyD(c.from)) + (c.to ? ' – ' + esc(pyD(c.to)) : ' – триває') + '</b> <span class="muted small">· ' + esc(c.id) + ' · ' + pyN(ts.length) + '</span></div>' +
+          '<div class="pycr"><b>' + esc(pyUah(c.salary)) + '</b><span class="pill ' + (c.approved ? 'st-ok' : c.salary != null ? 'st-idle' : 'st-none') + '">' + (c.approved ? 'затверджено' : c.salary != null ? esc(c.status || 'пораховано') : 'ще не пораховано') + '</span></div></summary>' +
+          (ts.length ? ts.map(tripRow).join('') : '') +
+          (c.pays.length ? '<h3>Виплати й утримання</h3>' + c.pays.map(p => '<div class="kv"><span>' + esc(pyD(p.date)) + ' · ' + esc(p.type) + (p.note ? ' — ' + esc(p.note) : '') + '</span><b>' + esc(money(p.sum)) + ' ' + esc(p.cur) + '</b></div>').join('') : '') +
+          (c.text ? '<h3>Розрахунок керівника</h3><pre class="pytext">' + esc(c.text) + '</pre>' : '') +
+          '<p><button class="btn" data-pask="' + esc(c.id) + '">Є питання по цьому розрахунку</button></p></details>'; }).join('');
+      const other = d.pays.filter(p => !p.circle || !d.circles.some(c => c.id === p.circle));
+      if (other.length) h += '<section class="card"><h2>Інші виплати, доплати, допомога</h2>' + other.slice(0, 60).map(p => '<div class="kv"><span>' + esc(pyD(p.date)) + ' · ' + esc(p.type) + (p.note ? ' — ' + esc(p.note) : '') + '</span><b>' + esc(money(p.sum)) + ' ' + esc(p.cur) + '</b></div>').join('') + '</section>';
+      h += '<p class="muted small">' + esc(d.note) + '</p><p><button class="btn" data-pask="">Є питання по зарплаті</button></p>';
+      $('pyBody').innerHTML = h;
+    }
+    $('pyBody').onclick = async e => {
+      const a = e.target.closest('[data-ptrip]'); if (a) { e.preventDefault(); openTrip(a.dataset.ptrip, 'mypay'); return; }
+      const q = e.target.closest('[data-pask]'); if (!q) return;
+      const text = await askText(q.dataset.pask ? 'Питання по кругорейсу ' + q.dataset.pask : 'Питання по зарплаті', 'Що незрозуміло? Напр.: не врахована допомога в рейсі 231');
+      if (!text) return;
+      try { await api('pay.ask', { text, circle: q.dataset.pask }); toast('Питання надіслано керівнику. Відповідь — у дзвінку або тут, у розрахунку.'); } catch (err) { toast(esc(err.message), 'err'); }
+    };
+  }
+
   /* ── Калькулятор рейсу / кругорейсу (Calc.gs): той самий розрахунок, що у файлі прибутковості v51 ── */
   let calcInit = null, cTrips = [];
   const CTYPES = ['Міжнародний', 'Україна', 'Україна: окремий рейс (км + дні)', 'Контейнеровоз'], CCURS = ['EUR', 'UAH', 'PLN', 'USD'];
@@ -1928,6 +1981,7 @@
   $('back').onclick = () => renderHome();
   document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => renderHome());
   if ($('dbRefresh')) { $('dbRefresh').onclick = () => openDebts(true); $('dbSearch').oninput = () => debts && renderDebts(); }
+  if ($('pyRefresh')) $('pyRefresh').onclick = () => openPay(null, true);
   if ($('dbBank')) { $('dbBank').onclick = openBank; $('bkBack').onclick = () => show('debts'); $('bkFile').onchange = e => e.target.files[0] && bankFile(e.target.files[0]); $('bkApply').onclick = bankApply; }
   $('tachoBack').onclick = () => me && me.role !== 'водій' ? openBoard() : renderHome();
   $('search').addEventListener('input', () => renderTable());
@@ -1938,7 +1992,7 @@
   if ($('viewNewTrip')) $('viewNewTrip').onclick = () => tripForm(null);
   $('dRefresh').onclick = () => openDocs(true);
   $('dSearch').addEventListener('input', () => docs && renderDocs());
-  $('tripBack').onclick = () => tripFrom === 'debts' ? show('debts') : tripFrom === 'view' ? (show('view'), current && renderTable()) : (board ? (show('board')) : renderHome());
+  $('tripBack').onclick = () => tripFrom === 'mypay' ? show('mypay') : tripFrom === 'debts' ? show('debts') : tripFrom === 'view' ? (show('view'), current && renderTable()) : (board ? (show('board')) : renderHome());
   $('issue').onclick = issue;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
