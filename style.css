@@ -908,3 +908,17 @@ body[data-role="водій"] .who { min-width: 0; }
 #table tr.gsub td:first-child { box-shadow: inset 4px 0 0 var(--line-strong); }
 .garr { display: inline-block; width: 1em; }
 #tGroupBtn { margin-left: 8px; }
+/* Мої рейси й зарплата (ADR-081) */
+#mypay .chips { margin: 4px 0 12px; }
+.pysum .pybig { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.pysum .pybig b { font-size: 1.8rem; }
+.pysum .pybig.neg b { color: var(--bad-fg); }
+.pyh { margin: 18px 0 8px; }
+.pyc summary { display: flex; justify-content: space-between; gap: 10px; align-items: center; cursor: pointer; list-style: none; flex-wrap: wrap; }
+.pyc summary::-webkit-details-marker { display: none; }
+.pycr { display: flex; gap: 8px; align-items: center; }
+.pyc h3 { margin: 14px 0 6px; font-size: 1rem; }
+.pytext { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: .95rem; background: var(--surface-2); padding: 10px 12px; border-radius: 10px; margin: 0; }
+.pyrow { color: inherit; text-decoration: none; }
+#mypay .kv b, #mypay .dwhen b { white-space: nowrap; }
+#mypay .kv { gap: 12px; }
