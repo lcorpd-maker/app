@@ -15,13 +15,13 @@
     'адмін': [{ title: 'Дошка машин', hint: 'де кожна машина зараз', action: 'board' }, { title: 'Калькулятор', hint: 'чи вигідна заявка', action: 'calc' }, { title: 'Витрати водіїв', hint: 'чеки, перевірка', action: 'exp' }, { title: 'Здоров\'я програми', hint: 'збої, швидкість, нічні роботи', action: 'health' }, T('Рейси', 'усі машини', 'Рейси'), T('Кругорейси', '', 'Кругорейси'), T('Заявки', 'актуальні', 'Заявки'),
       T('Рухи коштів', 'аванси, витрати', 'Рухи коштів'), T('Нарахування', 'зарплата за рейси', 'Нарахування'),
       T('Клієнти', '', 'Клієнти'), T('Авто', '', 'Авто'), T('Працівники', '', 'Працівники'),
-      { title: 'Документи', hint: 'що спливає', action: 'docs' }, { title: 'Боржники', hint: 'без позначки оплати', action: 'debts' }, T('Користувачі', 'хто має доступ', 'Користувачі'),
+      { title: 'Документи', hint: 'що спливає', action: 'docs' }, { title: 'Боржники', hint: 'без позначки оплати', action: 'debts' }, { title: 'Проблеми водіїв', hint: 'історія й відповіді', action: 'probs' }, T('Користувачі', 'хто має доступ', 'Користувачі'),
       T('Журнал змін', 'хто що змінив', 'Журнал змін'), { title: 'Видати код', hint: 'вхід для водія', action: 'codes' }, { title: 'Сповіщення на телефон', hint: 'проблеми водіїв одразу', action: 'push' }],
     'керівник': [{ title: 'Дошка машин', hint: 'де кожна машина зараз', action: 'board' }, { title: 'Калькулятор', hint: 'чи вигідна заявка', action: 'calc' }, { title: 'Витрати водіїв', hint: 'чеки, перевірка', action: 'exp' }, { title: 'Здоров\'я програми', hint: 'збої, швидкість, нічні роботи', action: 'health' }, T('Рейси', 'усі машини', 'Рейси'), T('Кругорейси', '', 'Кругорейси'), T('Нарахування', 'зарплата', 'Нарахування'),
       T('Виплати й доплати', '', 'Виплати й доплати'), T('Рухи коштів', '', 'Рухи коштів'), T('Клієнти', '', 'Клієнти'),
-      { title: 'Документи', hint: 'що спливає', action: 'docs' }, { title: 'Боржники', hint: 'без позначки оплати', action: 'debts' }, T('Журнал змін', '', 'Журнал змін'), { title: 'Видати код', hint: 'вхід для водія', action: 'codes' }, { title: 'Сповіщення на телефон', hint: 'проблеми водіїв одразу', action: 'push' }],
+      { title: 'Документи', hint: 'що спливає', action: 'docs' }, { title: 'Боржники', hint: 'без позначки оплати', action: 'debts' }, { title: 'Проблеми водіїв', hint: 'історія й відповіді', action: 'probs' }, T('Журнал змін', '', 'Журнал змін'), { title: 'Видати код', hint: 'вхід для водія', action: 'codes' }, { title: 'Сповіщення на телефон', hint: 'проблеми водіїв одразу', action: 'push' }],
     'логіст': [{ title: 'Дошка машин', hint: 'де кожна машина зараз', action: 'board' }, { title: 'Калькулятор', hint: 'чи вигідна заявка', action: 'calc' }, { title: 'Витрати водіїв', hint: 'чеки, перевірка', action: 'exp' }, T('Рейси', 'усі машини', 'Рейси'), T('Заявки', 'актуальні', 'Заявки'), T('Кругорейси', '', 'Кругорейси'),
-      T('Клієнти', '', 'Клієнти'), T('Водій на авто', 'хто на якій машині', 'Водій на авто'), T('Відстані', '', 'Відстані'), { title: 'Документи', hint: 'що спливає', action: 'docs' }, { title: 'Боржники', hint: 'без позначки оплати', action: 'debts' }, { title: 'Сповіщення на телефон', hint: 'проблеми водіїв одразу', action: 'push' }],
+      T('Клієнти', '', 'Клієнти'), T('Водій на авто', 'хто на якій машині', 'Водій на авто'), T('Відстані', '', 'Відстані'), { title: 'Документи', hint: 'що спливає', action: 'docs' }, { title: 'Боржники', hint: 'без позначки оплати', action: 'debts' }, { title: 'Проблеми водіїв', hint: 'історія й відповіді', action: 'probs' }, { title: 'Сповіщення на телефон', hint: 'проблеми водіїв одразу', action: 'push' }],
     'бухгалтер': [{ title: 'Витрати водіїв', hint: 'чеки, перевірка', action: 'exp' }, { title: 'Боржники', hint: 'хто не оплатив', action: 'debts' }, T('Рейси', 'оплати клієнтів', 'Рейси'), T('Рухи коштів', '', 'Рухи коштів'), T('Виплати й доплати', '', 'Виплати й доплати'),
       T('Готівка від клієнтів', '', 'Готівка від клієнтів'), T('Клієнти', '', 'Клієнти')],
     'механік': [{ title: 'Дошка машин', hint: 'машини, документи, GPS', action: 'board' }, T('Авто', '', 'Авто'), T('Причепи', '', 'Причепи'), { title: 'Документи', hint: 'що спливає', action: 'docs' },
@@ -279,7 +279,7 @@
     { const t = $('toast'); if (t && !t.hidden && !t.classList.contains('err')) t.hidden = true; }   // тост не лишається над новим екраном (UX Н4)
     try { if (id !== 'login' && id !== 'home') { if (!histOn) { history.pushState({ s: id }, ''); histOn = true; } }
       else { if (histOn && history.state && history.state.s) { ignorePop++; history.back(); } histOn = false; } } catch (e) {}   // «‹ Назад» у програмі прибирає свій запис історії   // «Назад» Android — на головну, а не вихід (QA-12)
-    ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck', 'tacho', 'exp', 'health', 'tdoc', 'rpt', 'debts', 'bank', 'mypay'].forEach(s => $(s) && ($(s).hidden = s !== id)); window.scrollTo(0, 0); }
+    ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck', 'tacho', 'exp', 'health', 'tdoc', 'rpt', 'debts', 'bank', 'mypay', 'probs'].forEach(s => $(s) && ($(s).hidden = s !== id)); window.scrollTo(0, 0); }
 
   function showLogin(msg) {
     $('who').hidden = true; show('login'); $('loginMsg').textContent = msg || '';
@@ -312,7 +312,7 @@
       b.innerHTML = '<b></b><span></span>';
       b.querySelector('b').textContent = t.title;
       b.querySelector('span').textContent = ok ? (t.hint || '') : 'скоро';
-      if (ok) b.onclick = () => t.action === 'codes' ? openCodes() : t.action === 'board' ? openBoard() : t.action === 'docs' ? openDocs() : t.action === 'calc' ? openCalc() : t.action === 'truck' ? openTruck() : t.action === 'exp' ? openExp() : t.action === 'health' ? openHealth() : t.action === 'push' ? openPush() : t.action === 'debts' ? openDebts() : t.action === 'mypay' ? openPay('pay') : t.action === 'mytrips' ? openPay('trips') : openSheet(t);
+      if (ok) b.onclick = () => t.action === 'probs' ? openProbs() : t.action === 'codes' ? openCodes() : t.action === 'board' ? openBoard() : t.action === 'docs' ? openDocs() : t.action === 'calc' ? openCalc() : t.action === 'truck' ? openTruck() : t.action === 'exp' ? openExp() : t.action === 'health' ? openHealth() : t.action === 'push' ? openPush() : t.action === 'debts' ? openDebts() : t.action === 'mypay' ? openPay('pay') : t.action === 'mytrips' ? openPay('trips') : openSheet(t);
       box.appendChild(b);
     });
     $('homeWork').innerHTML = ''; $('tiles').hidden = false; if ($('drvOutBox')) $('drvOutBox').innerHTML = '';
@@ -404,7 +404,7 @@
     // переглянутий RMPD — плитка в .quick (вище)
     if (v.rmpd && v.rmpd.file) { const ver = v.rmpd.ver, tid = v.trip.id; setTimeout(() => { if (!rmpdCached(ver) && navigator.onLine) rmpdFetch(tid, ver).catch(() => {}); }, 1500); }   // на кордоні може не бути зв'язку — завантажуємо заздалегідь
     // «Проблема»: спершу великі готові причини — одне натискання й надіслано; свій текст — за бажанням (без автоматичної клавіатури)
-    h += '<div class="stprob card" id="stProbBox" hidden><a class="btn calllog" href="tel:' + LOGIST_TEL + '">📞 Подзвонити логісту</a><b>Що сталося? Натисніть — логіст отримає одразу</b><div class="probgrid">' + ['Довга черга', 'Поломка', 'Документи', 'Затримка на складі', 'ДТП'].map(c => '<button class="btn probone" data-pq="' + c + '">' + c + '</button>').join('') + '</div>' +
+    h += '<div class="stprob card" id="stProbBox" hidden><a class="btn calllog" href="tel:' + LOGIST_TEL + '">📞 Подзвонити логісту</a><b>Що сталося? Натисніть — логіст отримає одразу (поломка й ДТП — і керівник)</b><div class="probgrid">' + ['Довга черга', 'Поломка', 'Документи', 'Затримка на складі', 'ДТП'].map(c => '<button class="btn probone" data-pq="' + c + '">' + c + '</button>').join('') + '</div>' +
       '<details class="probown"><summary>Інше — написати своїми словами</summary><textarea id="stText" aria-label="Опис проблеми своїми словами" rows="3" placeholder="Коротко опишіть. Можна надиктувати — мікрофон на клавіатурі."></textarea><button class="primary" id="stProb">Надіслати логісту</button></details></div>';
     (v.problems || []).slice(-2).forEach(x => h += '<p class="cnote">Проблема ' + tkTime(x.at) + ': ' + esc(x.text) + (x.state === 'в роботі' ? '<br><b>Логіст узяв у роботу.</b>' : x.state === 'вирішено' ? '<br><b>✔ Вирішено.</b>' : '') + (x.answer ? ' ' + esc(x.answer) : '') + '</p>');   // водій бачить відповідь (логіст №3)
     h += '<details class="card ststeps"><summary>Усі кроки рейсу · ' + doneN + ' з ' + v.steps.length + '</summary><ol class="stlist">' + v.steps.map((x, i) => '<li class="' + (x.at ? 'done' : x.step === v.next ? 'next' : '') + '"><span>' + (x.at ? '✓' : '○') + '</span><b>' + esc(x.step) + '</b>' +
@@ -962,6 +962,10 @@
         inp('Оплата', ' list="tfPay"') + '<span class="tfcash" id="tfCashW">' + inp('Готівкою', ' inputmode="decimal" placeholder="скільки клієнт платить готівкою"') + '</span>' + inp('Відстрочка, днів', ' inputmode="numeric"') + inp('Контакт клієнта') + '</div>' +
         (has('Сума для рахунку') ? '<p class="muted small" id="tfInv"></p>' : '') + '<p class="muted small">Зарплата водію рахується від фрахту. Рахунок клієнту — на «Суму для рахунку» (більша, коли є повернення). Оплата «безгот + готівка» — вкажіть, скільки готівкою; рахунок — на решту.</p></fieldset>' : '') +
       '<fieldset><legend>Примітки</legend>' + (has('Примітки') ? '<textarea data-c="Примітки" rows="3">' + esc(v['Примітки'] || '') + '</textarea>' : '') + '</fieldset>' +
+      (has('Простій, днів') ? '<fieldset><legend>Для зарплати водія</legend><p class="muted small">Факт фіксує логіст, скільки з цього водію — вирішує керівник.</p>' +
+        inp('Простій, днів', ' inputmode="decimal" placeholder="0"') + sel('Причина простою', ['черга на кордоні', 'клієнт / склад', 'митниця', 'поломка', 'інше'].map(x => [x, x]), '—') +
+        sel('Відмова / недовантаження', [['відмова', 'відмова (не завантажили)'], ['недовантаження', 'недовантаження'], ['перевантаження', 'перевантаження']], '— ні —') +
+        sel('Допомагав', (() => { const o = L.drivers.map(d => { const sn = String(d.name || '').split(' ')[0]; return [sn, d.name]; }); const cur = String(v['Допомагав'] || ''); if (cur && !o.some(x => x[0] === cur)) o.unshift([cur, cur]); return o; })(), '— ніхто —') + inp('Допомога, грн', ' inputmode="numeric" placeholder="2000"') + '</fieldset>' : '') +
       '<datalist id="tfCross">' + ['Краківець', 'Шегині', 'Ягодин', 'Рава-Руська', 'Устилуг', 'Переїзд на експорт', 'Контейнеровоз', 'по Україні', 'Ставка по Україні'].map(x => '<option value="' + x + '">').join('') + '</datalist>' +
       '<datalist id="tfPay">' + ['безгот', 'готівка', 'безгот + готівка', 'карта', 'безгот на розв', 'готівка на розв'].map(x => '<option value="' + x + '">').join('') + '</datalist>' +
       '<datalist id="tfClients">' + L.clients.map(x => '<option value="' + esc(x) + '">').join('') + '</datalist>' +
@@ -1007,7 +1011,7 @@
     if (isNew) { if (q('[data-c="Номер"]')) { q('[data-c="Номер"]').oninput = e => e.target.dataset.touched = '1'; if (fromZ && /^\d+$/.test(String(fromZ['Номер']))) q('[data-c="Номер"]').dataset.touched = '1'; } if (q('[data-c="Авто ID"]')) q('[data-c="Авто ID"]').onchange = sugg; sugg(); }
     const close = () => w.remove();
     const save = async reason => {
-      const row = {}; w.querySelectorAll('[data-c]').forEach(e => { const c = e.dataset.c; let val = e.value.trim(); if (c === 'Фрахт' || c === 'Сума для рахунку' || c === 'Готівкою' || c === 'Відстрочка, днів' || c === 'Номер') val = val.replace(/\s/g, '').replace(',', '.');
+      const row = {}; w.querySelectorAll('[data-c]').forEach(e => { const c = e.dataset.c; let val = e.value.trim(); if (c === 'Фрахт' || c === 'Сума для рахунку' || c === 'Готівкою' || c === 'Відстрочка, днів' || c === 'Номер' || c === 'Простій, днів' || c === 'Допомога, грн') val = val.replace(/\s/g, '').replace(',', '.');
         const old = c in v ? (e.type === 'date' ? tfDate(v[c]) : String(v[c] == null ? '' : v[c])) : ''; if (isNew || val !== old) row[c] = val; });
       if (q('#tf_adr')) { const a = q('#tf_adr').checked ? 'так' : ''; if (isNew || a !== String(v['АДР'] || '')) row['АДР'] = a; }
       const cross = 'Перехід' in row ? row['Перехід'] : v['Перехід'], adr = 'АДР' in row ? row['АДР'] : v['АДР'], tp = tfType(cross, adr);
@@ -1157,7 +1161,7 @@
     return q ? { k, q, exact: !!a[k] } : null;
   }
   async function openTrip(id, from) {
-    tripFrom = from || 'board'; $('tripBackT').textContent = tripFrom === 'view' ? 'Таблиця' : tripFrom === 'debts' ? 'Боржники' : tripFrom === 'mypay' ? 'Мої рейси' : board ? 'Дошка' : 'Назад';
+    tripFrom = from || 'board'; $('tripBackT').textContent = tripFrom === 'view' ? 'Таблиця' : tripFrom === 'debts' ? 'Боржники' : tripFrom === 'mypay' ? 'Мої рейси' : tripFrom === 'probs' ? 'Проблеми водіїв' : board ? 'Дошка' : 'Назад';
     show('trip'); const nav = navSeq; $('tripBody').innerHTML = '<p class="muted">Завантаження рейсу ' + esc(id) + '…</p>';
     const can = new Set(sheets.map(s => s.name));
     const getRows = (sheet, filter) => can.has(sheet) ? api('list', { sheet, filter }).catch(() => null) : Promise.resolve(null);
@@ -1176,9 +1180,10 @@
         const any = v.steps.some(x => x.at) || (v.problems || []).length, last = v.steps.map(x => !!x.at).lastIndexOf(true);
         if (last >= 0 && $('tripBadge')) { const ev = v.steps[last].step; $('tripBadge').innerHTML = badge(ST_GRP[ev] || 'go', cap(ev)); }
         const office = ['адмін', 'керівник', 'логіст'].indexOf(me.role) >= 0, ST_W = { 'нова': 'нова', 'в роботі': 'в роботі', 'вирішено': 'вирішено' };
-        const probH = p => '<div class="cnote prob-' + (p.state === 'вирішено' ? 'done' : p.state === 'в роботі' ? 'work' : 'new') + '"><b>Проблема ' + tkTime(p.at) + ' · ' + esc(ST_W[p.state] || 'нова') + '</b><br>' + esc(p.text) +
+        const canAns = p => me.role !== 'логіст' || p.owner !== 'керівник';
+        const probH = p => '<div class="cnote prob-' + (p.state === 'вирішено' ? 'done' : p.state === 'в роботі' ? 'work' : 'new') + '"><b>Проблема ' + tkTime(p.at) + ' · ' + esc(ST_W[p.state] || 'нова') + ' · ' + (p.owner === 'керівник' ? 'керівника' : 'логіста') + '</b><br>' + esc(p.text) +
           (p.answer ? '<br><span class="muted small">Відповідь (' + esc(p.answerWho) + ', ' + tkTime(p.answerAt) + '): </span>' + esc(p.answer) : '') +
-          (office && p.state !== 'вирішено' ? '<div class="probact">' + (p.state !== 'в роботі' ? '<button class="btn" data-pa="в роботі" data-pid="' + esc(p.id) + '">Беру в роботу</button>' : '') + '<button class="btn" data-pa="вирішено" data-pid="' + esc(p.id) + '">Вирішено…</button></div>' : '') + '</div>';
+          (office && p.state !== 'вирішено' ? '<div class="probact">' + (p.state !== 'в роботі' ? '<button class="btn" data-pa="в роботі" data-pid="' + esc(p.id) + '">Беру в роботу</button>' : '') + (canAns(p) ? '<button class="btn" data-pa="вирішено" data-pid="' + esc(p.id) + '">Вирішено…</button>' : '<span class="muted small">Вирішує керівник</span>') + (me.role === 'логіст' && p.owner !== 'керівник' ? '<button class="btn" data-pa="керівнику" data-pid="' + esc(p.id) + '">Передати керівнику…</button>' : '') + '</div>' : '') + '</div>';
         const unlSt = v.steps.find(x => x.step === 'розвантажено' && x.at), unlD = unlSt ? new Date(unlSt.at) : null, unlIso = unlD ? unlD.getFullYear() + '-' + String(unlD.getMonth() + 1).padStart(2, '0') + '-' + String(unlD.getDate()).padStart(2, '0') : '';
         const unlBtn = office && unlSt && !r['Дата розвантаження'] && canTrip() ? '<p><button class="btn" id="tripUnl">Поставити дату розвантаження: ' + esc(unlIso.split('-').reverse().join('.')) + '</button></p>' : '';   // логіст №12
         const markBtn = (office && v.next ? '<p><button class="btn" id="tripMark">Відмітити за водія: «' + esc(ST_LABEL[v.next] || cap(v.next)) + '»</button></p>' : '') + unlBtn;   // логіст №11
@@ -1187,7 +1192,8 @@
         $('tripSt').querySelectorAll('[data-pa]').forEach(b => b.onclick = async () => {   // логіст №3: відповідь водію
           const state = b.dataset.pa; let text = '';
           if (state === 'вирішено') { text = await askText('Як вирішили?', 'Напр. EX передали, митниця пропустила', 'Вирішено'); if (!text) return; }
-          busy(true); try { await api('trip.problem.answer', { tripId: id, problemId: b.dataset.pid, state, text, opId: 'PA-' + newId().slice(0, 16) }); board = null; try { store.set('boardCache', ''); } catch (e) {} toast(state === 'вирішено' ? '✔ Проблему закрито — водій бачить відповідь.' : '✔ Водій бачить, що проблема в роботі.'); openTrip(id, tripFrom); }
+          if (state === 'керівнику') { text = await askText('Що потрібно від керівника?', 'Напр. ремонт за рахунок фірми? клієнт вимагає штраф', 'Передати'); if (text === null || text === undefined) return; }
+          busy(true); try { await api('trip.problem.answer', { tripId: id, problemId: b.dataset.pid, state, text, opId: 'PA-' + newId().slice(0, 16) }); board = null; try { store.set('boardCache', ''); } catch (e) {} toast(state === 'вирішено' ? '✔ Проблему закрито — водій бачить відповідь.' : state === 'керівнику' ? '✔ Передано керівнику — він отримав сповіщення.' : '✔ Водій бачить, що проблема в роботі.'); openTrip(id, tripFrom); }
           catch (e) { toast(esc(e.message), 'err'); } finally { busy(false); } });
         if ($('tripUnl')) $('tripUnl').onclick = async () => { busy(true); try { await api('save', { sheet: 'Рейси', row: { 'Рейс ID': id, 'Дата розвантаження': unlIso }, ifHash: r._h }); board = null; try { store.set('boardCache', ''); } catch (e) {} toast('✔ Дату розвантаження поставлено.'); openTrip(id, tripFrom); } catch (e) { toast(esc(e.message), 'err'); } finally { busy(false); } };
         if ($('tripMark')) $('tripMark').onclick = async () => { if (!await ask('Відмітити за водія «' + (ST_LABEL[v.next] || v.next) + '»?', 'У кроці буде позначка «офіс».', 'Відмітити')) return;
@@ -1228,6 +1234,9 @@
     if (pay) h += '<section class="card"><h2>Клієнт і оплата</h2>' + pay + (late ? '<p class="msg small">Строк оплати минув, позначки «Оплачено» немає.</p>' : '') + '</section>';
     if (sal) h += '<section class="card"><h2>Зарплата водія</h2>' + sal + '</section>';
     if (has('Примітки')) h += '<section class="card"><h2>Примітки</h2><p>' + esc(r['Примітки']) + '</p></section>';
+    { const pz = []; if (r['Простій, днів']) pz.push('Простій: ' + esc(r['Простій, днів']) + ' дн.' + (r['Причина простою'] ? ' (' + esc(r['Причина простою']) + ')' : '')); if (r['Відмова / недовантаження']) pz.push(esc(cap(r['Відмова / недовантаження'])));
+      if (r['Допомагав'] || r['Допомога, грн']) pz.push('Допомога з вантаженням: ' + esc(r['Допомагав'] || '') + (r['Допомога, грн'] ? ' · ' + esc(money(r['Допомога, грн'])) + ' грн' : ''));
+      if (pz.length) h += '<section class="card"><h2>Для зарплати водія</h2><p>' + pz.join('<br>') + '</p><p class="muted small">Факт від логіста; скільки з цього водію — вирішує керівник.</p></section>'; }
     if (orders && orders.length) h += '<section class="card"><h2>Заявка</h2>' + orders.map(z => '<div class="kv"><span>' + esc(z['Заявка ID']) + '</span><b>' + esc(z['Статус'] || '') + (z['Джерело'] ? ' · ' + esc(z['Джерело']) : '') + '</b></div>').join('') + '</section>';
     if (moves) {
       const live = moves.filter(m => !m['Скасовано']);
@@ -1795,6 +1804,25 @@
   let debts = null, dbOld = false;
   const DBCUR = { EUR: '€', PLN: 'zł', USD: '$', UAH: 'грн' };
   const dbSums = o => Object.keys(o || {}).map(c => money(o[c]) + ' ' + (DBCUR[c] || c)).join(' + ') || '—';
+  /* Проблеми водіїв (рішення власниці 22.11): логіст — свої (черга, документи, склад…) і передає керівнику; керівник — поломка, ДТП, передані + історія всіх. */
+  let probs = null, probOpen = true, probW = '';
+  async function openProbs() {
+    show('probs'); $('prList').innerHTML = '<p class="muted">Завантаження…</p>';
+    try { probs = await api('problems', { open: false }); renderProbs(); } catch (e) { $('prList').innerHTML = '<p class="msg" role="alert">' + esc(e.message) + '</p>'; }
+  }
+  const dtm = v => { const d = new Date(v); return isNaN(d) ? '' : String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + d.getFullYear() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+  function renderProbs() {
+    const d = probs, q = $('prSearch').value.trim().toLowerCase(), ST_W = { 'нова': 'нова', 'в роботі': 'в роботі', 'вирішено': 'вирішено' };
+    $('prChips').innerHTML = ''; [['Відкриті', true], ['Усі' + (d.boss ? ' (історія)' : ' за 14 днів'), false]].forEach(([l, v]) => { const c = document.createElement('button'); c.className = 'chip'; c.setAttribute('aria-pressed', String(probOpen === v)); c.textContent = l; c.onclick = () => { probOpen = v; renderProbs(); }; $('prChips').appendChild(c); });
+    const drivers = [...new Map(d.list.map(p => [p.worker, p.name])).entries()].filter(x => x[0]).sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'uk'));
+    $('prWorker').innerHTML = '<option value="">Усі водії</option>' + drivers.map(([w, n]) => '<option value="' + esc(w) + '"' + (w === probW ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
+    const rows = d.list.filter(p => (!probOpen || p.state !== 'вирішено') && (!probW || p.worker === probW) && (!q || (p.text + ' ' + p.trip + ' ' + p.truck + ' ' + p.name + ' ' + p.answer).toLowerCase().includes(q)));
+    const open = d.list.filter(p => p.state !== 'вирішено'), mine = open.filter(p => p.owner === (me.role === 'логіст' ? 'логіст' : 'керівник'));
+    $('prSub').textContent = 'Відкритих: ' + open.length + (mine.length ? ' · ваших: ' + mine.length : '');
+    $('prList').innerHTML = rows.length ? '<div class="prl">' + rows.map(p => '<button class="card prrow st-' + (p.state === 'вирішено' ? 'ok' : p.state === 'в роботі' ? 'soon' : 'bad') + '" data-prtrip="' + esc(p.trip) + '"><div class="prhead"><b>' + esc(p.name || p.worker || '—') + '</b> · ' + esc(p.truck) + ' · рейс ' + esc(p.trip) + ' <span class="pill">' + esc(ST_W[p.state] || p.state) + '</span> <span class="pill">' + (p.owner === 'керівник' ? 'керівника' : 'логіста') + '</span></div><div>' + esc(p.text) + '</div><div class="muted small">' + dtm(p.at) + (p.answer ? ' · відповідь (' + esc(p.answerWho) + '): ' + esc(p.answer) : '') + '</div></button>').join('') + '</div>' : '<p class="muted">Немає проблем за цим відбором.</p>';
+    $('prList').querySelectorAll('[data-prtrip]').forEach(b => b.onclick = e => { e.stopPropagation(); openTrip(b.dataset.prtrip, 'probs'); });
+  }
+  $('prSearch').oninput = () => probs && renderProbs(); $('prWorker').onchange = e => { probW = e.target.value; renderProbs(); }; $('prRefresh').onclick = openProbs;
   async function openDebts(force) {
     show('debts'); $('dbBank').hidden = !me || ['адмін', 'керівник', 'бухгалтер'].indexOf(me.role) < 0; if (!debts || force) $('dbList').innerHTML = '<p class="muted">Завантаження…</p>';
     try { debts = await api('debts', {}); renderDebts(); } catch (e) { $('dbList').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
@@ -2263,7 +2291,7 @@
   if ($('viewNewTrip')) $('viewNewTrip').onclick = () => tripForm(null);
   $('dRefresh').onclick = () => openDocs(true);
   $('dSearch').addEventListener('input', () => docs && renderDocs());
-  $('tripBack').onclick = () => tripFrom === 'mypay' ? show('mypay') : tripFrom === 'debts' ? show('debts') : tripFrom === 'view' ? (show('view'), current && renderTable()) : (board ? (show('board')) : renderHome());
+  $('tripBack').onclick = () => tripFrom === 'probs' ? openProbs() : tripFrom === 'mypay' ? show('mypay') : tripFrom === 'debts' ? show('debts') : tripFrom === 'view' ? (show('view'), current && renderTable()) : (board ? (show('board')) : renderHome());
   $('issue').onclick = issue;
   $('closeSes').onclick = async () => {   // утрачений телефон водія (безпека-10)
     const v = $('worker').value.trim(); if (!v) { toast('Оберіть, кому закрити вхід', 'err'); return; }
