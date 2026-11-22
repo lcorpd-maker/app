@@ -902,3 +902,9 @@ body[data-role="водій"] .who { min-width: 0; }
 .tftpl select, .tftpl #tfTplName { width: 100%; }
 .tftpl #tfTplName { margin-top: 6px; }
 .tftpl [hidden] { display: none !important; }
+/* Групи однакових рейсів (ADR-080) */
+#table tr.grow td { background: var(--surface-2); white-space: normal; }
+#table tr.grow:hover td { filter: brightness(.97); }
+#table tr.gsub td:first-child { box-shadow: inset 4px 0 0 var(--line-strong); }
+.garr { display: inline-block; width: 1em; }
+#tGroupBtn { margin-left: 8px; }
