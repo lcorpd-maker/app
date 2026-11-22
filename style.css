@@ -1020,3 +1020,9 @@ html[data-zoom] .pysum .pybig b { font-size: 1.4rem; }
 .cnote.prob-work { border-left-color: var(--warn-bd); } .cnote.prob-done { opacity: .7; border-left-color: var(--ok-bd); }
 .probact { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .calldrv { white-space: nowrap; }
+/* Проблеми водіїв */
+.prl { display: grid; gap: 8px; }
+.prrow { display: block; width: 100%; text-align: left; border-left: 4px solid var(--line); cursor: pointer; font: inherit; color: inherit; }
+.prrow.st-bad { border-left-color: var(--bad-bd); } .prrow.st-soon { border-left-color: var(--warn-bd); } .prrow.st-ok { border-left-color: var(--ok-bd); opacity: .85; }
+.prhead { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin-bottom: 4px; }
+#prWorker { min-height: 44px; }
