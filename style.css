@@ -1016,3 +1016,7 @@ html[data-zoom] .pysum .pybig b { font-size: 1.4rem; }
 .toast { padding-right: 56px; }
 .toast .toast-x { position: absolute; top: 4px; right: 4px; }
 #mypay .bhead { flex-wrap: wrap; } #mypay .summary, #mypay .pyc summary { min-width: 0; }
+/* Кабінет логіста за оцінкою логіста-практика (22.11) */
+.cnote.prob-work { border-left-color: var(--warn-bd); } .cnote.prob-done { opacity: .7; border-left-color: var(--ok-bd); }
+.probact { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.calldrv { white-space: nowrap; }
