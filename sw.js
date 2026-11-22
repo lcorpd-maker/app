@@ -1,17 +1,24 @@
 // Офлайн-оболонка: екрани відкриваються навіть без зв'язку; дані завжди беруться з сервера.
-const VERSION = 'v36';   // змінюйте при кожному оновленні вигляду — телефони підхоплять нову версію
+const VERSION = 'v37';   // змінюйте при кожному оновленні вигляду — телефони підхоплять нову версію
 const SHELL = ['./', 'index.html', 'app.js', 'drive.js', 'style.css', 'config.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))));
   self.clients.claim();
 });
+let slowUntil = 0;
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin) return;   // запити до сервера — напряму
-  // спершу мережа (щоб оновлення приходили одразу), без мережі — збережена копія
-  e.respondWith(fetch(e.request).then(r => { const copy = r.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); return r; })
-    .catch(() => caches.match(e.request).then(r => r || caches.match('index.html'))));
+  // спершу мережа, але не довше 3 с: на слабкому зв'язку — збережена копія, а свіжа докачується у фоні (a11y-5)
+  const net = fetch(e.request).then(r => { if (r.ok) { const copy = r.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); } return r; });
+  e.respondWith(caches.match(e.request).then(cached => {
+    if (!cached) return net.catch(() => caches.match('index.html'));
+    if (Date.now() < slowUntil) return cached;   // мережа щойно зависала — решту оболонки одразу з кешу (a11y-5)
+    const slow = new Promise(res => setTimeout(() => { slowUntil = Date.now() + 30000; res(cached); }, 3000));
+    return Promise.race([net.catch(() => cached), slow]);
+  }));
+  e.waitUntil(net.catch(() => {}));
 });
 // Сповіщення (ADR-064): текст приходить зашифрованим від сервера через Cloudflare Worker.
 self.addEventListener('push', e => {
