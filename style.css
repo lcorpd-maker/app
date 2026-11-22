@@ -959,3 +959,60 @@ body[data-role="водій"] .timebox .tb-head .link, body[data-role="водій
 .tsrow { grid-template-columns: 44px minmax(0, 1fr) 44px; }
 @media (max-width: 360px) { html[data-zoom] .tsrow { grid-template-columns: 1fr 1fr; } html[data-zoom] #tsTime { grid-column: 1 / -1; order: -1; } }
 .tsrow { grid-template-columns: 48px minmax(0, 1fr) 48px; }
+
+/* ── Фінальна перевірка дизайнера (22.11) ── */
+/* 1: смужка черги не лягає на віконця */
+body:has(.ask-wrap) #outboxBar { display: none; }
+/* 2: тост на великому шрифті */
+.toast { flex-wrap: wrap; }
+.toast span { flex: 1 1 calc(100% - 60px); min-width: 0; }
+.toast .btn { white-space: normal; flex: 1 1 auto; justify-content: center; }
+/* 3: смужка черги — відступ за реальною висотою, тост над нею, коротший текст на вузькому/великому */
+body:has(#outboxBar:not([hidden])) main { padding-bottom: calc(var(--obh, 150px) + 24px); }
+body:has(#outboxBar:not([hidden])) .toast { bottom: calc(var(--obh, 0px) + max(12px, env(safe-area-inset-bottom)) + 8px); }
+html[data-zoom] .obtail { display: none; }
+@media (max-width: 380px) { .obtail { display: none; } }
+.outbox .btn { flex: 1 1 0; justify-content: center; }
+/* 4: темна тема — без світлих латок */
+.outbox { background: var(--warn-bg); color: var(--warn-fg); border-color: var(--warn-bd); }
+.toast.err { background: var(--bad-bg); color: var(--bad-fg); border-color: var(--bad-bd); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .hintcard, :root:not([data-theme="light"]) .gpshint { background: #3A2A0A; color: #FFE2A8; border-color: #7A5A1A; }
+  :root:not([data-theme="light"]) .undo-btn { border-color: currentColor; color: inherit; }
+  :root:not([data-theme="light"]) .navbtn { background: var(--sky); color: var(--sky-ink); }
+  :root:not([data-theme="light"]) .hero { border: 1px solid rgba(255,255,255,.12); }
+}
+[data-theme="dark"] .navbtn { background: var(--sky); color: var(--sky-ink); }
+[data-theme="dark"] .hero { border: 1px solid rgba(255,255,255,.12); }
+/* 5 */
+.ask .exitem small { display: block; color: var(--muted); font-size: 15px; }
+/* 6: суми не рвуться посеред числа */
+#mypay .kv b, #mypay .dwhen b, .pycr b, #mypay b { overflow-wrap: normal; word-break: keep-all; }
+/* 7: заголовки карток тихіші за заголовок сторінки */
+main .card > h2, #mypay h2 { font-size: 19px; margin: 0 0 10px; }
+/* 8 */
+.ask-btns .btn, .ask-btns .primary { justify-content: center; text-align: center; }
+/* 9 */
+.exsum::placeholder { font-size: 18px; font-weight: 400; }
+/* 10: «Проблема» сама в рядку — на всю ширину; RMPD — плитка */
+.quick .q.problem:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.quick .q small { display: block; font-size: 13px; font-weight: 400; opacity: .75; }
+/* 11–12 */
+body[data-role="водій"] .btn { font-size: 16px; }
+#expBody .card + .card, #rpBody .card + .card, #tdBody .card + .card, #mypay .card + .card { margin-top: 12px; }
+/* 14 */
+.hero .meta { flex-wrap: wrap; } .hero .meta span { white-space: nowrap; }
+/* 15: посилання в абзаці не розриває рядки */
+#truck p .link, #truck .muted .link { min-height: 0 !important; padding-block: 12px; margin-block: -12px; display: inline; }
+.undo-line .link, #stAhead { display: inline-flex; align-items: center; min-height: 48px !important; margin-block: 0; padding-block: 0; }
+#atx { width: 100%; font: inherit; font-size: 17px; padding: 10px 14px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--card); color: var(--ink); resize: vertical; } #atx::placeholder { color: var(--muted); opacity: 1; } #atx:focus { outline: 3px solid var(--focus); border-color: var(--ink); }
+
+/* дизайнер, раунд 2 */
+#mypay .kv { flex-wrap: wrap; }
+#mypay .kv b { flex: 0 0 auto; margin-left: auto; max-width: 100%; }
+html[data-zoom] .pysum .pybig b { font-size: 1.4rem; }
+.obtail { font-size: inherit; }
+.outbox .btn { flex: 0 0 auto; }
+.toast { padding-right: 56px; }
+.toast .toast-x { position: absolute; top: 4px; right: 4px; }
+#mypay .bhead { flex-wrap: wrap; } #mypay .summary, #mypay .pyc summary { min-width: 0; }
