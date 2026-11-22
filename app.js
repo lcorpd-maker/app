@@ -547,10 +547,49 @@
     const hr = t.createTHead().insertRow(); cols.forEach(c => { const th = document.createElement('th'); th.textContent = c; hr.appendChild(th); });
     const tb = t.createTBody();
     const isTrips = current.title && current.sheet === 'Рейси', isOrders = current.sheet === 'Заявки';
-    rows.slice(0, 300).forEach(r => { const tr = tb.insertRow(); cols.forEach(c => { tr.insertCell().textContent = fmt(r[c]); });
-      if (isTrips && r['Рейс ID']) { tr.className = 'brow'; tr.title = 'Відкрити картку рейсу'; tr.onclick = () => openTrip(r['Рейс ID'], 'view'); }
+    // ADR-080: однакові рейси по Україні / контейнеровоз — одним рядком (машина + клієнт + маршрут + тип + тиждень)
+    let gBtn = $('tGroupBtn');
+    if (!gBtn) { gBtn = document.createElement('button'); gBtn.id = 'tGroupBtn'; gBtn.className = 'chip'; $('count').after(gBtn); gBtn.onclick = () => { store.set('tGroup', tGroupOn() ? '0' : '1'); renderTable(); }; }
+    gBtn.hidden = current.sheet !== 'Рейси'; gBtn.setAttribute('aria-pressed', String(tGroupOn())); gBtn.textContent = 'Групувати однакові (Україна, контейнеровоз)';
+    let list = rows.slice(0, 300).map(r => ({ r })), nGrp = 0;
+    if (current.sheet === 'Рейси' && tGroupOn()) {
+      const by = {}; list.forEach(x => { const k = tripGroupKey(x.r); if (k) (by[k] = by[k] || []).push(x.r); });
+      const seen = {}; const out = [];
+      list.forEach(x => { const k = tripGroupKey(x.r), g = k && by[k];
+        if (!g || g.length < 2) { out.push(x); return; }
+        if (seen[k]) return; seen[k] = 1; nGrp++;
+        out.push({ g, k }); if (tOpen[k]) g.slice().sort((a, b) => String(a['Дата завантаження']).localeCompare(String(b['Дата завантаження']))).forEach(r => out.push({ r, sub: true })); });
+      list = out;
+    }
+    if (nGrp) $('count').textContent += ' · згруповано ' + nGrp;
+    list.forEach(({ r, g, k, sub }) => {
+      if (g) { const tr = tb.insertRow(); tr.className = 'grow brow' + (tOpen[k] ? ' open' : ''); const td = tr.insertCell(); td.colSpan = cols.length; td.innerHTML = tripGroupHtml(g, k, cols); tr.title = 'Показати всі рейси групи'; tr.onclick = () => { tOpen[k] = !tOpen[k]; renderTable(); }; return; }
+      const tr = tb.insertRow(); if (sub) tr.classList.add('gsub'); cols.forEach(c => { tr.insertCell().textContent = fmt(r[c]); });
+      if (isTrips && r['Рейс ID']) { tr.classList.add('brow'); tr.title = 'Відкрити картку рейсу'; tr.onclick = () => openTrip(r['Рейс ID'], 'view'); }
       else if (isOrders && r['Рейс ID']) { tr.className = 'brow'; tr.title = 'Відкрити рейс ' + r['Рейс ID']; tr.onclick = () => openTrip(r['Рейс ID'], 'view'); }
       else if (isOrders && canTrip() && !/відмов/i.test(String(r['Статус'] || ''))) { tr.className = 'brow zrow'; tr.title = 'Створити рейс із цієї заявки'; tr.dataset.zid = r['Заявка ID']; tr.onclick = () => tripForm(null, { order: r }); } });
+  }
+
+  /* ── Групи однакових рейсів (ADR-080) ── */
+  const tOpen = {};
+  const tGroupOn = () => store.get('tGroup') !== '0';
+  const REP_T = /^(по україні|контейнеровоз|ставка по україні)$/i;
+  function isoWeek(d) { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day); const y = t.getUTCFullYear(); return { y, w: Math.ceil(((t - Date.UTC(y, 0, 1)) / 864e5 + 1) / 7) }; }
+  function tripGroupKey(r) {
+    if (!REP_T.test(String(r['Тип'] || '').trim())) return '';
+    const ds = tfDate(r['Дата завантаження']); if (!ds) return '';
+    const wk = isoWeek(new Date(ds + 'T00:00:00')), n = x => String(x == null ? '' : x).trim().toLowerCase();
+    return [n(r['Авто ID']), n(r['Клієнт ID']) || n(r['Клієнт (як записано)']), n(r['Звідки']), n(r['Куди']), n(r['Тип']), wk.y + '-' + wk.w].join('|');
+  }
+  function tripGroupHtml(g, k, cols) {
+    const r0 = g[0], days = g.map(r => tfDate(r['Дата завантаження'])).sort(), d1 = new Date(days[0] + 'T00:00:00'), wk = isoWeek(d1);
+    const mon = new Date(d1); mon.setDate(d1.getDate() - ((d1.getDay() + 6) % 7)); const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    const dm = d => String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0');
+    let money1 = '';
+    if (cols.indexOf('Фрахт') >= 0) { const by = {}; g.forEach(r => { const v = +String(r['Фрахт'] == null ? '' : r['Фрахт']).replace(/[\s\u00a0]/g, '').replace(',', '.'); if (v) { const c = String(r['Валюта'] || ''); by[c] = (by[c] || 0) + v; } });
+      money1 = Object.keys(by).map(c => money(Math.round(by[c] * 100) / 100) + '\u00a0' + c).join(' + '); }
+    return '<span class="garr" aria-hidden="true">' + (tOpen[k] ? '▾' : '▸') + '</span> <b>' + g.length + ' однакових рейсів</b> · ' + esc(r0['Тип'] || '') + ' · ' + esc(String(r0['Авто ID'] || '')) + ' · ' + esc(r0['Клієнт (як записано)'] || r0['Клієнт ID'] || 'без клієнта') +
+      ' · ' + esc([r0['Звідки'], r0['Куди']].filter(Boolean).join(' → ')) + ' <span class="muted">· тиждень ' + wk.w + ' (' + dm(mon) + '–' + dm(sun) + ') · дати: ' + days.map(d => d.slice(8, 10)).join(', ') + '.' + days[0].slice(5, 7) + '</span>' + (money1 ? ' · <b>разом ' + esc(money1) + '</b>' : '');
   }
 
   /* ── Дошка машин (етап 2, Board.gs) ── */
@@ -763,7 +802,8 @@
       '<fieldset><legend>Машина і водій</legend><div class="tfgrid">' + (isNew ? sel('Авто ID', truckOpts, '— оберіть —') + inp('Номер', ' inputmode="numeric" placeholder="номер рейсу машини"') : '') + sel('Водій ID', drvOpts, '— ще не вирішили —') + '</div></fieldset>' +
       '<fieldset><legend>Маршрут</legend><div class="tfgrid">' + inp('Звідки', ' placeholder="місто завантаження"') + inp('Дата завантаження', '', 'date') + inp('Куди', ' placeholder="місто розвантаження"') + inp('Дата розвантаження', '', 'date') +
         inp('Перехід', ' list="tfCross" placeholder="Краківець, Шегині, по Україні…"') + inp('Вантаж') + '</div>' +
-        (has('АДР') ? '<label class="tfchk"><input type="checkbox" id="tf_adr"' + (v['АДР'] ? ' checked' : '') + '> АДР (небезпечний вантаж)</label>' : '') + '<p class="muted small" id="tfType"></p></fieldset>' +
+        (has('АДР') ? '<label class="tfchk"><input type="checkbox" id="tf_adr"' + (v['АДР'] ? ' checked' : '') + '> АДР (небезпечний вантаж)</label>' : '') + '<p class="muted small" id="tfType"></p>' +
+        (isNew && !z ? '<div id="tfMoreW" hidden><label for="tfMore">Ще такі самі рейси — дати завантаження</label><input id="tfMore" placeholder="напр. 26.11, 27.11, 29.11" autocomplete="off"><p class="muted small">Кожна дата — окремий рейс з наступним номером; маршрут, клієнт, фрахт — однакові. У переліку рейсів вони покажуться одним рядком.</p></div>' : '') + '</fieldset>' +
       (has('Фрахт') ? '<fieldset><legend>Клієнт і оплата</legend><div class="tfgrid">' + inp('Клієнт (як записано)', ' list="tfClients"') + inp('Фрахт', ' inputmode="decimal"') + sel('Валюта', ['EUR', 'UAH', 'USD', 'PLN'].map(x => [x, x])) +
         inp('Сума для рахунку', ' inputmode="decimal" placeholder="порожньо — як фрахт"') + inp('Причина різниці', ' placeholder="напр. повернення клієнту за…"') +
         inp('Оплата', ' list="tfPay"') + '<span class="tfcash" id="tfCashW">' + inp('Готівкою', ' inputmode="decimal" placeholder="скільки клієнт платить готівкою"') + '</span>' + inp('Відстрочка, днів', ' inputmode="numeric"') + inp('Контакт клієнта') + '</div>' +
@@ -777,7 +817,8 @@
     w.innerHTML = '<div class="ask tsheet tfsheet" role="dialog" aria-modal="true"><h2>' + (isNew ? 'Новий рейс' : 'Виправити рейс') + '</h2>' + html + '<div class="ask-btns"><button class="btn" data-a="0">Скасувати</button><button class="primary" data-a="1">' + (isNew ? 'Створити рейс' : 'Зберегти зміни') + '</button></div></div>';
     document.body.appendChild(w);
     const q = s => w.querySelector(s), typeUpd = () => { if (q('#tfType')) q('#tfType').textContent = 'Тип рейсу: ' + tfType(q('[data-c="Перехід"]') ? q('[data-c="Перехід"]').value : v['Перехід'], q('#tf_adr') && q('#tf_adr').checked) + ' (рахується сам — для зарплати водія)'; };
-    typeUpd(); w.querySelectorAll('[data-c="Перехід"], #tf_adr').forEach(e => e.oninput = e.onchange = typeUpd);
+    const moreUpd = () => { const m = q('#tfMoreW'); if (m) m.hidden = !REP_T.test(tfType(q('[data-c="Перехід"]') ? q('[data-c="Перехід"]').value : '', q('#tf_adr') && q('#tf_adr').checked)); };
+    typeUpd(); moreUpd(); w.querySelectorAll('[data-c="Перехід"], #tf_adr').forEach(e => e.oninput = e.onchange = () => { typeUpd(); moreUpd(); });
     // ADR-073: дві суми — фрахт (від нього зарплата водію) і сума для рахунку (більша, коли є повернення клієнту)
     const tfNum = x => { const t = String(x == null ? '' : x).replace(/[\s\u00a0]/g, '').replace(',', '.'); return t === '' ? null : +t; };
     // ADR-078: «безгот + готівка» — поле «Готівкою»; рахунок — на решту
@@ -822,6 +863,15 @@
         if (!row['Авто ID']) { q('#tfMsg').textContent = 'Оберіть машину'; return; }
         if (!/^\d+$/.test(row['Номер'] || '')) { q('#tfMsg').textContent = 'Номер рейсу — цифрами'; return; }
         if (!row['Звідки'] || !row['Куди'] || !row['Дата завантаження']) { q('#tfMsg').textContent = 'Заповніть: звідки, куди, дата завантаження'; return; }
+        var extra = [];
+        if (q('#tfMoreW') && !q('#tfMoreW').hidden && q('#tfMore').value.trim()) {
+          const y0 = +row['Дата завантаження'].slice(0, 4), bad = [];
+          q('#tfMore').value.split(/[,;\s]+/).filter(Boolean).forEach(t => { const m = t.match(/^(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?$/); if (!m) { bad.push(t); return; }
+            const y = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : y0; const d = y + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0'); if (isNaN(new Date(d + 'T00:00:00'))) bad.push(t); else if (d !== row['Дата завантаження'] && extra.indexOf(d) < 0) extra.push(d); });
+          if (bad.length) { q('#tfMsg').textContent = 'Не зрозуміла дати: ' + bad.join(', ') + ' — пишіть як 26.11'; return; }
+          if (extra.length > 20) { q('#tfMsg').textContent = 'За раз — до 20 додаткових рейсів'; return; }
+          extra.sort();
+        }
         if (has('Джерело')) row['Джерело'] = 'програма (логіст ' + (me.name || me.login) + ')' + (z ? ' · заявка ' + z['Заявка ID'] : '');
         Object.keys(row).forEach(k => { if (row[k] === '') delete row[k]; });
       } else { if (!Object.keys(row).length) { close(); toast('Без змін.'); return; } row['Рейс ID'] = v['Рейс ID']; }
@@ -831,6 +881,18 @@
         close(); board = null; try { store.set('boardCache', ''); } catch (e) {}
         if (z && isNew) { try { await api('save', { sheet: 'Заявки', row: { 'Заявка ID': z['Заявка ID'], 'Рейс ID': out.row['Рейс ID'], 'Статус': 'рейс створено' }, ifHash: z._h }); z['Рейс ID'] = out.row['Рейс ID']; z['Статус'] = 'рейс створено'; } catch (e) { toast('Рейс створено, але заявку не позначено: ' + esc(e.message), 'err'); } }
         let tplMsg = '';
+        // ADR-080: ще такі самі рейси на інші дати — наступні номери
+        if (isNew && typeof extra !== 'undefined' && extra.length) {
+          const made = [], shift = row['Дата розвантаження'] ? Math.round((new Date(row['Дата розвантаження'] + 'T00:00:00') - new Date(row['Дата завантаження'] + 'T00:00:00')) / 864e5) : null;
+          let num = +row['Номер'];
+          for (const d of extra) {
+            const r2 = Object.assign({}, row); num++; r2['Номер'] = String(num); r2['Дата завантаження'] = d;
+            if (shift != null) { const u = new Date(d + 'T00:00:00'); u.setDate(u.getDate() + shift); r2['Дата розвантаження'] = u.getFullYear() + '-' + String(u.getMonth() + 1).padStart(2, '0') + '-' + String(u.getDate()).padStart(2, '0'); }
+            try { const o2 = await api('save', { sheet: 'Рейси', row: r2 }); made.push(o2.row['Рейс ID']); }
+            catch (e) { tplMsg += ' Рейс на ' + d.split('-').reverse().join('.') + ' не створено: ' + esc(e.message) + '.'; break; }
+          }
+          if (made.length) tplMsg = ' І ще ' + made.length + ': ' + made.map(esc).join(', ') + '.' + tplMsg;
+        }
         if (isNew && !z && q('#tfSaveTplW')) {
           try {
             const used = tplSel && tplSel.value !== '' ? TPL[+tplSel.value] : null;
@@ -1812,7 +1874,8 @@
       'Плитка «Боржники»: хто не оплатив, за клієнтом, з прострочкою і готовим текстом нагадування.',
       'Рейс із заявки: у «Заявках» натисніть рядок «+ рейс» — поля підставляться самі.',
       'Оплата «безгот + готівка»: вкажіть, скільки готівкою, — рахунок виставиться на решту.',
-      'Шаблони рейсів: ручний рейс постійного клієнта можна зберегти як шаблон і наступного разу обрати «Із шаблону».'] };
+      'Шаблони рейсів: ручний рейс постійного клієнта можна зберегти як шаблон і наступного разу обрати «Із шаблону».',
+      'По Україні й контейнеровоз: кілька однакових рейсів створюються за раз (поле «Ще такі самі рейси — дати»), а в «Рейсах» показуються одним рядком за тиждень.'] };
   function news() {
     if (!me || NEWS.roles.indexOf(me.role) < 0 || store.get(NEWS.key) || document.querySelector('.ask-wrap')) return;
     const w = document.createElement('div'); w.className = 'ask-wrap';
