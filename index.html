@@ -15,8 +15,21 @@
   <script>try{var z=localStorage.getItem("fontScale");if(z&&z!=="1")document.documentElement.style.setProperty("--zoom",z),document.documentElement.dataset.zoom=z}catch(e){}</script>
 </head>
 <body>
+  <a class="skip" href="#main" id="skipLink">Перейти до вмісту</a>
+  <div class="viewbar" id="viewBar" role="status" hidden><span id="viewBarT"></span><button type="button" id="viewBack">Повернутись до свого входу</button></div>
   <header class="top">
-    <div class="brand"><span class="logo">ЛК</span> Л-КОРП</div>
+    <button type="button" class="navbtn" id="navBtn" aria-label="Меню розділів" aria-expanded="false" aria-controls="nav" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <a class="brand" id="brand" href="#home" aria-label="Л-КОРП — на головну"><span class="logo">ЛК</span> Л-КОРП</a>
+    <span class="scrname" id="scrName" aria-hidden="true"></span>
+    <div class="gsearch" id="gs" hidden>
+      <svg class="gs-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="gsIn" type="search" role="combobox" aria-expanded="false" aria-controls="gsList" aria-autocomplete="list" aria-label="Пошук: машина, рейс, водій, клієнт або розділ" placeholder="Машина, рейс, водій, клієнт" autocomplete="off">
+      <kbd class="gs-kbd" aria-hidden="true">/</kbd>
+      <button type="button" class="gs-x" id="gsClose" aria-label="Закрити пошук">✕</button>
+      <div class="gs-list" id="gsList" role="listbox" aria-label="Знайдено" hidden></div>
+      <span class="sr" id="gsLive" aria-live="polite"></span>
+    </div>
+    <button type="button" class="gsbtn" id="gsBtn" aria-label="Пошук" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
     <button class="theme" id="theme" hidden>◐ Авто</button>
     <button class="theme" id="fontBtn" title="Розмір тексту і кольори" aria-label="Розмір тексту і кольори">Аа</button>
     <div class="who" id="who" hidden>
@@ -25,9 +38,25 @@
       <button class="link" id="logout">Вийти</button>
       <button class="link small" id="logoutAll" title="Наприклад, якщо загубили телефон: закриє вхід на всіх пристроях">Вийти всюди</button>
     </div>
+    <div class="umenu" id="umenu" hidden>
+      <button type="button" class="ubtn" id="userBtn" aria-haspopup="true" aria-expanded="false" aria-controls="userPop"><span class="ava" id="uAva" aria-hidden="true"></span><span class="uname" id="uName"></span><svg class="uchev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div class="upop" id="userPop" hidden>
+        <div class="upop-who"><b id="uPopName"></b><span id="uPopRole"></span></div>
+        <button type="button" data-um="view">Розмір тексту й кольори</button>
+        <button type="button" data-um="push" id="umPush">Сповіщення на телефон</button>
+        <button type="button" data-um="viewas" id="umViewAs" hidden>Подивитися як…</button>
+        <button type="button" data-um="tour">Підказки ще раз</button>
+        <hr>
+        <button type="button" data-um="logout">Вийти</button>
+        <button type="button" data-um="logoutAll" class="um-small">Вийти всюди (загубили телефон)</button>
+      </div>
+    </div>
   </header>
+  <nav class="nav" id="nav" aria-label="Розділи" hidden></nav>
+  <div class="rail" id="navRail" hidden></div>
+  <div class="navscrim" id="navScrim" hidden></div>
 
-  <main>
+  <main id="main" tabindex="-1">
     <!-- Вхід -->
     <section id="login" class="card narrow" hidden>
       <h1>Вхід</h1>
