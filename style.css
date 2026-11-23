@@ -1141,8 +1141,9 @@ html[data-zoom="1.4"] .drvbar { zoom: .8214; }
 html[data-zoom] body[data-role="водій"] #stBox { display: flex; flex-direction: column; }
 html[data-zoom] body[data-role="водій"] #stBox > * { order: 3; }
 html[data-zoom] body[data-role="водій"] #stBox > .hintcard, html[data-zoom] body[data-role="водій"] #stBox > .hero { order: 0; }
-html[data-zoom] body[data-role="водій"] #stBox > .next-action { order: 1; }
-html[data-zoom] body[data-role="водій"] #stBox > .drvroute { order: 2; }
+html[data-zoom] body[data-role="водій"] #stBox > .drvroute { order: 1; }   /* великий шрифт: поточна адреса одразу під рейсом (критик 23.11) */
+html[data-zoom] body[data-role="водій"] #stBox > .next-action { order: 2; }
+html[data-zoom] body[data-role="водій"] #stBox > .hero > div:has(> .road) { display: none; }   /* компактніший рейс, щоб адреса й кнопка кроку влізли */
 #stProbBox { scroll-margin-top: 76px; scroll-margin-bottom: calc(var(--barh) + 16px); }
 
 /* ── керівник: «Нагальне» першим, блакитне; нулі — тихі; панель на всю ширину ── */
@@ -1324,3 +1325,46 @@ body[data-role="водій"] #home:has(#stBox .hero) #homeTitle { position: abso
 .jr-list li:first-child { border-top: 0; }
 .jr-at { color: var(--muted); font-variant-numeric: tabular-nums; }
 .jr-was { color: var(--muted); text-decoration: line-through; }
+/* Етап 2 — правки після оцінки логістів (23.11) */
+.bcompact tr.s-work td.c-car { box-shadow: inset 5px 0 0 var(--warn-fg); }
+.bp-tlt { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 13px; opacity: .92; }
+.bp-tlt b { font-weight: 700; }
+.bpanel .bp-head { position: sticky; top: -16px; z-index: 2; margin: -16px -18px 12px; padding: 14px 18px 10px; background: var(--card); border-bottom: 1px solid var(--line); }
+.bpanel .bp-act { position: sticky; bottom: -28px; z-index: 2; margin: 18px -18px -28px; padding: 12px 18px 16px; background: var(--card); border-top: 1px solid var(--line); }
+.bc-ans { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 2px; }
+@media (min-width: 1200px) and (max-width: 1679px) {
+  .bpanel { width: 400px; }
+  body.bpanel-on:has(#board:not([hidden])) main { padding-right: 404px; }
+  body.bpanel-on .bcompact col.w-next { width: 0; }   /* «Далі» — у панелі; решта колонок розтягується на всю ширину */
+  body.bpanel-on .bcompact th:nth-child(6), body.bpanel-on .bcompact td.c-next { padding: 0; overflow: hidden; font-size: 0; border-left: 0; border-right: 0; }
+}
+.bpanel .bp-head { flex-wrap: nowrap; }
+.bpanel .bp-head h2 { white-space: nowrap; }
+.bpanel .bp-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bpanel .bp-x { margin-left: auto; flex: none; }
+.bpanel .bp-act { gap: 6px; }
+.bpanel .bp-act .primary, .bpanel .bp-act .btn { min-height: 38px; padding: 6px 12px; font-size: 14px; }
+#bpMark:empty { display: none; }
+#bpMark { margin-top: 10px; }
+.bp-now .bp-mark { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.45); }
+.bp-now .bp-mark:hover { background: rgba(255,255,255,.2); }
+.bpanel .bp-act { flex-wrap: nowrap; }
+.bpanel .bp-act > button { flex: 1 1 auto; min-width: 0; width: auto; white-space: nowrap; padding-left: 10px; padding-right: 10px; margin: 0; }
+.bhead > .btn { white-space: nowrap; }
+@media (max-width: 600px) {   /* телефон: шапка дошки нижча (логісти 23.11) */
+  .bhead { flex-wrap: wrap; }
+  .bhead > div { flex: 1 1 100%; }
+  .bfilters .bsum { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .bfilters .bsum > * { flex: none; }
+}
+/* «Аа» великий: рейс компактніше, щоб і поточна адреса, і кнопка кроку були на першому екрані (критик 23.11) */
+html[data-zoom] body[data-role="водій"] #stBox > .hero .facts { display: none; }
+html[data-zoom] body[data-role="водій"] #stBox > .hero { gap: 6px; padding-top: 14px; padding-bottom: 14px; }
+html[data-zoom] body[data-role="водій"] #stBox > .drvroute { padding: 10px 14px; gap: 2px; }
+html[data-zoom] body[data-role="водій"] #stBox > .drvroute .rbtns { gap: 6px; }
+html[data-zoom] body[data-role="водій"] #stBox > .drvroute .rbtns > * { min-height: 44px; padding: 6px 10px; font-size: 15px; flex: 1 1 auto; margin: 0; }
+html[data-zoom] body[data-role="водій"] #stBox > .hero .city { font-size: 26px; line-height: 1.15; }
+html[data-zoom] body[data-role="водій"] #stBox > .drvroute h2 { font-size: 14px; margin-bottom: 2px; }
+html[data-zoom] body[data-role="водій"] #stBox > .drvroute .rlong { display: none; }
+html[data-zoom] body[data-role="водій"] #stBox > .drvroute .rbtns { flex-wrap: nowrap; }
+html[data-zoom] body[data-role="водій"] #stBox > .drvroute .rbtns > * { min-width: 0; white-space: nowrap; }
