@@ -1094,3 +1094,109 @@ html[data-zoom] .rnav { grid-column: 1; grid-row: auto; justify-self: start; }
 .rbtns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .rbtns .btn { min-height: 48px; }
 .rdone { opacity: .6; }
+
+/* ═════════ Етап 1 дизайну (23.11, напрям 2 «три ролі кольору»): водій — нижня стрічка, головне на першому екрані ═════════
+   Ролі кольору: темно-синій — «де я / що зараз» (картка рейсу), блакитний — «що робити далі» (адреса, «Нагальне»),
+   червоний/бурштиновий — лише проблеми. Нові токени — для обох тем. */
+:root { --act-bg: #E3F0FC; --act-bd: #A9CBEF; --sep: #C9D1D9; --barh: 0px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --act-bg: #18244D; --act-bd: #34508A; --sep: #2A3360; } }
+:root[data-theme="dark"] { --act-bg: #18244D; --act-bd: #34508A; --sep: #2A3360; }
+
+/* ── водій: «Зараз — …» з адресою — блакитна картка дії ── */
+.drvroute { background: var(--act-bg); border-color: var(--act-bd); padding: 16px 18px; margin: 0 0 12px; }
+.drvroute .rnav.primary { min-height: 52px; font-size: 17px; }
+body[data-role="водій"] .hero { margin-bottom: 12px; }
+body[data-role="водій"] #stBox > .docalert { margin: 0 0 12px; }
+/* другорядне — без рамок, з тонким розділювачем: не змагається з рейсом і кнопкою кроку */
+body[data-role="водій"] .ststeps, body[data-role="водій"] .stnext, body[data-role="водій"] .timebox.tone-grey, body[data-role="водій"] .profile {
+  background: transparent; border: 0; border-top: 1px solid var(--sep); border-radius: 0; padding-left: 2px; padding-right: 2px; box-shadow: none; }
+body[data-role="водій"] .timebox.tone-grey .tb-start { background: transparent; }
+
+/* ── нижня стрічка водія: 5 розділів з підписами ── */
+.drvbar { position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; margin: 0;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px;
+  padding: 4px 4px max(4px, env(safe-area-inset-bottom)); background: var(--card); border-top: 1px solid var(--line-strong); box-shadow: 0 -6px 20px rgba(12,19,51,.10); }
+.drvbar[hidden] { display: none; }
+.drvbar .q { min-height: 60px; padding: 6px 0; gap: 3px; border: 0; border-radius: 12px; background: transparent; color: var(--ink);
+  font-size: 12px; font-weight: 700; line-height: 1.15; letter-spacing: -.01em; text-align: center; white-space: nowrap; }
+.drvbar .q .ico { width: 26px; height: 26px; }
+.drvbar .q:active { background: var(--surface-2); }
+.drvbar .q.problem { background: var(--bad-bg); color: var(--bad-fg); border: 1px solid var(--bad-bd); }
+/* місце під стрічку: сторінка, смужка «Чекають зв'язку», «немає зв'язку» і тост — над нею */
+body.drvbar-on { --barh: 68px; }
+body.drvbar-on main { padding-bottom: calc(var(--barh) + 32px + env(safe-area-inset-bottom)); }
+body.drvbar-on:has(#outboxBar:not([hidden])) main { padding-bottom: calc(var(--barh) + var(--obh, 120px) + 32px + env(safe-area-inset-bottom)); }
+body.drvbar-on .outbox { bottom: calc(var(--barh) + 8px + env(safe-area-inset-bottom)); }
+body.drvbar-on .banner { bottom: calc(var(--barh) + 8px + env(safe-area-inset-bottom)); }
+body.drvbar-on .toast { bottom: calc(var(--barh) + 8px + env(safe-area-inset-bottom)); }
+body.drvbar-on:has(#outboxBar:not([hidden])) .toast { bottom: calc(var(--barh) + var(--obh, 0px) + 16px + env(safe-area-inset-bottom)); }
+body.drvbar-on:has(#offline:not([hidden])) .toast { bottom: calc(var(--barh) + 84px + env(safe-area-inset-bottom)); }
+/* відкрита клавіатура — стрічку ховаємо (клас kbd ставить app.js) */
+body.kbd .drvbar { display: none; }
+/* «Аа»: решта екрана росте ×1.2/×1.4, стрічка — не більше ×1.15, щоб 5 підписів лишались в один рядок */
+html[data-zoom="1.2"] .drvbar { zoom: .9583; }
+html[data-zoom="1.4"] .drvbar { zoom: .8214; }
+/* на великому шрифті кнопка кроку — одразу під карткою рейсу, адреса й документ — під нею: кнопка лишається на першому екрані */
+html[data-zoom] body[data-role="водій"] #stBox { display: flex; flex-direction: column; }
+html[data-zoom] body[data-role="водій"] #stBox > * { order: 3; }
+html[data-zoom] body[data-role="водій"] #stBox > .hintcard, html[data-zoom] body[data-role="водій"] #stBox > .hero { order: 0; }
+html[data-zoom] body[data-role="водій"] #stBox > .next-action { order: 1; }
+html[data-zoom] body[data-role="водій"] #stBox > .drvroute { order: 2; }
+#stProbBox { scroll-margin-top: 76px; scroll-margin-bottom: calc(var(--barh) + 16px); }
+
+/* ── керівник: «Нагальне» першим, блакитне; нулі — тихі; панель на всю ширину ── */
+#homeWork:has(.pnl) { max-width: none; }
+.pnl .pwide { order: -1; background: var(--act-bg); border-color: var(--act-bd); }
+.pnl .pwide .muted { color: var(--ink-2); }
+@media (min-width: 900px) {
+  .pnl { grid-template-columns: 1.5fr 1fr 1fr; align-items: start; }
+  .pnl .pwide { grid-column: 1; grid-row: 1; }
+  .pnl > .pcard:nth-child(1) { grid-column: 2; grid-row: 1; }
+  .pnl > .pcard:nth-child(2) { grid-column: 3; grid-row: 1; }
+  .pnl .prows { grid-template-columns: 1fr; }
+}
+.prow.p-bad, .prow.p-warn { min-height: 60px; }
+.prow.p-bad .pn, .prow.p-warn .pn { font-size: 26px; font-weight: 800; }
+.prow:not(.p-bad):not(.p-warn) { order: 2; background: transparent; border-color: transparent; min-height: 44px; padding-block: 4px; color: var(--ink-2); }
+.prow:not(.p-bad):not(.p-warn) b { font-weight: 500; }
+.prow:not(.p-bad):not(.p-warn) .pn { font-size: 17px; font-weight: 600; color: var(--ink-2); }
+
+/* ── плитки: стрілка внизу праворуч — заголовок має всю ширину (без «Нарахуванн/я» на 360) ── */
+.tile { padding-right: 16px; }
+.tile::after { top: auto; bottom: 14px; right: 12px; }
+.tile span { padding-right: 22px; }
+@media (max-width: 560px) { .tile { padding-right: 12px; } .tile b { font-size: 16px; } }
+/* шапка на вузькому: роль видно в заголовку «Кабінет: …», тож пігулку ховаємо — «Вийти всюди» вміщається в один рядок */
+@media (max-width: 400px) { .who .role { display: none; } .who { gap: 6px; } .who .link.small { white-space: nowrap; } }
+
+/* ── дошка: смуга стану рядка зліва, шапка таблиці — бренд-блакитна ── */
+.btable th { background: var(--sky); color: var(--sky-ink); }
+#bRows tr.brow:has(.b-go) > td:first-child { box-shadow: inset 5px 0 0 var(--accent); }
+#bRows tr.brow:has(.b-warn) > td:first-child { box-shadow: inset 5px 0 0 var(--warn-bd); }
+#bRows tr.brow:has(.flag.b) > td:first-child { box-shadow: inset 5px 0 0 var(--bad-fg); }
+
+/* ── «До виставлення»: кнопки в один ряд, шапка клієнта — смугою ── */
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.row > .primary { width: auto; margin-top: 0; }
+.bhead .row > .primary { min-height: 44px; padding: 0 16px; font-size: 15px; }
+.invg { padding: 0; overflow: hidden; }
+.invg .dbhead { padding: 12px 18px; background: var(--act-bg); border-bottom: 1px solid var(--act-bd); }
+.invg .dbhead h2 { margin: 0; }
+.invg .dbhead .muted { color: var(--ink-2); margin: 0; }
+.invg .drow { padding: 12px 18px; }
+.invg .dbhead + .drow { border-top: 0; }
+html[data-zoom] .drvbar .q { font-size: 12px; }
+html[data-zoom="1.4"] .drvbar .q { font-size: 11px; letter-spacing: -.02em; }
+body.drvbar-on { --barh: 70px; }
+/* з рейсом заголовок «Мій рейс» дублює картку рейсу — лишаємо його лише для читачів екрана (місце для адреси й кнопки кроку) */
+body[data-role="водій"] #home:has(#stBox .hero) #homeTitle { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; }
+.quick.drvbar .q.problem:last-child:nth-child(odd) { grid-column: auto; }
+#homeHint:empty { display: none; }
+/* форма рейсу: підпис + поле — одна комірка сітки (підпис завжди над своїм полем на будь-якій ширині) */
+.tff { display: grid; align-content: start; min-width: 0; }
+.tff > input, .tff > select { width: 100%; min-width: 0; }
+.tfgrid .tfcash { display: grid; }
+.tfgrid .tfcash[hidden] { display: none; }
+.tfcl .tfclhint { margin: 4px 0 0; }
+.tfcl .tfclhint:empty { display: none; }
+.tfcl #tfNewCl { justify-self: start; margin-top: 6px; }
