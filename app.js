@@ -42,7 +42,12 @@
   const perfQ = [];
   // скільки чекати відповіді (ADR-019, Водій.md §9): довше — вважаємо, що зв'язку немає, і запис лишається в черзі на телефоні
   const WAIT = { 'expense.add': 45000, 'tripdoc.add': 45000, 'rmpd.file': 60000, 'report.submit': 30000, 'login.code': 30000, 'login.google': 30000, 'batch': 25000 };
+  /* «Подивитися як…» (v48): лише читання; ті самі дії, що в білому списку сервера (VIEW.READ) */
+  const VIEW_RO = ['me', 'logout', 'batch', 'list', 'board', 'truck.state', 'trip.status', 'problems', 'tacho', 'inv', 'panel', 'trip.journal', 'dups', 'health', 'expense', 'expense.photo',
+    'tripdoc', 'tripdoc.photo', 'rmpd.file', 'debts', 'my.pay', 'report', 'tacho.odo', 'calc.init', 'calc', 'home.logist', 'push.key'];
+  function viewErr() { const e = new Error('Режим перегляду — зміни вимкнено. Щоб змінювати, поверніться до свого входу.'); e.code = 'viewonly'; return e; }
   async function api(action, data = {}) {
+    if (me && me.viewAs && VIEW_RO.indexOf(action) < 0) { if (action === 'client.err') return { ok: true }; throw viewErr(); }
     if (!CFG.API_URL) throw new Error('Програму ще не підключено до сервера (немає API_URL у config.js)');
     // кожне «Зберегти» має свій opId: якщо зв'язок обірвався і запит повторено, сервер не створить дубль (ADR-038)
     const ONCE = action === 'save' || action === 'truck.take' || action === 'truck.give' || action === 'trip.status.add' || action === 'tacho.add' || action === 'tripdoc.add' || action === 'report.submit' || action === 'pay.ask';
@@ -75,7 +80,7 @@
       msg = String(msg || ''); if (!me || errSent >= 5 || !navigator.onLine || !msg || /^Script error\.?$|ResizeObserver loop/i.test(msg)) return;
       errSent++;
       const scr = document.querySelector('main > section:not([hidden])');
-      api('client.err', { msg: msg.slice(0, 300), stack: String(stack || '').slice(0, 1200), where: (scr ? scr.id : '') + (where ? ' · ' + where : ''), ver: 'v46' }).catch(() => {});
+      api('client.err', { msg: msg.slice(0, 300), stack: String(stack || '').slice(0, 1200), where: (scr ? scr.id : '') + (where ? ' · ' + where : ''), ver: 'v48' }).catch(() => {});
     } catch (e) {}
   }
   window.addEventListener('error', e => reportErr(e.message, e.error && e.error.stack, e.filename ? String(e.filename).split('/').pop() + ':' + e.lineno : ''));
@@ -118,7 +123,7 @@
   const isNet = e => !!(e && (e.net || (!e.code && /зв'язку/.test(e.message || ''))));
   const isTemp = e => isNet(e) || ['error', 'server', 'auth', 'busy'].indexOf(e && e.code) >= 0;
   let OB = [], REJ = [], obReady = false, obIdb = true;
-  const mine = it => !!(me && it.login && it.login === me.login);   // записи без логіна не надсилаємо будь-кому (безпека Н1)
+  const mine = it => !!(me && !me.viewAs && it.login && it.login === me.login);   // у «Подивитися як…» чужу чергу не чіпаємо (критик v48)   // записи без логіна не надсилаємо будь-кому (безпека Н1)
   const outbox = () => OB.filter(mine);
   const obSending = q => flushing && outbox()[0] === q;
   async function obLoad() {
@@ -143,6 +148,7 @@
   const waiters = {};
   const settle = (id, r, err) => { const w = waiters[id]; if (!w) return; delete waiters[id]; clearTimeout(w.t); err ? w.bad(err) : w.ok(r); };
   async function apiQ(action, data, label) {
+    if (me && me.viewAs) throw viewErr();                                  // «Подивитися як…»: у чергу нічого не пишемо (v48)
     data = { ...data, clientAt: Date.now(), opId: data.opId || newId() };
     const it = { action, data, label, at: Date.now(), login: (me && me.login) || '' };
     await obAdd(it);                                                       // кидає 'storage', якщо записати не вдалося — екран покаже помилку і НЕ очистить форму
@@ -152,6 +158,7 @@
   }
   let flushing = false, flushAt = 0;
   async function flushOutbox() {
+    if (me && me.viewAs) return;                                          // перегляд — нічого не надсилаємо
     if (flushing && Date.now() - flushAt < 150000) return;               // завислий запит не блокує чергу назавжди (QA-7)
     if (!obReady) return;
     if (!store.get('token')) { outbox().forEach(it => settle(it.id, { queued: true, opId: it.id })); return; }
@@ -295,7 +302,8 @@
     ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck', 'tacho', 'exp', 'health', 'tdoc', 'rpt', 'debts', 'bank', 'mypay', 'probs', 'inv'].forEach(s => $(s) && ($(s).hidden = s !== id)); window.scrollTo(0, 0);
     document.body.classList.toggle('drvbar-on', id === 'home' && !!me && me.role === 'водій');   // місце під нижню стрічку водія (етап 1 дизайну)
     document.body.dataset.scr = id;   // ширина сторінки за екраном (дошка — на всю ширину, етап 2)
-    if (id !== 'board' && $('bPanel') && !$('bPanel').hidden) { $('bPanel').hidden = true; $('bPanel').innerHTML = ''; document.body.classList.remove('bpanel-on'); } }
+    if (id !== 'board' && $('bPanel') && !$('bPanel').hidden) { $('bPanel').hidden = true; $('bPanel').innerHTML = ''; document.body.classList.remove('bpanel-on'); navAuto(); }
+    if (id === 'login') navOff(); else navMark(id); }
 
   function showLogin(msg) {
     $('who').hidden = true; show('login'); $('loginMsg').textContent = msg || '';
@@ -308,30 +316,35 @@
     const was = JSON.stringify({ r: me && me.role, s: sheets.map(x => x.name) });
     me = out.me; sheets = out.sheets || [];
     store.set('me', JSON.stringify({ me, sheets }));
+    viewBar();
     $('whoName').textContent = me.name; $('whoRole').textContent = me.role; try { $('hdrCall').href = 'tel:' + LOGIST_TEL; } catch (e) {} $('who').hidden = false; document.body.dataset.role = me.role;
     // quiet — уточнення від сервера після показу збереженого кабінету: не перемальовуємо й не повертаємо на головну,
     // хіба що змінилися роль чи доступи і людина досі на головній
     if (!quiet) { scrLoad(); setTimeout(flushOutbox, 500); }
-    if (quiet && (was === JSON.stringify({ r: me.role, s: sheets.map(x => x.name) }) || $('home').hidden)) return;
+    if (quiet && (was === JSON.stringify({ r: me.role, s: sheets.map(x => x.name) }) || $('home').hidden)) { if (isOffice()) { userRender(); navRender(); } return; }
+    if (!isOffice()) navOff();
     renderHome();
+    if (isOffice() && navHashPending) { const id = navHashPending; navHashPending = ''; clearHash(); navGo(id); }
   }
 
   function renderHome() {
-    $('homeTitle').textContent = 'Кабінет: ' + me.role;
-    $('homeHint').textContent = HINT[me.role] || '';
+    const office = isOffice();
+    if (office) { document.body.classList.add('nav-on'); userRender(); navRender(); }
+    $('homeTitle').textContent = office ? hGreet() : 'Кабінет: ' + me.role;
+    $('homeHint').textContent = office ? hDateLine() : HINT[me.role] || '';
     const can = new Set(sheets.map(s => s.name));
     const box = $('tiles'); box.innerHTML = '';
-    (TILES[me.role] || []).forEach(t => {
+    (office ? [] : TILES[me.role] || []).forEach(t => {   // плитки-розділи лишились лише у водія (у нього вони сховані за нижньою стрічкою); офіс — меню (v47)
       const b = document.createElement('button'); b.className = 'tile';
       const ok = t.action || (t.sheet && can.has(t.sheet));
       if (!ok) b.classList.add('soon');
       b.innerHTML = '<b></b><span></span>';
       b.querySelector('b').textContent = t.title;
       b.querySelector('span').textContent = ok ? (t.hint || '') : 'скоро';
-      if (ok) b.onclick = () => t.action === 'inv' ? openInv() : t.action === 'probs' ? openProbs() : t.action === 'codes' ? openCodes() : t.action === 'board' ? openBoard() : t.action === 'docs' ? openDocs() : t.action === 'calc' ? openCalc() : t.action === 'truck' ? openTruck() : t.action === 'exp' ? openExp() : t.action === 'health' ? openHealth() : t.action === 'push' ? openPush() : t.action === 'debts' ? openDebts() : t.action === 'mypay' ? openPay('pay') : t.action === 'mytrips' ? openPay('trips') : openSheet(t);
+      if (ok) b.onclick = () => t.action === 'truck' ? openTruck() : t.action === 'exp' ? openExp() : t.action === 'mypay' ? openPay('pay') : t.action === 'mytrips' ? openPay('trips') : openSheet(t);
       box.appendChild(b);
     });
-    $('homeWork').innerHTML = ''; $('tiles').hidden = false; if ($('drvOutBox')) $('drvOutBox').innerHTML = ''; drvBar(false);
+    $('homeWork').innerHTML = ''; $('tiles').hidden = office; hHome = false; if ($('drvOutBox')) $('drvOutBox').innerHTML = ''; drvBar(false);
     if (me.role === 'водій') {
       $('homeTitle').textContent = 'Мій рейс'; $('homeHint').textContent = ''; $('tiles').hidden = true; drvBar(true);
       // один запит паралельно з другим і один показ екрана: без проміжних «Завантаження…» → картка → «Мій рейс»
@@ -350,17 +363,43 @@
       }).catch(e => { if (nav === navSeq && !cache) $('homeWork').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; });
     }
     show('home'); setTimeout(tour, 700);
+    if (office) { $('homeWork').innerHTML = (KA.indexOf(me.role) >= 0 ? '<div id="pnlBox"></div>' : '') + (hRole() ? '<div id="hwBox"></div>' : ''); homeExtras(); }
     if (me.role === 'керівник' || me.role === 'адмін') panelLoad();
-    if (me.role === 'логіст') logLoad();
+    if (hRole()) logLoad();   // логіст; керівник і адмін — ті самі віджети під «Панеллю дня» (v48)
+  }
+  function hGreet() { const h = new Date().getHours(); return h < 5 ? 'Добрий вечір' : h < 12 ? 'Доброго ранку' : h < 18 ? 'Добрий день' : 'Добрий вечір'; }
+  function hDateLine() { const d = new Date(); return me.name + ' · ' + d.toLocaleDateString('uk-UA', { weekday: 'long', day: 'numeric', month: 'long' }) + ' · тиждень ' + isoWeek(d).w; }
+  /** Разова підказка «Розділи тепер у меню» і (бухгалтер, механік) закріплене — швидкими кнопками на головній. */
+  function homeExtras() {
+    const w = $('homeWork'), old = document.querySelector('.navhint'); if (old) old.remove();
+    if (!store.get('navhint_v47')) {
+      const c = document.createElement('div'); c.className = 'navhint'; c.setAttribute('role', 'note');
+      c.innerHTML = '<span class="nh-ar" aria-hidden="true">' + ico(window.innerWidth >= 768 ? 'left' : 'menu') + '</span><p><b>Розділи тепер у меню ' + (window.innerWidth >= 1280 ? 'ліворуч' : window.innerWidth >= 768 ? 'ліворуч (значки) — ☰ відкриває весь список' : '☰ угорі') + '.</b> Зірочкою закріпіть до 4 найпотрібніших. Пошук угорі (клавіша /) знайде машину, рейс, водія чи розділ.</p><button type="button" class="btn small" id="navHintOk">Зрозуміло</button>';
+      w.before(c); $('navHintOk').onclick = () => { store.set('navhint_v47', '1'); c.remove(); };
+    }
+    if (me.role === 'бухгалтер' || me.role === 'механік') {
+      const items = navItems(), pins = navPins().map(id => items.find(n => n.id === id)).filter(Boolean);
+      w.innerHTML = (me.role === 'бухгалтер' ? '<div id="buhBox"></div>' : '') + '<section class="hw hquick" aria-labelledby="hqT"><div class="hw-h"><h2 id="hqT">Закріплене</h2><span class="hw-meta">змінюється зірочкою в меню</span></div><div class="hq">' +
+        pins.map(n => '<a class="hq-a" href="' + navHref(n.id) + '" data-nav="' + esc(n.id) + '">' + ico(n.ico) + '<span>' + esc(n.t) + '</span>' + navBadgeHtml(n.id) + '</a>').join('') + '</div></section>';
+      w.onclick = e => { const a = e.target.closest('a[data-nav]'); if (a && !(e.ctrlKey || e.metaKey || e.shiftKey)) { e.preventDefault(); navGo(a.dataset.nav); } };
+      if (me.role === 'бухгалтер') buhLoad();
+    }
+  }
+  /** Вихід / водій: прибрати меню, пошук, ім'я ▾. */
+  function navOff() {
+    document.body.classList.remove('nav-on', 'nav-mini', 'nav-open', 'gs-open'); navOpenNow = false;
+    ['nav', 'navRail', 'navScrim', 'navBtn', 'gs', 'gsBtn', 'umenu'].forEach(i => { if ($(i)) $(i).hidden = true; });
+    const n = document.querySelector('.navhint'); if (n) n.remove();
   }
   /* ── «Панель дня» керівника й адміна (ідея власниці №1, ADR-088): машини, розрахунки з водіями, нагальне ── */
   let panel = null;
   async function panelLoad() {
     try { const c = JSON.parse(store.get('panel_' + me.login) || 'null'); if (c && !panel) panel = c; } catch (e) {}
-    if (panel) panelDraw(); else $('homeWork').innerHTML = '<div class="card pnl"><p class="muted">Збираю панель дня…</p></div>';
+    const pb = () => $('pnlBox') || $('homeWork');
+    if (panel) panelDraw(); else pb().innerHTML = '<div class="card pnl"><p class="muted">Збираю панель дня…</p></div>';
     const nav = navSeq;
     try { panel = await api('panel'); try { store.set('panel_' + me.login, JSON.stringify(panel)); } catch (e) {} if (nav === navSeq && !$('home').hidden) panelDraw(); }
-    catch (e) { if (!panel) $('homeWork').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
+    catch (e) { if (!panel) pb().innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
   }
   const pnlSums = o => Object.keys(o || {}).filter(k => o[k]).map(k => money(Math.round(o[k])) + ' ' + k).join(' + ');
   function panelDraw() {
@@ -383,11 +422,13 @@
       row(ex.fresh, 'warn', 'Витрати водіїв на перевірку', ex.ask ? 'з питанням: ' + ex.ask : '', 'exp'),
       row((dc.over || 0) + (dc.soon || 0), dc.over ? 'bad' : 'warn', 'Документи', (dc.over ? 'прострочено: ' + dc.over : '') + (dc.soon ? (dc.over ? ' · ' : '') + 'спливають: ' + dc.soon : ''), 'docs'),
       row(db.clients, 'warn', 'Прострочені борги клієнтів', esc(pnlSums(db.recent)), 'debts')].join('');
-    $('homeWork').innerHTML = '<div class="pnl"><section class="card pcard"><h2>Машини <small>' + (t.total || 0) + '</small></h2>' + trucks + '<button class="link" data-pact="board">Дошка машин →</button></section>' +
+    const pBox = $('pnlBox') || $('homeWork');
+    pBox.innerHTML = '<div class="pnl"><section class="card pcard"><h2>Машини <small>' + (t.total || 0) + '</small></h2>' + trucks + '<button class="link" data-pact="board">Дошка машин →</button></section>' +
       '<section class="card pcard"><h2>Розрахунки з водіями</h2>' + circles + '</section>' +
       '<section class="card pcard pwide"><h2>Нагальне</h2><div class="prows">' + urgent + '</div><p class="muted small">Оновлено ' + tkTime(p.at) + ' · <button class="link" data-pact="reload">оновити</button></p></section></div>';
-    $('homeWork').onclick = e => { const b = e.target.closest('[data-pact]'); if (!b) return; const a = b.dataset.pact;
+    pBox.onclick = e => { const b = e.target.closest('[data-pact]'); if (!b) return; const a = b.dataset.pact;
       if (a === 'board') openBoard(); else if (a === 'probs') openProbs(); else if (a === 'exp') openExp(); else if (a === 'docs') openDocs(); else if (a === 'debts') openDebts(); else if (a === 'reload') panelLoad(); else if (a === 'payq') payqOpen(); };
+    navBadges();
   }
   /** Відповіді на «Є питання» водіїв — тут, а не в таблиці. */
   function payqOpen() {
@@ -970,8 +1011,8 @@
       return '<button type="button" class="bs' + (BF[k][2] && n ? ' bs-' + BF[k][2] : '') + (n ? '' : ' bs-zero') + '" data-bf="' + k + '" aria-pressed="' + (bFilter === k) + '"><b>' + n + '</b> ' + esc(BF[k][0]) + '</button>'; }).join('');
     $('bSum').querySelectorAll('[data-bf]').forEach(c => c.onclick = () => setF(c.dataset.bf));
     $('bChips').innerHTML = '';
-    ['nounl', 'addr', 'rmpd', 'can', 'soon', 'rest'].forEach(k => {
-      const n = b.trucks.filter(BF[k][1]).length; if (!n && bFilter !== k && (k === 'nounl' || k === 'addr' || k === 'rmpd')) return;
+    ['nounl', 'addr', 'rmpd', 'stale', 'can', 'soon', 'rest'].forEach(k => {
+      const n = b.trucks.filter(BF[k][1]).length; if (!n && bFilter !== k && (k === 'nounl' || k === 'addr' || k === 'rmpd' || k === 'stale')) return;
       const c = document.createElement('button'); c.className = 'chip'; c.setAttribute('aria-pressed', String(bFilter === k));
       c.innerHTML = esc(BF[k][0]) + ' <small>' + n + '</small>'; c.onclick = () => setF(k); $('bChips').appendChild(c);
     });
@@ -1037,43 +1078,562 @@
     $('bWaitList').innerHTML = w.map(z => '<button type="button" class="wrow wbtn" data-zord="' + esc(z.id) + '"><b>' + tripText(z) + '</b> <span class="muted">' + (z.load ? 'завантаження ' + dd(z.load) : '') + (z.client ? ' · ' + esc(z.client) : '') + ' · ' + esc(z.status || 'нова') + '</span>' + (canTrip() ? '<span class="wgo">Створити рейс ›</span>' : '') + '</button>').join('');
     $('bWaitList').querySelectorAll('[data-zord]').forEach(bt => bt.onclick = () => orderToTrip(bt.dataset.zord));
   }
-  /* ── Головна логіста: лічильники «Сьогодні» (етап 2 дизайну, UX P1-4) — з тих самих даних, що й дошка ── */
-  let logRmpd = new Set(), logDups = null;
+  /* ── Меню розділів замість плиток (ідея власниці №8, v47): групи, закріплене, бейджі; ≥1280 — постійне ліворуч, 768–1279 — значки + шухляда, телефон — ☰ ── */
+  const NAV_G = [['Перевезення', 'truck'], ['Водії', 'user'], ['Гроші', 'money'], ['Техніка', 'wrench'], ['Довідники', 'book'], ['Керування', 'shield']];
+  const NAV_FOLD = { 4: true };   // «Довідники» згорнуті за замовчуванням
+  const OFF = ['адмін', 'керівник', 'логіст', 'бухгалтер', 'механік'], LKA = ['адмін', 'керівник', 'логіст'], KA = ['адмін', 'керівник'];
+  const NAV = [
+    { id: 'home', t: 'Головна', ico: 'home', roles: OFF },
+    { id: 'board', t: 'Дошка машин', g: 0, ico: 'board', roles: ['адмін', 'керівник', 'логіст', 'механік'] },
+    { id: 'sheet:Заявки', t: 'Заявки', g: 0, sheet: 'Заявки', ico: 'inbox', roles: LKA },
+    { id: 'sheet:Рейси', t: 'Рейси', g: 0, sheet: 'Рейси', ico: 'route', roles: ['адмін', 'керівник', 'логіст', 'бухгалтер'] },
+    { id: 'sheet:Кругорейси', t: 'Кругорейси', g: 0, sheet: 'Кругорейси', ico: 'loop', roles: LKA },
+    { id: 'calc', t: 'Калькулятор', g: 0, ico: 'calc', roles: LKA },
+    { id: 'probs', t: 'Проблеми водіїв', g: 1, ico: 'alert', roles: LKA },
+    { id: 'exp', t: 'Витрати водіїв', g: 1, ico: 'receipt', roles: ['адмін', 'керівник', 'логіст', 'бухгалтер'] },
+    { id: 'sheet:Водій на авто', t: 'Водій на авто', g: 1, sheet: 'Водій на авто', ico: 'user', roles: ['логіст'] },
+    { id: 'debts', t: 'Боржники', g: 2, sub: 'c', ico: 'money', roles: ['адмін', 'керівник', 'логіст', 'бухгалтер'] },
+    { id: 'inv', t: 'До виставлення', g: 2, sub: 'c', ico: 'doc', roles: ['адмін', 'керівник', 'бухгалтер'] },
+    { id: 'sheet:Готівка від клієнтів', t: 'Готівка від клієнтів', g: 2, sub: 'c', sheet: 'Готівка від клієнтів', ico: 'money', roles: ['бухгалтер'] },
+    { id: 'sheet:Нарахування', t: 'Нарахування', g: 2, sub: 'w', sheet: 'Нарахування', ico: 'table', roles: KA },
+    { id: 'sheet:Виплати й доплати', t: 'Виплати й доплати', g: 2, sub: 'w', sheet: 'Виплати й доплати', ico: 'table', roles: ['адмін', 'керівник', 'бухгалтер'] },
+    { id: 'sheet:Рухи коштів', t: 'Рухи коштів', g: 2, sub: 'k', sheet: 'Рухи коштів', ico: 'table', roles: ['адмін', 'керівник', 'бухгалтер'] },
+    { id: 'docs', t: 'Документи', g: 3, ico: 'doc', roles: ['адмін', 'керівник', 'логіст', 'механік'] },
+    { id: 'sheet:Авто', t: 'Авто', g: 3, sheet: 'Авто', ico: 'truck', roles: ['адмін', 'механік'] },
+    { id: 'sheet:Причепи', t: 'Причепи', g: 3, sheet: 'Причепи', ico: 'table', roles: ['механік'] },
+    { id: 'sheet:Спідометр і пальне', t: 'Спідометр і пальне', g: 3, sheet: 'Спідометр і пальне', ico: 'table', roles: ['механік'] },
+    { id: 'sheet:Клієнти', t: 'Клієнти', g: 4, sheet: 'Клієнти', ico: 'table', roles: ['адмін', 'керівник', 'логіст', 'бухгалтер'] },
+    { id: 'sheet:Відстані', t: 'Відстані', g: 4, sheet: 'Відстані', ico: 'table', roles: ['логіст'] },
+    { id: 'sheet:Працівники', t: 'Працівники', g: 4, sheet: 'Працівники', ico: 'table', roles: ['адмін'] },
+    { id: 'sheet:Користувачі', t: 'Користувачі', g: 4, sheet: 'Користувачі', ico: 'table', roles: ['адмін'] },
+    { id: 'codes', t: 'Видати код', g: 5, ico: 'key', roles: KA },
+    { id: 'sheet:Журнал змін', t: 'Журнал змін', g: 5, sheet: 'Журнал змін', ico: 'table', roles: KA },
+    { id: 'health', t: 'Здоров\'я програми', g: 5, ico: 'pulse', roles: KA }
+  ];
+  const PINS_DEF = { 'логіст': ['board', 'sheet:Заявки', 'calc', 'probs'], 'керівник': ['board', 'probs', 'exp', 'debts'], 'адмін': ['health', 'board', 'codes', 'sheet:Журнал змін'], 'бухгалтер': ['debts', 'inv', 'exp'], 'механік': ['board', 'docs'] };
+  const ICO = { home: 'M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10', board: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', inbox: 'M3 13l3-8h12l3 8v6H3zM3 13h5l1 3h6l1-3h5',
+    route: 'M6 20a2 2 0 100-4 2 2 0 000 4zM18 8a2 2 0 100-4 2 2 0 000 4zM6 16V9a3 3 0 013-3h7M18 8v7a3 3 0 01-3 3H8', loop: 'M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3M18 3v4h-4M6 21v-4h4',
+    calc: 'M6 3h12a1 1 0 011 1v16a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1zM8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01', alert: 'M12 4l9 16H3zM12 10v4M12 17h.01',
+    receipt: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3', user: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0', money: 'M3 6h18v12H3zM12 15a3 3 0 100-6 3 3 0 000 6zM6 9v.01M18 15v.01',
+    doc: 'M14 3H6a1 1 0 00-1 1v16a1 1 0 001 1h12a1 1 0 001-1V8zM14 3v5h5M9 13h6M9 17h4', truck: 'M3 16V7a1 1 0 011-1h10v10M14 9h4l3 3v4h-7M6.5 18.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm11 0a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
+    table: 'M4 5h16v14H4zM4 10h16M4 15h16M10 5v14', wrench: 'M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.8-3.8a6 6 0 01-7.9 7.9l-6.9 6.9a2.1 2.1 0 01-3-3l6.9-6.9a6 6 0 017.9-7.9z', book: 'M4 19.5A2.5 2.5 0 016.5 17H20V2H6.5A2.5 2.5 0 004 4.5zM4 19.5A2.5 2.5 0 006.5 22H20v-5',
+    shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z', key: 'M8 15a4 4 0 110-8 4 4 0 010 8zM12 11h9M18 11v3M21 11v3', pulse: 'M3 12h4l2-5 4 10 2-5h6',
+    star: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z', menu: 'M4 6h16M4 12h16M4 18h16', left: 'M15 6l-6 6 6 6', right: 'M9 6l6 6-6 6', x: 'M6 6l12 12M18 6L6 18' };
+  const ico = k => '<svg class="nico" viewBox="0 0 24 24" aria-hidden="true"><path d="' + (ICO[k] || ICO.table) + '"/></svg>';
+  let navCur = 'home', navOpenNow = false, navOpener = null, navBadge = {}, navGOpen = {};
+  const isOffice = () => !!me && me.role !== 'водій' && OFF.indexOf(me.role) >= 0;
+  const navItems = () => { const can = new Set(sheets.map(s => s.name)); return NAV.filter(n => n.roles.indexOf(me.role) >= 0 && (!n.sheet || can.has(n.sheet))); };
+  const navHref = id => '#' + (id.indexOf('sheet:') === 0 ? 'sheet/' + encodeURIComponent(id.slice(6)) : id);
+  const navPins = () => { let p = null; try { p = JSON.parse(store.get('pins_' + me.login) || 'null'); } catch (e) {} const ok = new Set(navItems().map(n => n.id)); return (p || PINS_DEF[me.role] || []).filter(id => ok.has(id) && id !== 'home').slice(0, 4); };
+  const navDocked = () => window.innerWidth >= 1280 && !document.body.classList.contains('nav-mini');
+  const navDrawerMode = () => !navDocked();
+  /** Згорнути до значків: людина вибрала, або відкрита бокова панель рейсу на екрані < 1440 px. */
+  function navAuto() {
+    if (!isOffice()) return;
+    const mini = store.get('navMini') === '1' || (document.body.classList.contains('bpanel-on') && window.innerWidth < 1440);
+    document.body.classList.toggle('nav-mini', mini);
+    if (navOpenNow && navDocked()) navClose(true);
+    const n = $('nav'); if (!navOpenNow) { if (navDrawerMode()) { n.removeAttribute('role'); n.removeAttribute('aria-modal'); n.setAttribute('aria-hidden', 'true'); n.inert = true; } else { n.removeAttribute('aria-hidden'); n.inert = false; } }
+  }
+  function navBadgeHtml(id, rail) {
+    const b = navBadge[id]; if (!b || !b.n) return '';
+    return rail ? '<span class="nbdot ' + (b.bad ? 'bad' : '') + '" aria-hidden="true"></span>' : '<span class="nbadge' + (b.bad ? ' bad' : '') + '" aria-hidden="true">' + b.n + '</span>';
+  }
+  const navLabel = n => n.t + (navBadge[n.id] && navBadge[n.id].n ? ', ' + navBadge[n.id].label : '');
+  function navLink(n, pinned) {
+    const on = navCur === n.id;
+    return '<li class="nav-li"><a class="nav-a' + (on ? ' on' : '') + '" href="' + navHref(n.id) + '" data-nav="' + esc(n.id) + '"' + (on && !pinned ? ' aria-current="page"' : '') + ' aria-label="' + esc(navLabel(n)) + '">' + ico(n.ico) + '<span class="nav-t">' + esc(n.t) + '</span>' + navBadgeHtml(n.id) + (n.sheet ? '<span class="nav-sh" aria-hidden="true" title="таблиця">▦</span>' : '') + '</a>' +
+      (n.id !== 'home' ? '<button type="button" class="nav-pin" data-pin="' + esc(n.id) + '" aria-pressed="' + (navPins().indexOf(n.id) >= 0) + '" aria-label="' + (navPins().indexOf(n.id) >= 0 ? 'Відкріпити ' : 'Закріпити ') + esc(n.t) + '" title="' + (navPins().indexOf(n.id) >= 0 ? 'Відкріпити' : 'Закріпити вгорі') + '">' + ico('star') + '</button>' : '') + '</li>';
+  }
+  function navRender() {
+    if (!isOffice()) return;
+    const items = navItems(), pins = navPins(), home = items.find(n => n.id === 'home');
+    let h = '<div class="nav-dh"><span class="logo" aria-hidden="true"></span><b>Розділи</b><button type="button" class="nav-x" id="navX" aria-label="Закрити меню (Esc)">' + ico('x') + '</button></div><div class="nav-sc">';
+    h += '<ul class="nav-ul">' + navLink(home) + '</ul>';
+    // v48: розгорнуте меню — одна стабільна мапа без дублів; закріплене (зірочка) — у смузі значків і на головній бухгалтера/механіка
+    NAV_G.forEach((g, gi) => {
+      const l = items.filter(n => n.g === gi); if (!l.length) return;
+      if (l.length === 1) { h += '<div class="nav-g nav-one" data-g="' + gi + '"><h2 class="nav-gh nav-gs" id="navG' + gi + '" aria-label="' + esc(g[0]) + '">' + ico(g[1]) + '<span aria-hidden="true">' + esc(g[0].toLocaleUpperCase('uk')) + '</span></h2><ul class="nav-ul nav-flat" aria-labelledby="navG' + gi + '">' + navLink(l[0]) + '</ul></div>'; return; }   // група з одним пунктом — маленький заголовок без згортання (v48)
+      const open = navGOpen[gi] != null ? navGOpen[gi] : !NAV_FOLD[gi] || l.some(n => n.id === navCur);
+      let prev = null; const lis = l.map(n => { const sep = prev && n.sub && prev.sub && n.sub !== prev.sub; prev = n; return (sep ? '<li class="nav-sep" role="presentation"></li>' : '') + navLink(n); }).join('');
+      h += '<div class="nav-g" data-g="' + gi + '"><h2 class="nav-gh"><button type="button" class="nav-gb" id="navG' + gi + '" aria-expanded="' + open + '" aria-controls="navGL' + gi + '" aria-label="' + esc(g[0]) + '">' + ico(g[1]) + '<span aria-hidden="true">' + esc(g[0].toLocaleUpperCase('uk')) + '</span><svg class="nav-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></h2>' +
+        '<ul class="nav-ul" id="navGL' + gi + '" aria-labelledby="navG' + gi + '"' + (open ? '' : ' hidden') + '>' + lis + '</ul></div>';
+    });
+    h += '</div><button type="button" class="nav-mini-b" id="navMiniB" aria-label="Згорнути меню до значків">' + ico('left') + '<span>Згорнути меню</span></button>';
+    $('nav').innerHTML = h;
+    // смуга значків: Головна, закріплене, групи
+    let r = '<button type="button" class="rail-b rail-open" id="railOpen" aria-label="Усі розділи" title="Усі розділи" aria-expanded="false" aria-controls="nav">' + ico('menu') + '</button>';
+    r += [home].concat(pins.map(id => items.find(n => n.id === id))).map(n => '<a class="rail-b' + (navCur === n.id ? ' on' : '') + '" href="' + navHref(n.id) + '" data-nav="' + esc(n.id) + '"' + (navCur === n.id ? ' aria-current="page"' : '') + ' aria-label="' + esc(navLabel(n)) + '" title="' + esc(n.t) + '">' + ico(n.ico) + navBadgeHtml(n.id, true) + '</a>').join('');
+    r += '<span class="rail-sep" aria-hidden="true"></span>' + NAV_G.map((g, gi) => items.some(n => n.g === gi) ? '<button type="button" class="rail-b' + (items.some(n => n.g === gi && n.id === navCur) ? ' on' : '') + '" data-railg="' + gi + '" aria-label="' + esc(g[0]) + '" title="' + esc(g[0]) + '">' + ico(g[1]) + '</button>' : '').join('');
+    $('navRail').innerHTML = r;
+    $('nav').hidden = false; $('navRail').hidden = false; $('navBtn').hidden = false; navAuto();
+  }
+  /** Перехід у розділ з меню, пошуку чи #адреси. */
+  function navGo(id) {
+    if (!me) return;
+    navClose(); closeUser();
+    const it = NAV.find(n => n.id === id);
+    if (!it || navItems().indexOf(it) < 0) { if (id !== 'home') toast('Розділу «' + esc(it ? it.t : id) + '» у вашій ролі немає.'); return renderHome(); }
+    if (it.sheet) return openSheet({ title: it.t, sheet: it.sheet }).then(navFocusH1);
+    const go = { home: renderHome, board: () => openBoard(), calc: openCalc, probs: openProbs, exp: () => openExp(), debts: () => openDebts(), inv: () => openInv(), docs: () => openDocs(), codes: openCodes, health: openHealth }[id];
+    const r = go ? go() : renderHome(); navFocusH1(); return r;
+  }
+  function navFocusH1() { setTimeout(() => { if (document.querySelector('.ask-wrap')) return; const s = document.querySelector('main > section:not([hidden])'), h = s && s.querySelector('h1'); if (h && !h.contains(document.activeElement) && (!document.activeElement || document.activeElement === document.body || $('nav').contains(document.activeElement) || $('navRail').contains(document.activeElement) || $('gs').contains(document.activeElement))) { h.tabIndex = -1; h.focus({ preventScroll: true }); } }, 60); }
+  const SCR_NAV = { home: 'home', board: 'board', calc: 'calc', probs: 'probs', exp: 'exp', debts: 'debts', bank: 'debts', inv: 'inv', docs: 'docs', codes: 'codes', health: 'health' };
+  /** Поточний пункт: aria-current + маркер; вкладені екрани (рейс, виписка банку) — батьківський пункт. */
+  function navMark(scr) {
+    if (!isOffice()) return;
+    let id = SCR_NAV[scr]; if (scr === 'view' && current) id = 'sheet:' + current.sheet; if (!id) id = navCur;
+    const it = NAV.find(n => n.id === id); $('scrName').textContent = it ? it.t : (scr === 'trip' ? 'Рейс' : '');
+    if (id === navCur && $('nav').innerHTML) return; navCur = id;
+    document.querySelectorAll('#nav [data-nav], #navRail [data-nav]').forEach(a => { const on = a.dataset.nav === id; a.classList.toggle('on', on); if (on && !a.closest('.nav-pins')) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    document.querySelectorAll('#navRail [data-railg]').forEach(b => b.classList.toggle('on', !!(it && it.g === +b.dataset.railg)));
+    if (it && it.g != null && $('navGL' + it.g) && $('navGL' + it.g).hidden) { navGOpen[it.g] = true; $('navGL' + it.g).hidden = false; $('navG' + it.g).setAttribute('aria-expanded', 'true'); }
+  }
+  function navOpen(g) {
+    if (!isOffice()) return;
+    if (navDocked()) { const a = $('nav').querySelector('[aria-current="page"]') || $('nav').querySelector('a'); if (a) a.focus(); return; }
+    navOpener = document.activeElement; navOpenNow = true;
+    const n = $('nav'); n.classList.add('open'); n.inert = false; n.removeAttribute('aria-hidden'); n.setAttribute('role', 'dialog'); n.setAttribute('aria-modal', 'true');
+    $('navScrim').hidden = false; document.body.classList.add('nav-open'); $('navBtn').setAttribute('aria-expanded', 'true'); if ($('railOpen')) $('railOpen').setAttribute('aria-expanded', 'true');
+    const mn = document.querySelector('main'); if (mn) mn.inert = true; document.querySelector('header.top').inert = true; $('navRail').inert = true;
+    let f = null;
+    if (g != null && $('navGL' + g)) { navGOpen[g] = true; $('navGL' + g).hidden = false; $('navG' + g).setAttribute('aria-expanded', 'true'); f = $('navGL' + g).querySelector('a'); $('navG' + g).scrollIntoView({ block: 'nearest' }); }
+    f = f || n.querySelector('[aria-current="page"]') || n.querySelector('a');
+    const fo = () => { if (f && navOpenNow && !n.contains(document.activeElement)) f.focus(); }; setTimeout(fo, 20); setTimeout(fo, 240);
+  }
+  function navClose(silent) {
+    if (!navOpenNow) return; navOpenNow = false;
+    const n = $('nav'); n.classList.remove('open'); n.removeAttribute('role'); n.removeAttribute('aria-modal');
+    $('navScrim').hidden = true; document.body.classList.remove('nav-open'); $('navBtn').setAttribute('aria-expanded', 'false'); if ($('railOpen')) $('railOpen').setAttribute('aria-expanded', 'false');
+    const mn = document.querySelector('main'); if (mn && !document.querySelector('.ask-wrap')) mn.inert = false; document.querySelector('header.top').inert = false; $('navRail').inert = false;
+    navAuto();
+    if (!silent && navOpener && navOpener.isConnected) try { navOpener.focus(); } catch (e) {}
+  }
+  function navPinToggle(id) {
+    let p = navPins(); const it = NAV.find(n => n.id === id);
+    if (p.indexOf(id) >= 0) p = p.filter(x => x !== id); else { if (p.length >= 4) { toast('Закріпити можна до 4 розділів — спершу відкріпіть один.'); return; } p.push(id); }
+    store.set('pins_' + me.login, JSON.stringify(p));
+    const wasOpen = navOpenNow; navRender(); if (wasOpen) { navOpenNow = false; navOpen(); }
+    const b = $('nav').querySelector('.nav-g [data-pin="' + id + '"], .nav-flat [data-pin="' + id + '"], .nav-ul:not(.nav-pins) [data-pin="' + id + '"]'); if (b) b.focus();
+    toast(p.indexOf(id) >= 0 ? '«' + esc(it.t) + '» закріплено вгорі меню.' : '«' + esc(it.t) + '» відкріплено.');
+  }
+  /** Бейджі: лише «хтось чекає на мою дію», з даних, що головна вже має (дошка / панель дня). */
+  function navBadges() {
+    if (!isOffice()) return; const nb = {};
+    const T = board && board.trucks ? board.trucks : null;
+    if (T && LKA.indexOf(me.role) >= 0) {
+      const n = T.reduce((a, x) => a + x.problems.filter(p => p.k === 'drv' && p.urgent).length, 0); nb.probs = { n, bad: true, label: n + ' ' + plural(n, 'нова', 'нові', 'нових') };
+      const d = T.filter(x => x.problems.some(p => (p.k === 'doc' || p.k === 'tir') && /простроч/.test(p.t) && !p.old)).length; nb.docs = { n: d, bad: true, label: 'прострочено в ' + d + ' ' + plural(d, 'машини', 'машин', 'машин') };
+    }
+    if (panel && KA.indexOf(me.role) >= 0) {
+      const p = panel; if (p.problems && !p.problems.error) nb.probs = { n: p.problems.fresh, bad: true, label: p.problems.fresh + ' ' + plural(p.problems.fresh, 'нова', 'нові', 'нових') };
+      if (p.exp && !p.exp.error) nb.exp = { n: p.exp.fresh, label: p.exp.fresh + ' на перевірку' };
+      if (p.docs && !p.docs.error) nb.docs = { n: p.docs.over, bad: true, label: 'прострочено: ' + p.docs.over };
+      if (p.debts && !p.debts.error && me.role === 'керівник') nb.debts = { n: p.debts.clients, label: p.debts.clients + ' ' + plural(p.debts.clients, 'клієнт', 'клієнти', 'клієнтів') + ' з простроченням' };
+    }
+    if (JSON.stringify(nb) === JSON.stringify(navBadge)) return; navBadge = nb; if (!navOpenNow) navRender();
+  }
+  const plural = (n, a, b, c) => { const m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 10 || h >= 20) ? b : c; };
+  $('nav').addEventListener('click', e => {
+    const pb = e.target.closest('[data-pin]'); if (pb) { e.preventDefault(); navPinToggle(pb.dataset.pin); return; }
+    const gb = e.target.closest('button.nav-gb'); if (gb) { const gi = +gb.closest('.nav-g').dataset.g, ul = $('navGL' + gi), open = ul.hidden; ul.hidden = !open; gb.setAttribute('aria-expanded', String(open)); navGOpen[gi] = open; return; }
+    if (e.target.closest('#navX')) { navClose(); return; }
+    if (e.target.closest('#navMiniB')) { store.set('navMini', '1'); navAuto(); const r = $('railOpen'); if (r) r.focus(); return; }
+    const a = e.target.closest('a[data-nav]'); if (a && !(e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1)) { e.preventDefault(); navGo(a.dataset.nav); }
+  });
+  $('navRail').addEventListener('click', e => {
+    if (e.target.closest('#railOpen')) { if (window.innerWidth >= 1280) { store.set('navMini', '0'); document.body.classList.remove('nav-mini'); navAuto(); if (!navDocked()) navOpen(); else { const a = $('nav').querySelector('a'); if (a) a.focus(); } } else navOpen(); return; }
+    const g = e.target.closest('[data-railg]'); if (g) { navOpen(+g.dataset.railg); return; }
+    const a = e.target.closest('a[data-nav]'); if (a && !(e.ctrlKey || e.metaKey || e.shiftKey)) { e.preventDefault(); navGo(a.dataset.nav); }
+  });
+  $('navBtn').onclick = () => navOpenNow ? navClose() : navOpen();
+  $('navScrim').onclick = () => navClose();
+  $('brand').addEventListener('click', e => { e.preventDefault(); if (me && !(e.ctrlKey || e.metaKey)) { if (isOffice()) navGo('home'); else renderHome(); } });
+  $('nav').addEventListener('keydown', e => {
+    if (!navOpenNow || e.key !== 'Tab') return;
+    const fs = [...$('nav').querySelectorAll('a[href], button')].filter(x => x.offsetParent !== null && !x.closest('[hidden]')); if (!fs.length) return;
+    const a = fs[0], z = fs[fs.length - 1];
+    if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); } else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
+  });
+  // #адреса (Ctrl+клік по пункту меню → нова вкладка): після входу відкрити той розділ
+  const hashId = () => { const h = decodeURIComponent((location.hash || '').slice(1)); if (!h) return ''; if (h.indexOf('sheet/') === 0) return 'sheet:' + h.slice(6); return NAV.some(n => n.id === h) ? h : ''; };
+  let navHashPending = hashId();
+  const clearHash = () => { try { if (location.hash) history.replaceState(history.state, '', location.pathname + location.search); } catch (e) {} };
+  window.addEventListener('hashchange', () => { const id = hashId(); if (!id || !isOffice()) return; clearHash(); navGo(id); });
+  window.addEventListener('resize', () => { if (isOffice()) { navAuto(); if (hHome && !$('home').hidden && hRole() && hPhoneWas !== hPhone()) logDraw(); } });
+
+  /* ── Ім'я ▾: розмір тексту й тема, сповіщення, вийти ── */
+  function closeUser(focus) { const p = $('userPop'); if (p.hidden) return; p.hidden = true; $('userBtn').setAttribute('aria-expanded', 'false'); if (focus) $('userBtn').focus(); }
+  $('userBtn').onclick = () => { const p = $('userPop'), open = p.hidden; p.hidden = !open; $('userBtn').setAttribute('aria-expanded', String(open)); if (open) { const f = p.querySelector('button'); if (f) f.focus(); } };
+  $('userPop').addEventListener('click', e => { const b = e.target.closest('[data-um]'); if (!b) return; const a = b.dataset.um; closeUser();
+    if (a === 'viewas') return viewAsOpen();
+    if (a === 'view') $('fontBtn').onclick(); else if (a === 'push') openPush(); else if (a === 'logout') askLogout(); else if (a === 'logoutAll') $('logoutAll').onclick(); else if (a === 'tour') { store.del('tour1_' + me.role); tour(); } });
+  $('userPop').addEventListener('keydown', e => { const bs = [...$('userPop').querySelectorAll('button')].filter(b => !b.hidden), i = bs.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); bs[(i + (e.key === 'ArrowDown' ? 1 : -1) + bs.length) % bs.length].focus(); } });
+  document.addEventListener('click', e => { if (!$('umenu').contains(e.target)) closeUser(); if (!$('gs').contains(e.target) && e.target !== $('gsBtn') && !$('gsBtn').contains(e.target)) gsHide(); });
+  function userRender() {
+    if (!isOffice()) { $('umenu').hidden = true; return; }
+    $('umenu').hidden = false; $('uName').textContent = me.name; $('uAva').textContent = String(me.name || '?').trim().charAt(0).toUpperCase(); $('uPopName').textContent = me.name; $('uPopRole').textContent = me.role;
+    $('umPush').hidden = KA.concat(['логіст']).indexOf(me.role) < 0 || !!me.viewAs;
+    $('umViewAs').hidden = me.role !== 'адмін' || !!me.viewAs;
+    $('gs').hidden = false; $('gsBtn').hidden = false;
+  }
+
+  /* ── Пошук у шапці: лише по даних дошки на пристрої + назви розділів; «Шукати в усіх рейсах…» — аркуш «Рейси» з пошуком ── */
+  let gsRes = [], gsAct = -1;
+  const gsNorm = s => String(s || '').toLowerCase().replace(/[\s\-]+/g, '');
+  function gsFind(q) {
+    const out = [], nq = gsNorm(q), lq = q.trim().toLowerCase(); if (!lq) return out;
+    const has = s => s && (String(s).toLowerCase().indexOf(lq) >= 0 || (nq.length >= 3 && gsNorm(s).indexOf(nq) >= 0));
+    if (!board && isOffice()) { try { const c = JSON.parse(store.get('boardCache') || 'null'); if (c && c.login === me.login) board = c.b; } catch (e) {} }
+    const T = board && board.trucks ? board.trucks : [], seenT = {}, seenD = {}, seenC = {};
+    T.forEach(x => { if (has(x.id) || has(x.plate) || has(x.trailer)) { seenT[x.id] = 1; out.push({ g: 'Машини', t: x.id + (x.plate ? ' · ' + x.plate : ''), s: [x.drivers.map(d => d.name).join(', '), x.trip ? tripTextP(x.trip) : 'вільна'].filter(Boolean).join(' · '), run: () => boardTruck(x.id) }); } });
+    T.forEach(x => [x.trip, x.next, x.last].filter(Boolean).forEach(t => { if (t.order || seenT['r' + t.id]) return; if (has(t.id) || has(t.from) || has(t.to)) { seenT['r' + t.id] = 1; out.push({ g: 'Рейси', t: t.id + ' · ' + tripTextP(t), s: x.id + (t.load ? ' · завантаження ' + dd(t.load) : ''), run: () => openTrip(t.id, 'board') }); } }));
+    T.forEach(x => x.drivers.forEach(d => { if (has(d.name) && !seenD[d.name]) { seenD[d.name] = 1; out.push({ g: 'Водії', t: d.name, s: 'машина ' + x.id, run: () => { bFilter = 'all'; store.set('bFilter', 'all'); $('bSearch').value = d.name; openBoard(); } }); } }));
+    T.forEach(x => [x.trip, x.next, x.last].filter(Boolean).forEach(t => { if (t.client && has(t.client) && !seenC[t.client]) { seenC[t.client] = 1; out.push({ g: 'Клієнти', t: t.client, s: 'рейси клієнта', run: () => openSheetQ('Рейси', t.client) }); } }));
+    ((board && board.waiting) || []).forEach(z => { if (has(z.id) || has(z.from) || has(z.to) || has(z.client)) out.push({ g: 'Заявки без машини', t: tripTextP(z) + (z.load ? ' · ' + dd(z.load) : ''), s: [z.id, z.client, z.status || 'нова'].filter(Boolean).join(' · '), run: () => canTrip() ? orderToTrip(z.id) : openSheetQ('Заявки', z.id) }); });   // v48
+    navItems().forEach(n => { if (has(n.t)) out.push({ g: 'Розділи', t: n.t, s: n.sheet ? 'таблиця' : '', run: () => navGo(n.id) }); });
+    const lim = {}; const res = out.filter(r => (lim[r.g] = (lim[r.g] || 0) + 1) <= 5);
+    if (sheets.some(s => s.name === 'Рейси')) res.push({ g: '', t: 'Шукати «' + q.trim() + '» в усіх рейсах…', s: '', all: true, run: () => openSheetQ('Рейси', q.trim()) });
+    return res;
+  }
+  const tripTextP = t => (t.from || '?') + ' → ' + (t.to || '?');
+  async function openSheetQ(sheet, q) { const it = NAV.find(n => n.sheet === sheet); await openSheet({ title: it ? it.t : sheet, sheet }); if (current && current.sheet === sheet) { $('search').value = q; renderTable(); } }
+  function gsDraw() {
+    const q = $('gsIn').value, L = $('gsList');
+    gsRes = gsFind(q); gsAct = gsRes.length ? 0 : -1;
+    if (!q.trim()) { L.hidden = true; $('gsIn').setAttribute('aria-expanded', 'false'); $('gsIn').removeAttribute('aria-activedescendant'); $('gsLive').textContent = ''; return; }
+    let g = null, h = '';
+    gsRes.forEach((r, i) => { if (r.g !== g && r.g) h += '<div class="gs-g" role="presentation">' + esc(r.g) + (r.g === 'Машини' ? ' <span>серед поточних машин і рейсів</span>' : '') + '</div>'; g = r.g;
+      h += '<div class="gs-o' + (r.all ? ' all' : '') + '" role="option" id="gso' + i + '" data-gs="' + i + '" aria-selected="' + (i === gsAct) + '"><b>' + esc(r.t) + '</b>' + (r.s ? '<small>' + esc(r.s) + '</small>' : '') + '</div>'; });
+    const n = gsRes.filter(r => !r.all).length;
+    L.innerHTML = (n ? '' : '<div class="gs-empty">Серед поточних машин і розділів нічого — шукайте в усіх рейсах.</div>') + h; L.hidden = false; $('gsIn').setAttribute('aria-expanded', 'true');
+    if (gsAct >= 0) $('gsIn').setAttribute('aria-activedescendant', 'gso' + gsAct);
+    $('gsLive').textContent = n ? 'Знайдено: ' + n : 'Нічого не знайдено';
+  }
+  function gsMove(d) { if (!gsRes.length) return; gsAct = (gsAct + d + gsRes.length) % gsRes.length; $('gsList').querySelectorAll('[role="option"]').forEach((o, i) => o.setAttribute('aria-selected', String(i === gsAct))); const o = $('gso' + gsAct); if (o) { o.scrollIntoView({ block: 'nearest' }); $('gsIn').setAttribute('aria-activedescendant', o.id); } }
+  function gsPick(i) { const r = gsRes[i]; if (!r) return; gsHide(true); $('gsIn').value = ''; navClose(); r.run(); }
+  function gsHide(keep) { $('gsList').hidden = true; $('gsIn').setAttribute('aria-expanded', 'false'); if (!keep && document.body.classList.contains('gs-open') && !$('gs').contains(document.activeElement)) document.body.classList.remove('gs-open'); }
+  function gsOpen() { if (!isOffice()) return; document.body.classList.add('gs-open'); $('gsIn').focus(); if ($('gsIn').value) gsDraw(); }
+  $('gsIn').addEventListener('input', gsDraw);
+  $('gsIn').addEventListener('focus', () => { if ($('gsIn').value.trim()) gsDraw(); });
+  $('gsIn').addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); if ($('gsList').hidden) gsDraw(); else gsMove(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); gsMove(-1); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (gsAct >= 0) gsPick(gsAct); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (!$('gsList').hidden && $('gsIn').value) { $('gsIn').value = ''; gsHide(true); } else { gsHide(true); document.body.classList.remove('gs-open'); $('gsIn').blur(); if (window.innerWidth < 768) $('gsBtn').focus(); } }
+  });
+  $('gsList').addEventListener('mousedown', e => e.preventDefault());
+  $('gsList').addEventListener('click', e => { const o = e.target.closest('[data-gs]'); if (o) gsPick(+o.dataset.gs); });
+  $('gsBtn').onclick = gsOpen;
+  $('gsClose').onclick = () => { $('gsIn').value = ''; gsHide(true); document.body.classList.remove('gs-open'); $('gsBtn').focus(); };
+  document.addEventListener('keydown', e => {
+    if (!isOffice() || document.querySelector('.ask-wrap')) return;
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
+    if ((e.key === 'k' || e.key === 'K' || e.key === 'л' || e.key === 'Л') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); gsOpen(); return; }
+    if (e.key === '/' && !typing) { e.preventDefault(); gsOpen(); return; }
+    if (e.key === 'Escape') {   // Esc: діалог (свій обробник) → бокова панель рейсу (свій) → меню ім'я / шухляда
+      if (!$('userPop').hidden) { e.preventDefault(); closeUser(true); return; }
+      if (navOpenNow) { e.preventDefault(); navClose(); }
+    }
+  });
+  /** Машина з віджета чи пошуку: дошка + бокова панель (широкий екран) або пошук на дошці (телефон). */
+  function boardTruck(id) {
+    bFilter = 'all'; store.set('bFilter', 'all'); $('bSearch').value = bWide() ? '' : id; openBoard();
+    const x = board && board.trucks.find(y => y.id === id); if (x && bWide()) bPanelOpen(x, null);
+  }
+
+  /* ── Головна з віджетами (ідея власниці №9). v47 — логіст; v48 — після оцінки трьох логістів, і ті самі віджети під «Панеллю дня» керівника й адміна.
+     Дошка (кеш на пристрої, оновлення кожні 5 хв, поки вкладка видима) + одна дія home.logist (кеш сервера 10 хв); кожен віджет малюється, щойно є його дані ── */
+  let logRmpd = new Set(), logDups = null, homeL = null, homeLErr = '', hKind = store.get('hKind') || 'all', hOpen = {}, hHome = false, hPhoneWas = null, boardAt = 0, homeLAt = 0;
   BF.rmpd = ['RMPD не перевірено', x => logRmpd.has(x.id)];
-  const openBoardF = k => { bFilter = k; store.set('bFilter', k); openBoard(); };
-  async function logLoad() {
-    const nav = navSeq;
-    if (!board) { try { const c = JSON.parse(store.get('boardCache') || 'null'); if (c && c.login === me.login) board = c.b; } catch (e) {} }
-    logDraw(!board);
-    try {
-      const [b, dp] = await Promise.all([api('board'), api('dups').catch(() => null)]);
-      board = b; try { store.set('boardCache', JSON.stringify({ login: me.login, b })); } catch (e) {}
-      if (dp && dp.list) { dups = dp.list; dupsAt = Date.now(); logDups = dups.length; }
-      // RMPD перед кордоном: міжнародні рейси в дорозі, кордон ще попереду, RMPD не перевірено
-      const after = ['кордон пройдено', 'розмитнення', 'на розвантаженні', 'розвантажено'];
-      const cand = b.trucks.filter(x => x.status === 'trip' && x.trip && !x.trip.order && !(x.trip.st && after.indexOf(x.trip.st.event) >= 0) && !/україн/i.test(x.trip.cross || '') && !/україн/i.test(x.trip.type || ''));
-      logRmpd = new Set(cand.filter(x => x.trip.rmpd && x.trip.rmpd !== 'ok').map(x => x.id));   // стан RMPD приходить разом із дошкою
-      if (nav === navSeq) logDraw(false);
-    } catch (e) { if (nav === navSeq && !board) $('homeWork').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
+  const STEP_AGE = x => { const t = x.trip; if (!t) return 0; const at = t.st && t.st.at ? new Date(t.st.at).getTime() : (t.load ? new Date(t.load + 'T08:00:00').getTime() : 0); return at ? Math.max(0, (Date.now() - at) / 36e5) : 0; };
+  BF.stale = ['Немає відмітки водія > 12 год', x => x.status === 'trip' && !!x.trip && !x.trip.order && STEP_AGE(x) > 12];
+  const openBoardF = k => { bFilter = k; store.set('bFilter', k); $('bSearch').value = ''; openBoard(); };
+  const hPhone = () => window.innerWidth < 768;
+  const hRole = () => !!me && (me.role === 'логіст' || KA.indexOf(me.role) >= 0);
+  const hKindC = (type, cross) => /україн|контейнер/i.test(type || '') || /україн|контейнер|переїзд|ставка/i.test(cross || '') ? 'd' : 'i';
+  const tHas = t => !!(t && (t.type || t.cross));
+  const tKind = x => { const t = [x.trip, x.next, x.last].find(tHas); if (t) return hKindC(t.type, t.cross); const r = homeL && homeL.cal && homeL.cal.rows.find(y => y.id === x.id); return r ? r.kind : 'i'; };
+  const kWant = () => hKind === 'intl' ? 'i' : 'd';
+  const kOk = x => hKind === 'all' || tKind(x) === kWant();
+  // «Потребує дії»: фільтр лише там, де тип рейсу відомий; машину без жодного рейсу з типом — не ховаємо
+  const kAct = x => hKind === 'all' || ![x.trip, x.next, x.last].some(tHas) || kOk(x);
+  const kOrd = z => hKind === 'all' || !tHas(z) || hKindC(z.type, z.cross) === kWant();
+  const hNum = v => v == null ? '—' : Number(v).toLocaleString('uk-UA', { maximumFractionDigits: 1 });
+  const pad2 = n => String(n).padStart(2, '0');
+  const isoDay = d => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  const DOWS = ['нд', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+  const rmpdCalc = b => { const after = ['кордон пройдено', 'розмитнення', 'на розвантаженні', 'розвантажено'];
+    const cand = b.trucks.filter(x => x.status === 'trip' && x.trip && !x.trip.order && !(x.trip.st && after.indexOf(x.trip.st.event) >= 0) && !/україн/i.test(x.trip.cross || '') && !/україн/i.test(x.trip.type || ''));
+    logRmpd = new Set(cand.filter(x => x.trip.rmpd && x.trip.rmpd !== 'ok').map(x => x.id)); };
+  const hLive = (nav, login) => () => nav === navSeq && !$('home').hidden && me && me.login === login && hRole();
+  function hBoardFetch(force, live) {
+    const login = me.login;
+    return api('board', force ? { force: true } : {}).then(b => { board = b; boardAt = Date.now(); try { store.set('boardCache', JSON.stringify({ login, b, at: boardAt })); } catch (e) {} rmpdCalc(b); navBadges(); if (live()) logDraw(); })
+      .catch(e => { if (live() && !board) { homeLErr = homeLErr || e.message; logDraw(); } else if (live() && force) toast(esc(e.message), 'err'); });
   }
-  function logDraw(loading) {
-    if (loading) { $('homeWork').innerHTML = '<div class="pnl lpnl"><section class="card pcard pwide"><h2>Сьогодні</h2><p class="muted">Збираю дошку…</p></section></div>'; return; }
-    const T = board.trucks, n = f => T.filter(f).length;
+  function hHomeFetch(force, live) {
+    const login = me.login;
+    return api('home.logist', force ? { force: true } : {}).then(h => { homeL = h; homeLErr = ''; homeLAt = Date.now(); try { store.set('homeL_' + login, JSON.stringify(h)); } catch (e) {} if (live()) logDraw(); })
+      .catch(e => { homeLErr = e.message; if (live()) logDraw(); });
+  }
+  async function logLoad(force) {
+    const nav = navSeq, login = me.login; hHome = true;
+    if (!board) { try { const c = JSON.parse(store.get('boardCache') || 'null'); if (c && c.login === login) { board = c.b; boardAt = c.at || 0; } } catch (e) {} }
+    if (board) rmpdCalc(board);
+    if (!homeL) { try { const c = JSON.parse(store.get('homeL_' + login) || 'null'); if (c) homeL = c; } catch (e) {} }
+    logDraw();
+    const live = hLive(nav, login);
+    const pB = hBoardFetch(force, live);
+    if (me.role === 'логіст') api('dups').then(dp => { if (dp && dp.list) { dups = dp.list; dupsAt = Date.now(); logDups = dups.length; if (live()) logDraw(); } }).catch(() => {});
+    hHomeFetch(force, live);
+    return pB;
+  }
+  // «Оновлено N хв тому» і автооновлення дошки раз на 5 хв, поки головна відкрита й вкладка видима (home.logist — раз на 10 хв, з кешу сервера)
+  const hAgo = () => { if (!boardAt) return 'дошка зі збереженої копії'; const m = Math.floor((Date.now() - boardAt) / 60000); return 'оновлено ' + (m < 1 ? 'щойно' : m + ' хв тому'); };
+  function hTick() {
+    if (!hHome || !hRole() || $('home').hidden || document.hidden || !$('hAgo')) return;
+    $('hAgo').textContent = hAgo();
+    const live = hLive(navSeq, me.login);
+    if (Date.now() - boardAt >= 5 * 60000) hBoardFetch(false, live);
+    if (Date.now() - homeLAt >= 10 * 60000) hHomeFetch(false, live);
+  }
+  setInterval(hTick, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(hTick, 300); });
+
+  const hSk = n => '<div class="hsk" aria-hidden="true">' + '<i></i>'.repeat(n || 3) + '</div><p class="sr">Завантаження…</p>';
+  /** Оболонка віджета. На телефоні другорядні — згорнуті (кнопка-заголовок з підсумком). */
+  function hw(key, title, body, o) {
+    o = o || {}; const col = o.col && hPhone(), open = !col || !!hOpen[key];
+    return '<section class="hw ' + (o.cls || '') + '" id="hw-' + key + '" aria-labelledby="hwt-' + key + '">' +
+      '<div class="hw-h"><h2 id="hwt-' + key + '">' + (col ? '<button type="button" class="hw-tg" data-htg="' + key + '" aria-expanded="' + open + '" aria-controls="hwb-' + key + '"><span>' + esc(title) + '</span>' + (o.sum ? '<small>' + o.sum + '</small>' : '') + '<svg class="nav-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>' : esc(title)) + '</h2>' +
+      (o.meta && !col ? '<span class="hw-meta">' + o.meta + '</span>' : '') + (o.act && !col ? o.act : '') + '</div>' +
+      '<div class="hw-b" id="hwb-' + key + '"' + (open ? '' : ' hidden') + '>' + body + '</div></section>';
+  }
+  /** Міні-графік: 8 повних тижнів + (необов'язково) поточний неповний — порожнистою точкою. Значення — при наведенні на точку (title),
+   *  при фокусі графіка — підписи першого, найбільшого й останнього; повний ряд — у aria-label для читача екрана. */
+  function spark(vals, label, unit, weeks, partial) {
+    const v = vals.map(x => x == null ? null : +x), ok = v.filter(x => x != null); if (ok.length < 2) return '';
+    const W = 156, H = 46, P = 5, T = 12, mx = Math.max.apply(null, ok), mn = Math.min(0, Math.min.apply(null, ok)), rg = mx - mn || 1;
+    const X = i => P + i * (W - 2 * P) / (v.length - 1), Y = x => H - P - (x - mn) / rg * (H - P - T);
+    const pts = v.map((x, i) => x == null ? null : { i, x, px: X(i), py: Y(x) }).filter(Boolean), full = partial ? pts.slice(0, -1) : pts;
+    const f1 = n => n.toFixed(1), wl = i => weeks && weeks[i] ? 'тиждень з ' + dd(weeks[i]) + (partial && i === v.length - 1 ? ' (поки)' : '') : '';
+    const line = full.map((p, k) => (k ? 'L' : 'M') + f1(p.px) + ' ' + f1(p.py)).join(' '), last = pts[pts.length - 1], pre = full[full.length - 1];
+    const area = line + ' L' + f1(pre.px) + ' ' + (H - P) + ' L' + f1(full[0].px) + ' ' + (H - P) + ' Z';
+    const iMax = full.reduce((m, p) => p.x > m.x ? p : m, full[0]);
+    const lab = (p, cls) => '<text class="sp-v ' + (cls || '') + '" x="' + f1(Math.min(W - 2, Math.max(2, p.px))) + '" y="' + f1(Math.max(9, p.py - 5)) + '" text-anchor="' + (p.px < 20 ? 'start' : p.px > W - 20 ? 'end' : 'middle') + '">' + esc(hNum(p.x)) + '</text>';
+    const txt = label + ' за тижнями: ' + pts.map(p => (wl(p.i) || '') + ' — ' + hNum(p.x) + (unit || '')).join('; ');
+    return '<svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" tabindex="0" role="img" aria-label="' + esc(txt) + '"><path class="sp-a" d="' + area + '"/><path class="sp-l" d="' + line + '"/>' +
+      (partial ? '<path class="sp-d" d="M' + f1(pre.px) + ' ' + f1(pre.py) + ' L' + f1(last.px) + ' ' + f1(last.py) + '"/>' : '') +
+      pts.map(p => '<g class="sp-pt"><circle class="sp-hit" cx="' + f1(p.px) + '" cy="' + f1(p.py) + '" r="7"/><circle class="' + (partial && p === last ? 'sp-now' : 'sp-p') + '" cx="' + f1(p.px) + '" cy="' + f1(p.py) + '" r="' + (p === pre || p === last ? 3 : 2) + '"/><title>' + esc((wl(p.i) ? wl(p.i) + ': ' : '') + hNum(p.x) + (unit || '')) + '</title>' + lab(p, 'pt') + '</g>').join('') +
+      '<g class="sp-fl">' + [full[0], iMax, pre].filter((p, k, a) => a.indexOf(p) === k).map(p => lab(p)).join('') + '</g></svg>';
+  }
+  const hDelta = (a, b, unit, pp, what) => { if (a == null || b == null) return ''; const d = Math.round((a - b) * 10) / 10;
+    return '<span class="wm-d">' + (d === 0 ? '= як ' + (what || 'минулого') : (d > 0 ? '↑ ' : '↓ ') + hNum(Math.abs(d)) + (pp ? ' п.п.' : unit || '') + ' <span>до ' + (what || 'минулого') + '</span>') + '</span>'; };
+
+  // 1. Потребує дії (логіст): на телефоні — компактні чипи «число + 2–3 слова», видно щонайменше три
+  function hwAct() {
+    if (!board) return hw('act', 'Потребує дії', hSk(3), { cls: 'hw-act lpnl s12' });
+    const T = board.trucks.filter(kAct), ids = l => l.slice(0, 5).map(x => x.id).join(', ') + (l.length > 5 ? ' і ще ' + (l.length - 5) : '');
     const drvN = T.reduce((a, x) => a + x.problems.filter(p => p.k === 'drv' && p.urgent).length, 0), drvW = T.reduce((a, x) => a + x.problems.filter(p => p.k === 'drv' && !p.urgent).length, 0);
-    const row = (v, lvl, label, sub, act) => '<button class="prow' + (v ? ' p-' + lvl : '') + '" data-lact="' + act + '"><span class="pn">' + (v == null ? '…' : v) + '</span><span><b>' + esc(label) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></button>';
-    const urgT = T.filter(bUrg), nounl = T.filter(bNoUnl), addr = T.filter(x => x.problems.some(p => p.k === 'addr'));
-    const ids = l => l.slice(0, 6).map(x => x.id).join(', ') + (l.length > 6 ? '…' : '');
-    $('homeWork').innerHTML = '<div class="pnl lpnl"><section class="card pcard pwide"><h2>Сьогодні</h2><div class="prows">' +
-      row(drvN + drvW, drvN ? 'bad' : 'warn', 'Проблеми водіїв', drvN + drvW ? drvN + ' ' + (drvN % 10 === 1 && drvN % 100 !== 11 ? 'нова' : drvN % 10 >= 2 && drvN % 10 <= 4 && (drvN % 100 < 10 || drvN % 100 >= 20) ? 'нові' : 'нових') + ' · ' + drvW + ' в роботі' + (drvN ? ' — відповісти в рядку дошки' : '') : '', 'drv') +   // «в роботі» не зникає з головної (логісти 23.11)
-      row(urgT.length, 'bad', 'Термінове на дошці', ids(urgT), 'urg') +
-      row(logRmpd.size, 'warn', 'RMPD перед кордоном не перевірено', [...logRmpd].slice(0, 6).join(', '), 'rmpd') +
-      row(addr.length, 'warn', 'Рейси без адрес для водія', ids(addr), 'addr') +
-      row(nounl.length, 'warn', 'Без дати розвантаження', ids(nounl), 'nounl') +
-      row(logDups, 'warn', 'Можливі дублі рейсів', '', 'dups') +
-      '</div><p class="muted small">Машин: ' + T.length + ' · у рейсі ' + n(x => x.status === 'trip') + ' · простій > 3 дн ' + n(bIdle) + ' · <button class="link" data-lact="all">Дошка машин →</button></p></section></div>';
-    $('homeWork').onclick = e => { const b = e.target.closest('[data-lact]'); if (!b) return; const a = b.dataset.lact;
-      if (a === 'dups') { if (dups && dups.length) dupsOpen(); else openBoardF('all'); } else openBoardF(a); };
+    const urgT = T.filter(bUrg), nounl = T.filter(bNoUnl), addr = T.filter(x => x.problems.some(p => p.k === 'addr')), stale = T.filter(BF.stale[1]), rm = [...logRmpd].filter(id => T.some(x => x.id === id));
+    const chip = (n, lvl, label, short, sub, act) => n ? '<button type="button" class="prow hchip p-' + lvl + '" data-lact="' + act + '" title="' + esc(label + (sub ? ' — ' + sub : '')) + '"><span class="pn">' + n + '</span><span class="hc-tx"><b class="hc-l">' + esc(label) + '</b><b class="hc-s" aria-hidden="true">' + esc(short) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></button>' : '';
+    const chips = [
+      chip(drvN + drvW, drvN ? 'bad' : 'mute', 'Проблеми водіїв', drvN ? 'Проблеми' : 'В роботі', drvN + ' ' + plural(drvN, 'нова', 'нові', 'нових') + ' · ' + drvW + ' в роботі', 'drv'),
+      chip(urgT.length, 'bad', 'Термінове на дошці', 'Термінове', ids(urgT), 'urg'),
+      chip(rm.length, 'warn', 'RMPD перед кордоном не перевірено', 'RMPD', rm.slice(0, 5).join(', '), 'rmpd'),
+      chip(stale.length, 'warn', 'Давно немає відмітки водія', 'Без відмітки', 'понад 12 год у рейсі: ' + ids(stale), 'stale'),
+      chip(addr.length, 'warn', 'Рейси без адрес для водія', 'Без адрес', ids(addr), 'addr'),
+      chip(nounl.length, 'warn', 'Без дати розвантаження', 'Без дати розв.', 'через це «Звільняються» і простій неточні', 'nounl'),
+      chip(logDups, 'warn', 'Можливі дублі рейсів', 'Дублі', 'та сама машина, дата і «Звідки»', 'dups')].join('');
+    return hw('act', 'Потребує дії', chips ? '<div class="hchips">' + chips + '</div>' : '<p class="hcalm">' + svgI(ST_ICO.ok) + ' Термінового немає</p>', { cls: 'hw-act lpnl s12' });
   }
+  // 2. Звільняються за 72 год + прогрес дня. На < 1440 — на всю ширину
+  function hwFree() {
+    if (!board) return hw('free', 'Звільняються за 72 год', hSk(3), { cls: 's7 w14 o2' });
+    const today = new Date(new Date().toDateString()), di = s => s ? Math.round((new Date(s + 'T00:00:00') - today) / 864e5) : null, todayS = isoDay(today);
+    const T = board.trucks.filter(kOk), cols = [[], [], []];
+    T.forEach(x => { if (x.status !== 'trip' || !x.trip || x.trip.order) return; let d = di(x.trip.unload); if (x.trip.st && x.trip.st.event === 'розвантажено') d = 0; if (d == null || d > 2) return; cols[Math.max(0, d)].push(x); });
+    const nUnl = T.filter(bNoUnl).length, n = cols[0].length + cols[1].length + cols[2].length;
+    // прогрес дня: розвантажено сьогодні з запланованих на сьогодні
+    const plan = T.filter(x => (x.trip && !x.trip.order && x.trip.unload === todayS) || (x.status !== 'trip' && x.last && x.last.unload === todayS));
+    const done = plan.filter(x => x.status !== 'trip' || (x.trip.st && x.trip.st.event === 'розвантажено'));
+    const prog = plan.length ? '<div class="dprog"><div class="dprog-t">Сьогодні розвантажено <b class="tnum">' + done.length + ' з ' + plan.length + '</b> ' + plural(plan.length, 'запланованого', 'запланованих', 'запланованих') + '</div><div class="pprog" role="progressbar" aria-label="Розвантажено сьогодні" aria-valuemin="0" aria-valuemax="' + plan.length + '" aria-valuenow="' + done.length + '"><span style="width:' + Math.round(done.length / plan.length * 100) + '%"></span></div></div>'
+      : '<div class="dprog"><div class="dprog-t muted">Сьогодні розвантажень за датами немає</div></div>';
+    const item = (x, d) => { const nx = x.next, alarm = !nx && d <= 1, dr = x.drive;
+      const can = dr && dr.canNow ? 'водій може їхати зараз' : dr && dr.canAt && dr.canAt > Date.now() ? 'може їхати з ' + tkTime(new Date(dr.canAt).toISOString()) : '';
+      const nxT = nx ? 'Далі: ' + dd(nx.load) + ' ' + (nx.from || '?') + ' → ' + (nx.to || '?') + (nx.order ? ' (заявка)' : '') : 'Немає наступного рейсу чи заявки' + (alarm ? ' — звільняється до 48 год' : '');
+      return '<li><button type="button" class="fr-it' + (alarm ? ' bad' : !nx ? ' warn' : '') + '" data-htruck="' + esc(x.id) + '" title="' + esc(x.id + ' → ' + (x.trip.to || '?') + ' · ' + nxT) + '"><span class="fr-1"><span class="plate ua">' + esc(x.id) + '</span><span class="fr-to">' + esc(x.trip.to || '?') + '</span></span>' +
+        (can ? '<small>' + esc(can) + '</small>' : '') + '<small class="fr-nx">' + (nx ? svgI(ST_ICO.ok) + '<span>далі ' + dd(nx.load) + ' ' + esc(nx.from || '?') + '</span>' : svgI(PROB.drv) + '<span>немає далі</span><span class="sr"> — ' + esc(nxT) + '</span>') + '</small></button></li>'; };
+    const lab = ['Сьогодні', 'Завтра', 'Післязавтра'];
+    const W = (board.waiting || []).filter(kOrd), Q = board.queue || [];
+    const body = prog + '<div class="fr-cols">' + cols.map((l, i) => { const d = new Date(today); d.setDate(d.getDate() + i);
+      return '<div class="fr-col' + (l.length ? '' : ' empty') + '"><div class="fr-h"><b>' + lab[i] + '</b><span>' + DOWS[d.getDay()] + ' ' + dd(isoDay(d)) + '</span><span class="fr-n tnum">' + l.length + '</span></div>' + (l.length ? '<ul class="fr-l">' + l.map(x => item(x, i)).join('') + '</ul>' : '<p class="fr-none">—</p>') + '</div>'; }).join('') + '</div>' +
+      '<div class="fr-foot"><button type="button" class="hcount" data-hgo="wait"><b class="tnum">' + W.length + '</b> ' + plural(W.length, 'заявка', 'заявки', 'заявок') + ' без машини</button>' +
+      '<button type="button" class="hcount" data-hgo="queue"><b class="tnum">' + Q.length + '</b> ' + plural(Q.length, 'причіп', 'причепи', 'причепів') + ' у черзі' + (Q.some(z => z.waitDays) ? ' <small>найдовше ' + Math.max.apply(null, Q.map(z => z.waitDays || 0)) + ' дн</small>' : '') + '</button></div>' +
+      (nUnl ? '<p class="hnote">' + svgI(PROB.trip) + '<span>Ще ' + nUnl + ' ' + plural(nUnl, 'машина', 'машини', 'машин') + ' в рейсі без дати розвантаження — тут їх не видно. <button type="button" class="link" data-lact="nounl">Поставити дати</button></span></p>' : '');
+    return hw('free', 'Звільняються за 72 год', body, { cls: 's7 w14 o2', meta: n ? n + ' ' + plural(n, 'машина', 'машини', 'машин') : 'нікого за датами' });
+  }
+  // 3. Конвеєр рейсів. Машина, що сьогодні (чи пізніше) завантажується без жодного кроку водія, — «Чекаємо крок», а не «в дорозі»
+  const CV = [['Чекаємо крок', []], ['На завантаженні', ['на завантаженні']], ['Завантажено', ['завантажено']], ['Митниця й кордон', ['замитнення', 'на кордоні', 'розмитнення']], ['В дорозі', ['кордон пройдено', '']], ['Розвантаження', ['на розвантаженні']], ['Вільні', ['розвантажено']]];
+  function hwConv() {
+    if (!board) return hw('conv', 'Конвеєр рейсів', hSk(2), { cls: 's12 o4', col: true });
+    const T = board.trucks.filter(kOk), st = CV.map(() => []), todayS = isoDay(new Date()), FREE = CV.length - 1;
+    T.forEach(x => { if (x.status === 'trip' && x.trip && !x.trip.order) { const ev = (x.trip.st && x.trip.st.event) || ''; let i = ev ? CV.findIndex(c => c[1].indexOf(ev) >= 0) : (x.trip.load && x.trip.load >= todayS ? 0 : 4); if (i < 0) i = 4; st[i].push(x); } else st[FREE].push(x); });
+    const moving = T.length - st[FREE].length;
+    const chip = (x, i) => { if (i === FREE) return '<button type="button" class="cv-c free" data-htruck="' + esc(x.id) + '" title="' + esc(x.id + ' · ' + (x.status === 'free' ? 'вільна з ' + dd(x.since) : 'немає рейсів')) + '">' + esc(x.id) + '</button>';
+      if (i === 0) return '<button type="button" class="cv-c nost" data-htruck="' + esc(x.id) + '" title="' + esc(x.id + ' · завантаження ' + dd(x.trip.load) + ' · ' + tripTextP(x.trip) + ' · чекаємо першого кроку водія') + '">' + esc(x.id) + '</button>';
+      const h = STEP_AGE(x), noSt = !(x.trip.st && x.trip.st.at), lvl = h > 24 ? 'bad' : h > 12 ? 'warn' : '';
+      const tip = x.id + ' · ' + tripTextP(x.trip) + ' · ' + (noSt ? 'водій ще нічого не відмічав' : cap(x.trip.st.event) + ' ' + Math.round(h) + ' год тому');
+      return '<button type="button" class="cv-c' + (lvl ? ' ' + lvl : '') + (noSt ? ' nost' : '') + '" data-htruck="' + esc(x.id) + '" title="' + esc(tip) + '" aria-label="' + esc(tip) + '">' + esc(x.id) + (lvl ? '<span class="sr"> (' + (lvl === 'bad' ? 'понад добу без відмітки' : 'понад 12 год без відмітки') + ')</span>' : '') + '</button>'; };
+    const lim = i => i === FREE ? 10 : 12;
+    const bar = '<div class="cv-bar" aria-hidden="true">' + st.map((l, i) => l.length ? '<span class="cv-s' + i + '" style="flex:' + l.length + '"></span>' : '').join('') + '</div>';
+    const body = bar + '<ol class="cv">' + st.map((l, i) => '<li class="cv-st' + (i === FREE ? ' cv-free' : '') + (l.length ? '' : ' zero') + '"><div class="cv-h"><span class="cv-n tnum">' + l.length + '</span><span class="cv-t">' + CV[i][0] + '</span></div><div class="cv-cs">' + l.slice(0, lim(i)).map(x => chip(x, i)).join('') + (l.length > lim(i) ? '<span class="cv-more">+' + (l.length - lim(i)) + '</span>' : '') + '</div></li>').join('') + '</ol>' +
+      '<p class="hleg"><span class="lg-c warn"></span>крок не оновлювався &gt; 12 год <span class="lg-c bad"></span>&gt; 24 год <span class="lg-c nost"></span>водій ще нічого не відмічав · натисніть машину — рейс збоку</p>';
+    return hw('conv', 'Конвеєр рейсів', body, { cls: 's12 o4', col: true, meta: 'у русі <b class="tnum">' + moving + '</b> з ' + T.length, sum: 'у русі ' + moving + ' з ' + T.length });
+  }
+  const hKey = () => hKind === 'intl' ? 'intl' : hKind === 'dom' ? 'dom' : 'all';
+  const frTxt = fr => { const k = Object.keys(fr || {}).sort((a, b) => fr[b] - fr[a]); return k.length ? k.map(c => hNum(Math.round(fr[c])) + ' ' + c).join(' + ') : 'фрахту немає'; };
+  // 4. Тиждень у цифрах. У понеділок і вівторок (поточний тиждень < 2 повних днів) головні числа — минулий повний тиждень
+  function hwWeek() {
+    const cls = (hKind === 'dom' || !hShowBorder() ? 's12' : 's7') + ' o3';
+    if (!homeL) return hw('week', 'Тиждень у цифрах', homeLErr ? '<p class="msg small">' + esc(homeLErr) + '</p>' : hSk(4), { cls });
+    const K = homeL.kinds[hKey()], W = K.weeks, wk = W.map(w => w.from), lastMode = homeL.dow <= 2;
+    const c = lastMode ? W[W.length - 2] : K.toDate.cur, p = lastMode ? W[W.length - 3] : K.toDate.prev, cmp = lastMode ? 'позаминулого' : 'минулого';
+    const ser = f => lastMode ? W.slice(0, -1).map(f) : W.map(f), wks = lastMode ? wk.slice(0, -1) : wk;
+    const m = (label, v, pv, series, unit, note, big) => '<div class="wm' + (big ? ' wm-big' : '') + '"><div class="wm-l">' + label + '</div><div class="wm-v tnum">' + v + '</div>' + (pv || '') + (series ? spark(series, label, unit, wks, !lastMode) : '') + (note ? '<div class="wm-n">' + note + '</div>' : '') + '</div>';
+    const frK = Object.keys(c.fr).concat(Object.keys(p.fr)).filter((x, i, a) => a.indexOf(x) === i).sort((a, b) => (c.fr[b] || 0) - (c.fr[a] || 0));
+    const frBody = frK.length ? frK.map(k => '<div class="wm-fr"><b class="tnum">' + hNum(Math.round(c.fr[k] || 0)) + '</b> ' + k + ' <small>було ' + hNum(Math.round(p.fr[k] || 0)) + '</small></div>').join('') : '<div class="wm-v tnum">—</div><div class="wm-n">фрахту немає</div>';
+    const cur = K.toDate.cur;
+    const sub = lastMode ? '<p class="wk-cur">Цей тиждень поки (' + (homeL.dow === 1 ? 'сьогодні' : 'пн–вт') + '): <b class="tnum">' + cur.unl + '</b> ' + plural(cur.unl, 'розвантаження', 'розвантаження', 'розвантажень') + ' · <b class="tnum">' + cur.load + '</b> ' + plural(cur.load, 'завантаження', 'завантаження', 'завантажень') + ' · <b class="tnum">' + hNum(cur.km) + '</b> км</p>' : '';
+    const body = sub + '<div class="wms">' +
+      m('Розвантажень', hNum(c.unl), hDelta(c.unl, p.unl, '', false, cmp), ser(w => w.unl), '', '', true) +
+      m('Завантажень', hNum(c.load), hDelta(c.load, p.load, '', false, cmp), ser(w => w.load)) +
+      m('Км', hNum(c.km), hDelta(c.km, p.km, ' км', false, cmp), ser(w => w.km), ' км', c.unl && c.kmTrips < c.unl ? 'км відомі для ' + c.kmTrips + ' з ' + c.unl : '') +
+      (lastMode ? m('Рейсів на машину', hNum(c.perTruck), hDelta(c.perTruck, p.perTruck, '', false, cmp), W.slice(0, -1).map(w => w.perTruck)) : '') +
+      '<div class="wm wm-frw"><div class="wm-l">Фрахт розвантажених <small>за валютами, без курсу</small></div>' + frBody + '</div></div>' +
+      (homeL.mine && me.role === 'логіст' ? '<p class="wk-mine">' + svgI(ST_ICO.ok) + '<span>Ви завели в програмі <b>' + homeL.mine.cur + '</b> ' + plural(homeL.mine.cur, 'рейс', 'рейси', 'рейсів') + ' цього тижня' + (homeL.mine.prev ? ' (минулого на цей день — ' + homeL.mine.prev + ')' : '') + '</span></p>' : '');
+    const lw = W[W.length - 2], sun = new Date(lw.from + 'T00:00:00'); sun.setDate(sun.getDate() + 6);
+    return hw('week', lastMode ? 'Минулий тиждень у цифрах' : 'Тиждень у цифрах', body, { cls, meta: lastMode ? dd(lw.from) + ' – ' + dd(isoDay(sun)) + ' · порівняння з позаминулим тижнем' : 'пн ' + dd(homeL.weekStart) + ' – сьогодні · порівняння з тими ж днями минулого тижня' });
+  }
+  // 5. Завантаженість парку
+  function hwUtil() {
+    if (!homeL) return hw('util', 'Завантаженість парку', homeLErr ? '<p class="msg small">' + esc(homeLErr) + '</p>' : hSk(3), { cls: 's5 w14 o5', col: true });
+    const K = homeL.kinds[hKey()], c = K.toDate.cur, p = K.toDate.prev, W = K.weeks;
+    const seg = (n, cls, l) => n ? '<span class="ut-' + cls + '" style="flex:' + n + '" title="' + esc(l + ': ' + n) + '"></span>' : '';
+    const T = board ? board.trucks.filter(kOk) : [], fr = T.filter(x => x.status === 'free'), real = fr.filter(x => daysFrom(x.since) <= 14), chk = hCheckList(T);
+    const md = real.reduce((a, x) => a + Math.max(0, daysFrom(x.since)), 0);
+    const body = '<div class="ut-top"><div><div class="ut-big tnum">' + (c.util == null ? '—' : c.util + '<small>%</small>') + '</div><div class="ut-sub">машино-днів у рейсі цього тижня' + (c.util != null && p.util != null ? '<br>' + hDelta(c.util, p.util, '', true) : '') + '</div></div>' + spark(W.map(w => w.util), 'Завантаженість', '%', W.map(w => w.from), true) + '</div>' +
+      '<div class="ut-bar" role="img" aria-label="' + esc('Машино-дні цього тижня: у рейсі ' + c.trip + ', у рейсі без дати розвантаження ' + c.nodata + ', простій ' + c.idle + ', перевірити ' + c.check) + '">' + seg(c.trip, 'trip', 'у рейсі') + seg(c.nodata, 'nod', 'у рейсі, без дати розвантаження') + seg(c.idle, 'idle', 'простій') + seg(c.check, 'chk', 'перевірити') + '</div>' +
+      '<div class="plgs ut-lg"><span class="plg"><i class="ut-trip"></i>у рейсі <b>' + c.trip + '</b></span>' + (c.nodata ? '<span class="plg"><i class="ut-nod"></i>у рейсі без дати розвант. <b>' + c.nodata + '</b></span>' : '') + '<span class="plg"><i class="ut-idle"></i>простій <b>' + c.idle + '</b></span>' + (c.check ? '<span class="plg"><i class="ut-chk"></i>перевірити <b>' + c.check + '</b> <small>простій &gt; 14 дн</small></span>' : '') + '</div>' +
+      (board ? '<div class="ut-rows"><button type="button" class="hrow" data-lact="free"><span>Стоять зараз: <b>' + real.length + ' ' + plural(real.length, 'машина', 'машини', 'машин') + '</b>' + (real.length ? ', разом ' + md + ' машино-' + plural(md, 'день', 'дні', 'днів') : '') + '</span><span class="hgo" aria-hidden="true">›</span></button>' +
+        (chk.length ? hCheckRow(chk) : '') + '</div>' : '');
+    return hw('util', 'Завантаженість парку', body, { cls: 's5 w14 o5', col: true, sum: c.util == null ? '' : c.util + '% цього тижня', meta: K.trucks + ' ' + plural(K.trucks, 'машина', 'машини', 'машин') });
+  }
+  /** «Перевірити, чи внесено рейс» — однаково в логіста й керівника: вільна понад 14 днів або без жодного рейсу. */
+  const hCheckList = T => T.filter(x => (x.status === 'free' && daysFrom(x.since) > 14) || x.status === 'none');
+  const hCheckRow = chk => '<button type="button" class="hrow hchk" data-lact="idle"><span>' + svgI(PROB.trip) + 'Перевірити, чи внесено рейс: <b>' + chk.map(x => esc(x.id)).slice(0, 6).join(', ') + (chk.length > 6 ? '…' : '') + '</b><small>«простій» понад 14 днів — найчастіше рейс просто не внесли</small></span><span class="hgo" aria-hidden="true">›</span></button>';
+  // 6. Календар парку −7…+7. Після сьогодні в машини в рейсі без дати розвантаження — «невідомо», не «вільно»
+  function hwCal() {
+    if (!homeL) return hw('cal', 'Календар парку', homeLErr ? '<p class="msg small">' + esc(homeLErr) + '</p>' : hSk(5), { cls: 's12 o6', col: true });
+    const C = homeL.cal, N = C.days, rows = C.rows.filter(r => hKind === 'all' || r.kind === kWant());
+    const d0 = new Date(C.from + 'T00:00:00'), day = i => { const d = new Date(d0); d.setDate(d.getDate() + i); return d; };
+    const pc = i => 'calc(' + i + ' * 100% / ' + N + ')';
+    let holes = 0;
+    const runs = (s, ch) => { const o = []; let i = 0; while (i < s.length) { if (s[i] !== ch) { i++; continue; } let j = i; while (j < s.length && s[j] === ch) j++; o.push([i, j - 1]); i = j; } return o; };
+    const head = '<div class="cal-r cal-hd" aria-hidden="true"><span class="cal-k"></span><div class="cal-t">' + Array.from({ length: N }, (_, i) => { const d = day(i), we = d.getDay() === 0 || d.getDay() === 6;
+      return '<span class="cal-d' + (i === C.today ? ' now' : '') + (we ? ' we' : '') + '" style="left:' + pc(i) + ';width:' + pc(1) + '">' + DOWS[d.getDay()] + '<b>' + d.getDate() + '</b></span>'; }).join('') + '</div></div>';
+    const body = rows.map(r => {
+      // кілька рейсів, що перекриваються в днях (контейнеровоз: 2–3 за день), — однією смугою «N рейсів», без налізлих підписів (v48)
+      const segs = []; r.segs.map(s => { const a = Math.max(0, s.a); let b = s.b == null ? (() => { let j = a; while (j + 1 < N && r.days[j + 1] === 'u') j++; return j; })() : s.b; b = Math.min(N - 1, b); return Object.assign({}, s, { ca: a, cb: b }); })
+        .filter(s => s.cb >= s.ca).sort((x, y) => x.ca - y.ca || x.cb - y.cb).forEach(s => { const g = segs[segs.length - 1]; if (g && s.ca <= g.cb) { g.list.push(s); g.cb = Math.max(g.cb, s.cb); } else segs.push({ ca: s.ca, cb: s.cb, list: [s] }); });
+      const bars = segs.map(g => { const s = g.list.length === 1 ? g.list[0] : Object.assign({}, g.list[0], { b: g.list.some(x => x.b == null) ? null : g.cb, t: g.list.length + ' ' + plural(g.list.length, 'рейс', 'рейси', 'рейсів') + ': ' + g.list.map(x => x.t).join('; '), id: g.list.map(x => x.id).join(', '), adr: g.list.some(x => x.adr), k: g.list.some(x => x.k === 'i') ? 'i' : 'd' });
+        const a = g.ca, b = g.cb;
+        const len = b - a + 1, tip = s.id + ' · ' + s.t + (s.b == null ? ' · без дати розвантаження' : '') + (s.adr ? ' · АДР' : '') + ' — натисніть: рейс збоку';
+        return '<button type="button" class="cal-bar k-' + s.k + (s.b == null ? ' open' : '') + (s.adr ? ' adr' : '') + (len < 2 ? ' short' : '') + (s.a < 0 ? ' cut-l' : '') + (s.b != null && s.b > N - 1 ? ' cut-r' : '') + '" style="left:' + pc(a) + ';width:' + pc(len) + '" data-htruck="' + esc(r.id) + '" data-htripid="' + esc(s.id) + '" title="' + esc(tip) + '" aria-label="' + esc(r.id + ': ' + tip) + '">' + (len < 2 ? (g.list.length > 1 ? '<b class="cal-n">' + g.list.length + '</b>' : '') : '<span>' + esc(g.list.length > 1 ? g.list.length + ' ' + plural(g.list.length, 'рейс', 'рейси', 'рейсів') + ' · ' + g.list[0].t : s.t) + '</span>') + '</button>'; }).join('');
+      const fut = runs(r.days, '_').filter(([a, b]) => a > C.today && b - a + 1 >= 3); holes += fut.length;
+      const lbl = (cls, a, b, t) => '<span class="cal-gap ' + cls + '" style="left:' + pc(a) + ';width:' + pc(b - a + 1) + '">' + t + '</span>';
+      const gaps = runs(r.days, '.').filter(([a, b]) => b - a + 1 >= 2).map(([a, b]) => lbl('', a, b, (b - a + 1) + ' дн')).join('') +
+        runs(r.days, '?').map(([a, b]) => lbl('cq', a, b, b - a + 1 >= 4 ? 'перевірити, чи внесено рейс' : '?')).join('') +
+        runs(r.days, 'n').map(([a, b]) => lbl('cn', a, b, b - a + 1 >= 4 ? 'невідомо — немає дати розвантаження' : '?')).join('') +
+        fut.map(([a, b]) => '<button type="button" class="cal-hole" style="left:' + pc(a) + ';width:' + pc(b - a + 1) + '"' + (canTrip() ? ' data-hnew="' + esc(r.id) + '"' : ' disabled') + ' aria-label="' + esc(r.id + ': вільно ' + (b - a + 1) + ' дн з ' + dd(isoDay(day(a))) + (canTrip() ? ' — новий рейс' : '')) + '">вільно ' + (b - a + 1) + (b === N - 1 ? '+' : '') + ' дн</button>').join('');
+      return '<div class="cal-r" role="listitem"><span class="cal-k"><span class="plate ua">' + esc(r.id) + '</span></span><div class="cal-t">' + gaps + bars + '<span class="cal-now" style="left:' + pc(C.today) + ';width:' + pc(1) + '" aria-hidden="true"></span></div></div>';
+    }).join('');
+    const leg = '<p class="hleg"><span class="lg-b k-i"></span>міжнародний <span class="lg-b k-d"></span>внутрішній <span class="lg-b adr"></span>АДР <span class="lg-b lg-short"></span>рейс на 1 день <span class="lg-b open"></span>без дати розвантаження <span class="lg-b cn"></span>невідомо, коли звільниться <span class="lg-b hole"></span>вільно попереду ≥ 3 дн <span class="lg-b cq"></span>перевірити, чи внесено рейс</p>';
+    return hw('cal', 'Календар парку', '<div class="cal-sc"><div class="cal" role="list" aria-label="Календар парку: 7 днів назад і 7 уперед">' + head + body + '</div></div>' + leg,
+      { cls: 's12 o6', col: true, meta: dd(C.from) + ' – ' + dd(isoDay(day(N - 1))) + ' · сьогодні виділено' + (holes ? ' · <b>дірок попереду: ' + holes + '</b>' : ''), sum: 'дірок на тиждень уперед: ' + holes });
+  }
+  // 7. Кордон і документи (логіст, міжнародні): прострочене — окремим рядком, як у «Панелі дня» керівника
+  const RMPD_L = { ok: ['ok', 'RMPD ✓'], ai: ['warn', 'RMPD: глянути'], wait: ['warn', 'RMPD: чекає'], warn: ['bad', 'RMPD: розбіжність'], none: ['bad', 'RMPD немає'] };
+  const hShowBorder = () => me && me.role === 'логіст' && hKind !== 'dom';
+  function hwBorder() {
+    if (!hShowBorder()) return '';
+    if (!board) return hw('border', 'Кордон і документи', hSk(3), { cls: 's5 o7', col: true });
+    const T = board.trucks.filter(kOk), wait = ['замитнення', 'на кордоні', 'розмитнення'];
+    const near = T.filter(x => x.ech || (x.status === 'trip' && x.trip && x.trip.st && wait.indexOf(x.trip.st.event) >= 0));
+    const docs = [], over = []; T.forEach(x => x.problems.filter(p => p.k === 'doc' || p.k === 'tir').forEach(p => (/простроч/.test(p.t) ? over : docs).push({ x, p })));
+    docs.sort((a, b) => b.p.urgent - a.p.urgent);
+    const rm = x => { const r = x.trip && !x.trip.order && x.trip.rmpd && RMPD_L[x.trip.rmpd]; return r ? '<span class="tag ' + r[0] + '">' + r[1] + '</span>' : ''; };
+    const rmIds = [...logRmpd].filter(id => T.some(x => x.id === id));
+    const overM = {}; over.forEach(o => overM[o.x.id] = 1);
+    const body = '<h3 class="hw-h3">Біля кордону й у черзі <span class="tnum">' + near.length + '</span></h3>' + (near.length ? '<ul class="hl">' + near.map(x => '<li><button type="button" class="hrow" data-htruck="' + esc(x.id) + '" title="' + esc(x.ech ? echShort(x.ech) : cap(x.trip.st.event) + (x.trip.cross ? ' · ' + x.trip.cross : '')) + '"><span class="plate ua">' + esc(x.id) + '</span><span class="hl-t">' + esc(x.ech ? echShort(x.ech) : cap(x.trip.st.event) + (x.trip.cross ? ' · ' + x.trip.cross : '') + ' · ' + tkTime(x.trip.st.at)) + '</span>' + rm(x) + '</button></li>').join('') + '</ul>' : '<p class="muted small">Зараз ніхто не стоїть на кордоні (за кроками водіїв і листами єЧерги).</p>') +
+      (rmIds.length ? '<button type="button" class="hrow hchk" data-lact="rmpd"><span>RMPD перед кордоном не перевірено: <b>' + rmIds.join(', ') + '</b></span><span class="hgo" aria-hidden="true">›</span></button>' : '') +
+      '<h3 class="hw-h3">Документи й TIR</h3>' +
+      (over.length ? '<button type="button" class="hrow hbad" data-hgo="docs"><span><b>Прострочено: ' + over.length + '</b> <small>' + Object.keys(overM).slice(0, 6).join(', ') + (Object.keys(overM).length > 6 ? '…' : '') + '</small></span><span class="hgo" aria-hidden="true">›</span></button>' : '') +
+      '<p class="hl-sub">Спливають за 30 днів: <b class="tnum">' + docs.length + '</b></p>' +
+      (docs.length ? '<ul class="hl">' + docs.slice(0, 3).map(({ x, p }) => '<li class="hl-doc' + (p.urgent ? ' bad' : '') + '"><span class="plate ua">' + esc(x.id) + '</span><span class="hl-t" title="' + esc(p.t) + '">' + (p.urgent ? '<span class="sr">Терміново: </span>' : '') + esc(p.t) + '</span></li>').join('') + '</ul>' : '') +
+      '<button type="button" class="link" data-hgo="docs">Усі документи →</button>';
+    return hw('border', 'Кордон і документи', body, { cls: 's5 o7', col: true, sum: near.length + ' біля кордону · ' + (over.length ? 'прострочено ' + over.length : docs.length + ' докум.') });
+  }
+  function logDraw() {
+    if (!hRole() || !$('hwBox')) return;
+    hPhoneWas = hPhone();
+    const box = $('hwBox'), ae = document.activeElement, fk = ae && box.contains(ae) ? ['data-lact', 'data-hk', 'data-htg', 'data-htruck', 'data-hgo'].map(a => ae.getAttribute(a) ? '[' + a + '="' + ae.getAttribute(a) + '"]' : '').find(Boolean) : '';
+    const seg = '<div class="seg" role="group" aria-label="Які рейси показувати">' + [['all', 'Усі'], ['dom', 'Внутрішні'], ['intl', 'Міжнародні']].map(k => '<button type="button" data-hk="' + k[0] + '" aria-pressed="' + (hKind === k[0]) + '">' + k[1] + '</button>').join('') + '</div>';
+    const boss = me.role !== 'логіст';
+    box.innerHTML = '<div class="hbar">' + (boss ? '<h2 class="hbar-h">Парк і рейси</h2>' : '') + seg + '<span class="muted small hupd"><span id="hAgo">' + esc(hAgo()) + '</span> · <button type="button" class="link" data-hgo="reload">оновити</button></span></div>' +
+      '<div class="hgrid' + (boss ? ' hgrid-boss' : '') + '">' + (boss ? '' : hwAct()) + hwFree() + hwUtil() + hwConv() + hwWeek() + hwBorder() + hwCal() + '</div>';
+    if (fk) { const f = box.querySelector(fk); if (f) f.focus({ preventScroll: true }); }
+  }
+  $('homeWork').addEventListener('click', e => {
+    if (!hRole() || $('home').hidden) return;
+    const t = e.target.closest('[data-lact],[data-hk],[data-htg],[data-htruck],[data-hnew],[data-hgo]'); if (!t || !t.closest('#hwBox')) return;
+    const d = t.dataset;
+    if (d.lact) { if (d.lact === 'dups') { if (dups && dups.length) dupsOpen(); else openBoardF('all'); } else openBoardF(d.lact); }
+    else if (d.hk) { hKind = d.hk; store.set('hKind', hKind); logDraw(); }
+    else if (d.htg) { hOpen[d.htg] = !hOpen[d.htg]; logDraw(); }
+    else if (d.htruck) boardTruck(d.htruck);
+    else if (d.hnew) tripForm(null, { truck: d.hnew });
+    else if (d.hgo === 'reload') logLoad(true);
+    else if (d.hgo === 'docs') openDocs();
+    else if (d.hgo === 'wait' || d.hgo === 'queue') { openBoardF('all'); setTimeout(() => { const s = $(d.hgo === 'wait' ? 'bWait' : 'bQueue'); if (s && !s.hidden) { s.scrollIntoView({ behavior: smooth(), block: 'start' }); const h = s.querySelector('h2'); if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); } } else toast(d.hgo === 'wait' ? 'Заявок без машини зараз немає.' : 'Причепів у черзі зараз немає.'); }, 120); }
+  });
+
+  /* ── Головна бухгалтера (v48): невеликий дашборд з дій, що вже є для ролі (inv, debts, expense) — без нових прав ── */
+  async function buhLoad() {
+    const box = $('buhBox'); if (!box) return; const nav = navSeq;
+    let c = null; try { c = JSON.parse(store.get('buh_' + me.login) || 'null'); } catch (e) {}
+    const draw = (v, loading) => {
+      const card = (key, title, go, body) => '<button type="button" class="hw bcard2" data-buh="' + go + '" aria-labelledby="bk-' + key + '"><span class="hw-h"><span class="bk-h" id="bk-' + key + '">' + esc(title) + '</span><span class="hgo" aria-hidden="true">›</span></span>' + body + '</button>';
+      const sk = '<span class="hsk" aria-hidden="true"><i></i><i></i></span>';
+      const inv = v && v.inv, db = v && v.debts, ex = v && v.exp;
+      box.innerHTML = '<div class="buhg">' +
+        card('inv', 'До виставлення', 'inv', inv ? '<span class="bk-n tnum">' + inv.n + '</span><span class="bk-s">' + plural(inv.n, 'рейс', 'рейси', 'рейсів') + ' без рахунку</span>' + (inv.blocked ? '<span class="tag warn">заблоковано: ' + inv.blocked + '</span>' : inv.n ? '<span class="tag ok">усі можна виставити</span>' : '') : (loading ? sk : '<span class="muted small">немає даних</span>')) +
+        card('debts', 'Боржники', 'debts', db ? '<span class="bk-n tnum">' + db.clients + '</span><span class="bk-s">' + plural(db.clients, 'клієнт', 'клієнти', 'клієнтів') + ' з простроченням</span><span class="bk-m">' + esc(frTxt(db.sum)) + '</span>' : (loading ? sk : '<span class="muted small">немає даних</span>')) +
+        card('exp', 'Витрати водіїв', 'exp', ex ? '<span class="bk-n tnum">' + ex.fresh + '</span><span class="bk-s">на перевірку</span>' + (ex.ask ? '<span class="tag warn">з питанням: ' + ex.ask + '</span>' : '') : (loading ? sk : '<span class="muted small">немає даних</span>')) + '</div>';
+    };
+    draw(c, true);
+    const [inv, db, ex] = await Promise.all([api('inv').catch(() => null), api('debts').catch(() => null), api('expense', { days: 31 }).catch(() => null)]);
+    if (nav !== navSeq || $('home').hidden) return;
+    const v = { inv: inv && inv.todo ? { n: inv.todo.length, blocked: inv.todo.filter(x => x.check).length } : null,
+      debts: db && db.clients ? { clients: db.clients.filter(g => Object.keys(g.recent || {}).length).length, sum: (db.total && db.total.recent) || {} } : null,
+      exp: ex && ex.list ? { fresh: ex.list.filter(x => !x.status || x.status === 'нова').length, ask: ex.list.filter(x => x.status === 'питання').length } : null };
+    try { store.set('buh_' + me.login, JSON.stringify(v)); } catch (e) {}
+    draw(v, false);
+  }
+  $('homeWork').addEventListener('click', e => { const b = e.target.closest('[data-buh]'); if (!b || !me || me.role !== 'бухгалтер') return; const a = b.dataset.buh; if (a === 'inv') openInv(); else if (a === 'debts') openDebts(); else openExp(); });
   /** Рейс із заявки: повний рядок заявки → та сама форма «Новий рейс», що з таблиці заявок. */
   async function orderToTrip(zid) {
     if (!canTrip()) return toast('Створювати рейси можуть логіст, керівник і бухгалтер.');
@@ -1099,10 +1659,10 @@
   const bWide = () => window.innerWidth >= 1200;
   function markPanelRow() { document.querySelectorAll('#bRows tr.brow').forEach(r => { const on = !$('bPanel').hidden && bPanelX && r.dataset.truck === bPanelX.id; r.classList.toggle('sel', on); const o = r.querySelector('.bopen'); if (o) o.setAttribute('aria-expanded', String(on)); }); }
   function bPanelClose() {
-    const p = $('bPanel'); if (p.hidden) return; p.hidden = true; p.innerHTML = ''; document.body.classList.remove('bpanel-on'); markPanelRow();
+    const p = $('bPanel'); if (p.hidden) return; p.hidden = true; p.innerHTML = ''; document.body.classList.remove('bpanel-on'); navAuto(); markPanelRow();
     const f = bPanelX && document.querySelector('#bRows tr[data-truck="' + bPanelX.id + '"] .bopen'); bPanelX = null; if (f) f.focus(); else if (bPanelFrom) try { bPanelFrom.focus(); } catch (e) {}
   }
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('bPanel').hidden && !document.querySelector('.ask-wrap')) { e.preventDefault(); bPanelClose(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !e.defaultPrevented && !$('bPanel').hidden && !document.querySelector('.ask-wrap') && !navOpenNow && $('userPop').hidden && !$('gs').contains(e.target)) { e.preventDefault(); e.stopImmediatePropagation(); bPanelClose(); } });
   async function bPanelOpen(x, from) {
     const p = $('bPanel'), seq = ++bPanelSeq; bPanelX = x; bPanelFrom = from || null;
     const t = x.trip, tid = t && !t.order ? t.id : '', office = ['адмін', 'керівник', 'логіст'].indexOf(me.role) >= 0;
@@ -1113,7 +1673,7 @@
       (x.next.order && canTrip() ? '<div><button type="button" class="btn small" data-bpz="' + esc(x.next.id) + '">Створити рейс із заявки</button></div>' : !x.next.order ? '<div><a href="#" class="tlink" data-trip="' + esc(x.next.id) + '">Відкрити ' + esc(x.next.id) + '</a></div>' : '') + '</div>' : '';
     const docH = docs.map(q => '<li class="' + (q.urgent ? 'bad' : 'warn') + '"><span class="bp-m" aria-hidden="true">✕</span><span>' + esc(q.t) + '</span></li>').join('');
     const echH = '<li><span class="bp-m" aria-hidden="true">·</span><span>єЧерга: ' + (x.ech ? esc(echShort(x.ech)) : 'листів немає') + '</span>' + (() => { const pl = (x.ech && x.ech.plate) || echLatin(x.plate); return pl ? '<a class="bp-a" target="_blank" rel="noopener" href="https://echerha.gov.ua?plate_number=' + encodeURIComponent(pl) + '">Черга ↗</a>' : ''; })() + '</li>';
-    p.hidden = false; document.body.classList.add('bpanel-on'); markPanelRow();
+    p.hidden = false; document.body.classList.add('bpanel-on'); navAuto(); markPanelRow();
     if (!tid) {   // без поточного рейсу: машина, останній рейс, «Далі», документи
       const l = x.last;
       p.innerHTML = head + '<div class="bp-now"><div class="bp-k">Зараз</div><div class="bp-big">' + bStateHtml(x) + '</div>' + (l ? '<div class="bp-sub">останній рейс ' + tripLink(l) + ' · ' + tripText(l) + (l.unload ? ' · розвантаження ' + dd(l.unload) : '') + '</div>' : '') + '</div>' +
@@ -1584,7 +2144,7 @@
     document.body.appendChild(w); w.querySelector('[data-a="0"]').focus();
   }
   async function openTrip(id, from) {
-    tripFrom = from || 'board'; $('tripBackT').textContent = tripFrom === 'view' ? 'Таблиця' : tripFrom === 'debts' ? 'Боржники' : tripFrom === 'inv' ? 'До виставлення' : tripFrom === 'mypay' ? 'Мої рейси' : tripFrom === 'probs' ? 'Проблеми водіїв' : board ? 'Дошка' : 'Назад';
+    tripFrom = from || 'board'; $('tripBackT').textContent = tripFrom === 'view' ? 'Таблиця' : tripFrom === 'debts' ? 'Боржники' : tripFrom === 'inv' ? 'До виставлення' : tripFrom === 'mypay' ? 'Мої рейси' : tripFrom === 'probs' ? 'Проблеми водіїв' : tripFrom === 'home' ? 'Головна' : board ? 'Дошка' : 'Назад';
     show('trip'); const nav = navSeq; $('tripBody').innerHTML = '<p class="muted">Завантаження рейсу ' + esc(id) + '…</p>';
     const can = new Set(sheets.map(s => s.name));
     const getRows = (sheet, filter) => can.has(sheet) ? api('list', { sheet, filter }).catch(() => null) : Promise.resolve(null);
@@ -2645,11 +3205,12 @@
   }
 
   async function logout(silent) {
+    if (store.get('tokenAdmin') && !viewBacking) return viewBack();                     // у перегляді «Вийти» / сесія скінчилась — назад до входу адміна (v48)
     if (!silent) { let ep = ''; try { const reg = navigator.serviceWorker && await Promise.race([navigator.serviceWorker.ready, new Promise(r => setTimeout(r, 1500))]); const sub = reg && reg.pushManager && await reg.pushManager.getSubscription(); ep = sub ? sub.endpoint : ''; } catch (e) {}
       try { await api('logout', { endpoint: ep }); } catch (e) {} }   // вимкнути сповіщення лише цього телефона, не напарника (безпека-10)
     // черга НЕ стирається: записи прив'язані до входу й надішлються, коли ця людина увійде знову (критик У3, QA-8)
     const lg = me && me.login;
-    store.del('token'); store.del('me'); store.del('homeDrv'); store.del('boardCache');
+    store.del('token'); store.del('me'); store.del('homeDrv'); store.del('boardCache'); if (lg) store.del('homeL_' + lg); board = null; homeL = null; panel = null; navBadge = {};
     if (lg) { store.del('tacho_' + lg); kvDel('scr_' + lg); kvDel('draft_exp_' + lg); kvDel('draft_tdoc_' + lg); kvDel('draft_rpt_' + lg); } kvDel('rmpd'); RMPD_MEM = null; store.del('rmpdFile');   // приватне — не лишаємо на телефоні (безпека-11)
     Object.keys(localStorage).filter(k => /^rmpdSeen_|^hint_/.test(k)).forEach(k => store.del(k));
     me = null; SCR = {};
@@ -2687,24 +3248,27 @@
       ['Мій час', 'Унизу головної — «Мій час»: «Почати день», режими, «Кінець дня». Підказує перерви; тахограф не замінює.'],
       ['Рейси й зарплата', 'Ваші рейси, скільки нараховано і «до виплати». Незрозуміло — «Є питання».'],
       ['Зручніше', 'Додайте програму на головний екран телефону (меню ⋮ → «Встановити»). «Аа» вгорі — більший шрифт.']],
-    'логіст': [['Дошка машин', 'Головний екран логіста: де кожна машина, рейс, що далі, проблеми. Кроки від водіїв видно одразу.'],
+    'логіст': [['Меню і пошук', 'Усі розділи — у меню ліворуч (на телефоні — ☰ угорі). Зірочкою закріпіть до 4 найпотрібніших. Пошук угорі (клавіша /) знайде машину, рейс, водія чи розділ.'],
+      ['Головна і дошка', 'На головній — що потребує дії, хто звільняється за 72 год, конвеєр рейсів і цифри тижня. Натисніть машину — відкриється дошка з рейсом збоку.'],
       ['Картка рейсу', 'Натисніть номер рейсу — побачите маршрут, дати, оплату, кроки водія.'],
-      ['Калькулятор', 'Перед тим як погодити заявку — порахуйте рейс або кругорейс у «Калькуляторі». «Аа» вгорі — більший шрифт.'],
+      ['Калькулятор', 'Перед тим як погодити заявку — порахуйте рейс або кругорейс у «Калькуляторі». Більший шрифт і кольори — у меню вашого імені вгорі праворуч.'],
       ['Новий рейс', '«+ Новий рейс» на дошці — завести рейс вручну. У «Заявках» рядок «+ рейс» — створити рейс із заявки: поля підставляться самі, лишиться обрати водія. Постійні клієнти без заявок — «Із шаблону».']],
-    'бухгалтер': [['Витрати водіїв', 'Чеки й витрати від водіїв — на перевірку. Фото чеків відкриваються лише в програмі.'],
+    'бухгалтер': [['Меню і пошук', 'Усі розділи — у меню ліворуч (на телефоні — ☰ угорі). Зірочкою закріпіть найпотрібніші — вони будуть і на головній. Пошук угорі (клавіша /) знайде розділ або рейс.'],
+      ['Витрати водіїв', 'Чеки й витрати від водіїв — на перевірку. Фото чеків відкриваються лише в програмі.'],
       ['Дві суми в рейсі', '«Фрахт» — від нього рахується зарплата водію. «Сума для рахунку» — на неї виставляють рахунок клієнту (більша, коли є повернення). Порожня — як фрахт.'],
       ['Боржники', 'Хто не оплатив: за клієнтом, з прострочкою. «Текст нагадування» копіює готовий лист. Рейс без позначки «Оплачено» може бути вже оплачений — звіряйте з банком.']]
   };
   // «Що нового» — один раз на пристрої для тих, хто вже бачив підказки (ADR-076)
-  const NEWS = { key: 'news_v45', roles: ['адмін', 'керівник', 'логіст', 'бухгалтер'], title: 'Що нового',
-    items: ['Дошка машин: спершу термінове — нова проблема водія і термінові документи вгорі. Давно прострочений документ і «немає GPS» більше не «горять» червоним.',
-      'Дошка на комп\'ютері — компактна таблиця: рядок на машину, кольорова смуга стану, проблеми значками (наведіть — повний текст). Зверху — зведення з числами, натисніть — фільтр.',
-      'Натисніть рядок — рейс відкриється збоку: кроки, проблема з кнопками відповіді, «Перед кордоном» (RMPD, адреси, документи, єЧерга). Esc — закрити.',
-      'Головна логіста — «Сьогодні»: нові проблеми, RMPD перед кордоном, рейси без адрес і без дати розвантаження (дати — одним вікном), можливі дублі. «Заявки без машини» на дошці — натисніть, щоб створити рейс.'] };
+  const NEWS = { key: 'news_v48', roles: ['адмін', 'керівник', 'логіст', 'бухгалтер'], title: 'Що нового',
+    items: ['«Звільняються за 72 год»: прогрес дня («розвантажено 2 з 4»), машини без наступного рейсу. У понеділок «Тиждень у цифрах» показує минулий повний тиждень.',
+      'Календар парку: машина в рейсі без дати розвантаження — «невідомо», а не «вільно». Натисніть смугу — рейс відкриється збоку.',
+      'Головна й дошка оновлюються самі кожні 5 хв; угорі видно, коли оновлено. Пошук знаходить і заявки без машини.',
+      'Меню — без повторів: закріплене зірочкою — у смузі значків. Керівник і адмін: під «Панеллю дня» — ті самі віджети парку. Бухгалтер: на головній — до виставлення, боржники, витрати на перевірку.'],
+    admin: 'Адміну: меню імені ▾ → «Подивитися як…» — програма очима логіста, керівника, бухгалтера, механіка чи конкретного водія, без кодів. Лише перегляд, «Повернутись» — одним натиском.' };
   function news() {
     if (!me || NEWS.roles.indexOf(me.role) < 0 || store.get(NEWS.key) || document.querySelector('.ask-wrap')) return;
     const w = document.createElement('div'); w.className = 'ask-wrap';
-    w.innerHTML = '<div class="ask tour" role="dialog" aria-modal="true"><h2>' + esc(NEWS.title) + '</h2><ul class="newsl">' + NEWS.items.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul><div class="ask-btns"><button class="primary" data-a="ok">Зрозуміло</button></div></div>';
+    w.innerHTML = '<div class="ask tour" role="dialog" aria-modal="true"><h2>' + esc(NEWS.title) + '</h2><ul class="newsl">' + NEWS.items.concat(me.role === 'адмін' ? [NEWS.admin] : []).map(x => '<li>' + esc(x) + '</li>').join('') + '</ul><div class="ask-btns"><button class="primary" data-a="ok">Зрозуміло</button></div></div>';
     w.querySelector('[data-a="ok"]').onclick = () => { store.set(NEWS.key, '1'); w.remove(); };
     document.body.appendChild(w);
   }
@@ -2720,6 +3284,36 @@
     const close = () => { store.set(key, '1'); store.set(NEWS.key, '1'); w.remove(); };   // новачку «Що нового» не потрібне — підказки вже про все
     draw(); document.body.appendChild(w);
   }
+  /* ── «Подивитися як…» для адміна (v48): окрема тимчасова сесія лише для читання; токен адміна зберігається окремо, «Повернутись» — без коду ── */
+  const VIEW_KEYS = /^(me|boardCache|homeDrv|homeL_.*|panel_.*|buh_.*|tacho_.*)$/;
+  function viewClear() { Object.keys(localStorage).filter(k => VIEW_KEYS.test(k)).forEach(k => store.del(k)); }
+  function viewBar() {
+    const on = !!(me && me.viewAs); document.body.classList.toggle('viewing', on); $('viewBar').hidden = !on;
+    if (on) $('viewBarT').textContent = 'Ви дивитесь як ' + (String(me.name).split(' як ').slice(1).join(' як ') || me.role) + ' · лише перегляд';
+  }
+  async function viewAsOpen() {
+    const w = document.createElement('div'); w.className = 'ask-wrap';
+    w.innerHTML = '<div class="ask tsheet" role="dialog" aria-modal="true"><h2>Подивитися як…</h2><p class="muted small">Програма покаже, що бачить ця роль чи водій. Лише перегляд: змінювати нічого не можна. Діє до 12 год; «Повернутись» — до вашого входу без коду. Запис про перегляд іде в «Журнал змін».</p>' +
+      '<div class="zgrid va-roles">' + [['логіст', 'Логіст'], ['керівник', 'Керівник'], ['бухгалтер', 'Бухгалтер'], ['механік', 'Механік']].map(r => '<button type="button" class="zbtn" data-va="' + r[0] + '"><span>' + r[1] + '</span></button>').join('') + '</div>' +
+      '<label for="vaDrv">Або водій</label><div class="va-drv"><select id="vaDrv"><option value="">Завантажую водіїв…</option></select><button type="button" class="primary" id="vaDrvGo" disabled>Як водій</button></div>' +
+      '<p class="msg" role="alert" id="vaMsg"></p><div class="ask-btns"><button class="btn" data-a="0">Скасувати</button></div></div>';
+    const go = async (as, workerId) => { busy(true); try { const out = await api('view.as', { as, workerId }); store.set('tokenAdmin', store.get('token')); viewClear(); store.set('token', out.token); location.reload(); } catch (e) { $('vaMsg').textContent = e.message; } finally { busy(false); } };
+    w.onclick = e => { if (e.target === w || e.target.closest('[data-a="0"]')) { w.remove(); return; } const r = e.target.closest('[data-va]'); if (r) go(r.dataset.va); if (e.target.closest('#vaDrvGo') && $('vaDrv').value) go('водій', $('vaDrv').value); };
+    dlgOpener = document.activeElement; document.body.appendChild(w);
+    try { const l = await api('list', { sheet: 'Працівники' }), ds = (l.rows || []).filter(r => /водій/i.test(String(r['Посада'] || '')) && r['Працює'] !== false).sort((a, b) => String(a['Прізвище']).localeCompare(String(b['Прізвище']), 'uk'));
+      if (!w.isConnected) return; $('vaDrv').innerHTML = '<option value="">— оберіть водія —</option>' + ds.map(r => '<option value="' + esc(r['Працівник ID']) + '">' + esc(r['Прізвище'] + ' (' + r['Працівник ID'] + ')') + '</option>').join('');
+      $('vaDrv').onchange = () => { $('vaDrvGo').disabled = !$('vaDrv').value; }; }
+    catch (e) { if (w.isConnected) { $('vaDrv').innerHTML = '<option value="">Список водіїв недоступний</option>'; $('vaMsg').textContent = e.message; } }
+  }
+  let viewBacking = false;
+  async function viewBack() {
+    if (viewBacking) return; viewBacking = true;
+    const t = store.get('tokenAdmin'); busy(true);
+    try { await Promise.race([api('logout'), new Promise(r => setTimeout(r, 3000))]); } catch (e) {}
+    viewClear(); store.del('tokenAdmin'); if (t) store.set('token', t); else store.del('token');
+    location.reload();
+  }
+  $('viewBack').onclick = viewBack;
   async function askLogout() {
     const n = outbox().length;
     if (await ask('Вийти з програми?', (n ? '⚠ На телефоні є ' + n + ' не надісланих записів. Вони збережуться й надішлються, коли ви знову ввійдете. ' : '') + (me && me.role === 'водій' ? 'Щоб увійти знову, знадобиться новий код від керівника.' : 'Щоб увійти знову, знадобиться вхід через Google або код.'), 'Так, вийти', true)) logout(false);
@@ -2764,7 +3358,7 @@
   if ($('viewNewTrip')) $('viewNewTrip').onclick = () => tripForm(null);
   $('dRefresh').onclick = () => openDocs(true);
   $('dSearch').addEventListener('input', () => docs && renderDocs());
-  $('tripBack').onclick = () => tripFrom === 'probs' ? openProbs() : tripFrom === 'mypay' ? show('mypay') : tripFrom === 'debts' ? show('debts') : tripFrom === 'inv' ? show('inv') : tripFrom === 'view' ? (show('view'), current && renderTable()) : (board ? (show('board')) : renderHome());
+  $('tripBack').onclick = () => tripFrom === 'home' ? renderHome() : tripFrom === 'probs' ? openProbs() : tripFrom === 'mypay' ? show('mypay') : tripFrom === 'debts' ? show('debts') : tripFrom === 'inv' ? show('inv') : tripFrom === 'view' ? (show('view'), current && renderTable()) : (board ? (show('board')) : renderHome());
   $('issue').onclick = issue;
   $('closeSes').onclick = async () => {   // утрачений телефон водія (безпека-10)
     const v = $('worker').value.trim(); if (!v) { toast('Оберіть, кому закрити вхід', 'err'); return; }
