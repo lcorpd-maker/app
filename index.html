@@ -72,11 +72,18 @@
         <button class="btn" id="bRefresh" title="Оновити">↻ Оновити</button>
       </div>
       <div id="dupBar" class="dupbar" hidden></div>
+      <div class="bfilters"><div class="bsum" id="bSum" role="group" aria-label="Зведення — натисніть, щоб відфільтрувати"></div>
+        <input id="bSearch" type="search" placeholder="Машина, водій, місто, рейс" aria-label="Пошук на дошці"></div>
       <div class="toolbar">
-        <input id="bSearch" type="search" placeholder="Машина, водій, місто, рейс">
-        <div class="chips" id="bChips" role="group" aria-label="Фільтр"></div>
+        <div class="chips" id="bChips" role="group" aria-label="Ще фільтри"></div>
+        <button class="btn" id="bUnlBtn" hidden>Поставити дати розвантаження</button>
       </div>
-      <div class="tablewrap bdesk"><table class="btable"><thead><tr><th>Авто</th><th>Водій і причіп</th><th>Поточний рейс</th><th>Статус</th><th>Розвантаження і далі</th><th>Де зараз</th><th>Проблеми</th></tr></thead><tbody id="bRows"></tbody></table></div>
+      <div class="bwrap">
+      <div class="tablewrap bdesk"><table class="btable bcompact"><colgroup><col class="w-car"><col class="w-drv"><col class="w-trip"><col class="w-st"><col class="w-unl"><col class="w-next"><col class="w-pos"><col class="w-prob"></colgroup>
+        <thead><tr><th scope="col">Авто</th><th scope="col">Водій</th><th scope="col">Рейс зараз</th><th scope="col">Стан</th><th scope="col">Розвант.</th><th scope="col">Далі</th><th scope="col">Де зараз</th><th scope="col">Проблеми</th></tr></thead><tbody id="bRows"></tbody></table></div>
+      <aside class="bpanel" id="bPanel" hidden aria-labelledby="bpTitle" tabindex="-1"></aside>
+      </div>
+      <p class="blegend muted small" id="bLegend"><span class="lg lg-urg"></span>термінове <span class="lg lg-trip"></span>у рейсі <span class="lg lg-idle"></span>простій &gt; 3 дн <span class="lg lg-free"></span>вільна / без рейсів · значки проблем: наведіть — повний текст · натисніть рядок — рейс збоку, дошка лишається на місці</p>
       <div class="bcards" id="bCards"></div>
       <div class="empty" id="bEmpty" role="status" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><strong id="bEmptyT">Нічого не знайдено</strong><span id="bEmptyH">Спробуйте номер машини або прізвище водія.</span><button class="btn" id="bReset" type="button">Показати всі машини</button></div>
       <section class="card bwait" id="bQueue" hidden><h2>Причепи в черзі <span class="count" id="bQueueN"></span></h2><p class="muted small">Завантажені причепи, що чекають тягач (реєстр бота «Заявки → рейси»).</p><div id="bQueueList"></div></section>
