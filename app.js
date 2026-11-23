@@ -75,7 +75,7 @@
       msg = String(msg || ''); if (!me || errSent >= 5 || !navigator.onLine || !msg || /^Script error\.?$|ResizeObserver loop/i.test(msg)) return;
       errSent++;
       const scr = document.querySelector('main > section:not([hidden])');
-      api('client.err', { msg: msg.slice(0, 300), stack: String(stack || '').slice(0, 1200), where: (scr ? scr.id : '') + (where ? ' · ' + where : ''), ver: 'v42' }).catch(() => {});
+      api('client.err', { msg: msg.slice(0, 300), stack: String(stack || '').slice(0, 1200), where: (scr ? scr.id : '') + (where ? ' · ' + where : ''), ver: 'v43' }).catch(() => {});
     } catch (e) {}
   }
   window.addEventListener('error', e => reportErr(e.message, e.error && e.error.stack, e.filename ? String(e.filename).split('/').pop() + ':' + e.lineno : ''));
@@ -364,8 +364,8 @@
     const seg = (n, cls, label) => n ? '<span class="pseg ' + cls + '" style="flex:' + n + '" title="' + esc(label + ': ' + n) + '"></span>' : '';
     const lg = (n, cls, label) => '<span class="plg"><i class="' + cls + '"></i>' + esc(label) + ' <b>' + (n || 0) + '</b></span>';
     const trucks = t.error ? '<p class="muted small">Машини: ' + esc(t.error) + '</p>' :
-      '<div class="pbar" role="img" aria-label="' + esc('Машини: у рейсі ' + t.trip + ', вільні ' + t.free + ', простій понад 3 дні ' + t.idle + ', без рейсів ' + t.none) + '">' + seg(t.trip, 'p-trip', 'у рейсі') + seg(t.free, 'p-free', 'вільні') + seg(t.idle, 'p-idle', 'простій > 3 дн') + seg(t.none, 'p-none', 'без рейсів') + '</div>' +
-      '<div class="plgs">' + lg(t.trip, 'p-trip', 'у рейсі') + lg(t.free, 'p-free', 'вільні') + lg(t.idle, 'p-idle', 'простій > 3 дн') + lg(t.none, 'p-none', 'без рейсів') + '</div>' +
+      '<div class="pbar" role="img" aria-label="' + esc('Машини: у рейсі ' + t.trip + ', вільні до 3 днів ' + t.free + ', вільні понад 3 дні ' + t.idle + ', без рейсів ' + t.none) + '">' + seg(t.trip, 'p-trip', 'у рейсі') + seg(t.free, 'p-free', 'вільні до 3 дн') + seg(t.idle, 'p-idle', 'вільні понад 3 дн') + seg(t.none, 'p-none', 'без рейсів') + '</div>' +
+      '<div class="plgs">' + lg(t.trip, 'p-trip', 'у рейсі') + lg(t.free, 'p-free', 'вільні до 3 дн') + lg(t.idle, 'p-idle', 'вільні понад 3 дн') + lg(t.none, 'p-none', 'без рейсів') + '</div>' +
       (t.urgent || t.gps ? '<p class="small">' + (t.urgent ? '⚠ з терміновим: <b>' + t.urgent + '</b>' : '') + (t.gps ? (t.urgent ? ' · ' : '') + 'GPS бачить невідмічений крок: <b>' + t.gps + '</b>' : '') + '</p>' : '');
     const pct = c.total ? Math.round(c.done / c.total * 100) : 0;
     const circles = c.error ? '<p class="muted small">' + esc(c.error) + '</p>' : !c.total ? '<p class="muted small">За ' + (c.days || 45) + ' днів кругорейсів немає.</p>' :
@@ -456,7 +456,7 @@
       '<div><div class="to">' + (loaded ? 'Розвантаження' : 'Завантаження') + '</div><div class="city">' + esc(loaded ? v.trip.to : v.trip.from) + '</div>' +
       '<div class="when">' + (loaded ? (p.unload ? dayName(p.unload) : 'дату уточнить логіст') : (p.load ? dayName(p.load) : '')) + '</div></div>' +
       '<div><div class="road" style="--p:' + pct + '%"><i></i><b></b></div><div class="ends"><span>' + esc(v.trip.from) + (p.load ? ', ' + dd(p.load) : '') + '</span><span>' + esc(v.trip.to) + '</span></div></div>' +
-      '<div class="facts">' + facts + '</div>' + (() => { const n = navPoint(v); return n ? '<a class="navbtn" target="_blank" rel="noopener" href="' + esc(mapsUrl(n.q)) + '">🧭 Навігація: ' + ADDR_L[n.k] + (n.exact ? '' : ' (лише місто)') + '</a>' : ''; })() + '</article>';
+      '<div class="facts">' + facts + '</div></article>' + routeCard(v);   // актуальна адреса за статусом (рішення власниці 23.11)
     h += '<div class="next-action">' + (v.next ? '<button class="primary stgo" data-st="' + esc(v.next) + '"' + (stPending ? ' disabled' : '') + '>' + svgI('M5 12l5 5L20 7') + esc(ST_LABEL[v.next] || v.next) + '</button><p>' + esc(ST_HINT[v.next] || '') + '</p>' + (ahead.length ? '<p><button class="link" id="stAhead">Я вже далі</button></p><div id="stAheadBox" class="stahead" hidden><p class="muted small">Попередні кроки лишаться невідміченими — їх можна дописати потім.</p>' + ahead.map(x => '<button class="btn" data-st="' + esc(x) + '">' + esc(ST_LABEL[x] || x) + '</button>').join('') + '</div>' : '')
       : '<div class="cinfo">Усі кроки рейсу відмічено. Дякуємо!</div>') + '</div>';
     if (v.last && v.last.canUndo) { const left = me.role === 'водій' ? (String(v.last.id).startsWith('q:') ? 0 : Math.max(1, 15 - Math.floor((Date.now() - new Date(v.last.at)) / 60000))) : 0;
@@ -504,6 +504,7 @@
     box.querySelectorAll('[data-pq]').forEach(b => b.onclick = async () => { if (await ask('Надіслати логісту: «' + b.dataset.pq + '»?', navigator.onLine ? 'Логіст і керівник отримають повідомлення одразу.' : 'Зараз немає зв\'язку — повідомлення збережеться на телефоні й піде саме, щойно з\'явиться зв\'язок. Терміново — подзвоніть.', 'Так, надіслати')) { $('stProbBox').hidden = true; stLock = 0; send('проблема', b.dataset.pq); } });
     if ($('hintYes')) $('hintYes').onclick = () => { stLock = 0; send(v.hint.step, undefined, true); };
     if ($('hintNo')) $('hintNo').onclick = () => { store.set(hk, String(Date.now() + 3 * 3600000)); renderStatus(); };
+    if ($('rAll')) $('rAll').onclick = routeAll;
     if ($('stAhead')) $('stAhead').onclick = () => { $('stAheadBox').hidden = !$('stAheadBox').hidden; };
     if ($('stUndo')) $('stUndo').onclick = () => {
       if (stPending) return;
@@ -1274,9 +1275,12 @@
   }
   const bindRmpd = box => box.querySelectorAll('[data-rmpd]').forEach(b => b.onclick = () => rmpdOpen(b.dataset.rmpd, b.dataset.ver));
   /** Логіст: адреси рейсу (з заявки — бот; немає — вписати). */
-  function addrCard(a, tripId, canEdit) {
+  function addrCard(a, tripId, canEdit, need) {
     a = a || {}; const has = Object.keys(ADDR_L).some(k => a[k]);
-    return '<section class="card addrc"><h2>Адреси</h2>' + Object.keys(ADDR_L).map(k => canEdit
+    // ідея власниці №5: логіст бачить, яких адрес бракує водію (лише точки, що ще попереду)
+    const miss = (need || []).filter(k => !a[k]).map(k => ADDR_L[k].toLowerCase());
+    const drv = canEdit && need ? (miss.length ? '<p class="addrwarn">⚠ Водію бракує точних адрес: <b>' + esc(miss.join(', ')) + '</b>. Зараз водій бачить лише ' + (miss.some(m => /завант|розвант/.test(m)) ? 'місто' : 'назву переходу') + '.</p>' : '<p class="addrok">✓ Водій бачить усі адреси, що попереду.</p>') : '';
+    return '<section class="card addrc"><h2>Адреси</h2>' + drv + Object.keys(ADDR_L).map(k => canEdit
       ? '<label for="ad_' + k + '">' + ADDR_L[k] + '</label><div class="adrow"><input id="ad_' + k + '" data-ad="' + k + '" value="' + esc(a[k] || '') + '" placeholder="вулиця, місто, індекс — або посилання з карти">' + (a[k] ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(mapsUrl(a[k])) + '">Карта</a>' : '') + '</div>'
       : (a[k] ? '<div class="kv"><span>' + ADDR_L[k] + '</span><b><a target="_blank" rel="noopener" href="' + esc(mapsUrl(a[k])) + '">' + esc(a[k]) + '</a></b></div>' : '')).join('') +
       (canEdit ? '<p class="msg" role="alert" id="adMsg"></p><button class="primary" id="adSave" data-adtrip="' + esc(tripId) + '">Зберегти адреси</button><p class="muted small">Водій побачить кнопку «Навігація». З заявки адреси підтягує бот; чого немає — впишіть тут.</p>' : (has ? '' : '<p class="muted">Адрес ще немає.</p>')) + '</section>';
@@ -1286,7 +1290,7 @@
     b.onclick = async () => {
       const addr = {}; box.querySelectorAll('[data-ad]').forEach(i => addr[i.dataset.ad] = i.value.trim());
       b.disabled = true; busy(true);
-      try { const r = await api('trip.addr', { tripId: b.dataset.adtrip, addr }); box.innerHTML = addrCard(r.addr, b.dataset.adtrip, true); bindAddr(box); toast(r.changed ? '✔ Адреси збережено.' : 'Без змін.'); }
+      try { const r = await api('trip.addr', { tripId: b.dataset.adtrip, addr }); box.innerHTML = addrCard(r.addr, b.dataset.adtrip, true, box._need); bindAddr(box); toast(r.changed ? '✔ Адреси збережено.' : 'Без змін.'); }
       catch (e) { $('adMsg').textContent = e.message; b.disabled = false; }
       finally { busy(false); }
     };
@@ -1298,6 +1302,33 @@
     if (done('завантажено')) k = has('замитнення') && !done('замитнення') && a.cOut ? 'cOut' : has('розмитнення') && done('кордон пройдено') && !done('розмитнення') && a.cIn ? 'cIn' : 'unload';
     const q = a[k] || (k === 'load' ? v.trip.from : k === 'unload' ? v.trip.to : '');
     return q ? { k, q, exact: !!a[k] } : null;
+  }
+  /** Водій: усі точки рейсу (ідея власниці №5) — завантаження, замитнення, перехід, розмитнення, розвантаження; пройдені позначені. */
+  function routePoints(v) {
+    const a = v.addr || {}, done = s => v.steps.some(x => x.step === s && x.at), has = s => v.steps.some(x => x.step === s), out = [];
+    const add = (k, label, step, exact, city) => out.push({ k, label, q: exact || city || '', exact: exact || '', city: city || '', done: done(step) });
+    add('load', 'Завантаження', 'завантажено', a.load, v.trip.from);
+    if (has('замитнення')) add('cOut', 'Замитнення', 'замитнення', a.cOut, '');
+    if (has('кордон пройдено') && v.trip.crossing) add('cross', 'Перехід', 'кордон пройдено', '', 'пункт пропуску ' + v.trip.crossing);
+    if (has('розмитнення')) add('cIn', 'Розмитнення', 'розмитнення', a.cIn, '');
+    add('unload', 'Розвантаження', 'розвантажено', a.unload, v.trip.to);
+    return out;
+  }
+  const rptAddr = (p, v) => p.exact ? esc(p.exact) : p.k === 'cross' ? esc(v.trip.crossing) : p.city ? esc(p.city) + ' <span class="rwarn">· точну адресу уточнює логіст</span>' : '<span class="rwarn">адресу ще не надано — уточніть у логіста</span>';
+  const rptNav = (p, cls) => p.q ? '<a class="' + cls + ' rnav" target="_blank" rel="noopener" href="' + esc(mapsUrl(p.q)) + '">' + svgI('M12 2l7 19-7-4-7 4z') + 'Навігація</a>' : '';
+  /** На головній — лише актуальна адреса за статусом рейсу; «Усі адреси» — окремим віконцем (рішення власниці 23.11). */
+  function routeCard(v) {
+    const all = routePoints(v), p = all.find(x => !x.done); if (!p) return '';
+    return '<section class="card drvroute" aria-label="Куди їхати зараз"><div class="rlab rnow">Зараз — ' + esc(p.label.toLowerCase()) + '</div><div class="raddr rbig">' + rptAddr(p, v) + '</div>' +
+      '<div class="rbtns">' + rptNav(p, 'primary') + '<button class="btn" id="rAll">Усі адреси (' + all.length + ')</button></div></section>';
+  }
+  function routeAll() {
+    const v = stCur; if (!v || !v.trip) return; const all = routePoints(v), cur = all.find(x => !x.done);
+    const w = document.createElement('div'); w.className = 'ask-wrap';
+    w.innerHTML = '<div class="ask tsheet" role="dialog" aria-modal="true"><h2>Усі адреси рейсу ' + esc(v.trip.id) + '</h2>' + all.map(p => '<div class="rpt' + (p === cur ? ' rnext' : '') + (p.done ? ' rdone' : '') + '"><div class="rlab">' + (p.done ? '✓ ' : '') + esc(p.label) + (p === cur ? ' · зараз' : '') + '</div><div class="raddr">' + rptAddr(p, v) + '</div>' + rptNav(p, p === cur ? 'primary' : 'btn') + '</div>').join('') +
+      '<div class="ask-btns"><button class="btn" data-a="0">Закрити</button></div></div>';
+    w.onclick = e => { if (e.target === w || e.target.closest('[data-a="0"]')) w.remove(); };
+    dlgOpener = document.activeElement; document.body.appendChild(w);
   }
   async function openTrip(id, from) {
     tripFrom = from || 'board'; $('tripBackT').textContent = tripFrom === 'view' ? 'Таблиця' : tripFrom === 'debts' ? 'Боржники' : tripFrom === 'inv' ? 'До виставлення' : tripFrom === 'mypay' ? 'Мої рейси' : tripFrom === 'probs' ? 'Проблеми водіїв' : board ? 'Дошка' : 'Назад';
@@ -1340,8 +1371,8 @@
       }).catch(() => {});
       api('tripdoc', { tripId: id }).then(v => { if (!v || nav !== navSeq || !$('tripDocs')) return;
         const edit = ['адмін', 'керівник', 'логіст'].indexOf(me.role) >= 0;
-        $('tripDocs').innerHTML = rmpdCard(v.rmpd, id, true) + '<div id="tripAddr">' + addrCard(v.addr, id, edit) + '</div>' + tdocCard(v.list, true);
-        bindTdocList($('tripDocs')); bindRmpd($('tripDocs')); bindAddr($('tripAddr')); }).catch(() => {});
+        $('tripDocs').innerHTML = rmpdCard(v.rmpd, id, true) + '<div id="tripAddr">' + addrCard(v.addr, id, edit, v.need) + '</div>' + tdocCard(v.list, true);
+        bindTdocList($('tripDocs')); bindRmpd($('tripDocs')); $('tripAddr')._need = v.need; bindAddr($('tripAddr')); }).catch(() => {});
     } catch (e) { if (nav === navSeq) $('tripBody').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
   }
   function tripHtml(r, cols, orders, moves, journal) {
