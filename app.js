@@ -75,12 +75,15 @@
   }
   /* ── Помилки на телефоні → сервер («Здоров'я програми» → «Найчастіші помилки»), ADR-086. Не більше 5 за сеанс, лише після входу ── */
   let errSent = 0;
+  /** Схоже на номер закордонного паспорта (FX123456) — у звіт про помилку не йде (v49.1). */
+  const scrubPass = t => String(t == null ? '' : t).replace(/(^|[^A-Za-zА-Яа-яІіЇїЄєҐґ0-9])([A-Za-zА-ЯІЇЄ]{2})\s?(\d{6,9})(?!\d)/g, '$1[паспорт]')
+    .replace(/(паспорт\S*|passport)(\s*[:№#-]?\s*)\d{9}(?!\d)/gi, '$1$2[паспорт]');   // як scrubPass_ на сервері (API.js)
   function reportErr(msg, stack, where) {
     try {
       msg = String(msg || ''); if (!me || errSent >= 5 || !navigator.onLine || !msg || /^Script error\.?$|ResizeObserver loop/i.test(msg)) return;
       errSent++;
       const scr = document.querySelector('main > section:not([hidden])');
-      api('client.err', { msg: msg.slice(0, 300), stack: String(stack || '').slice(0, 1200), where: (scr ? scr.id : '') + (where ? ' · ' + where : ''), ver: 'v49' }).catch(() => {});
+      api('client.err', { msg: scrubPass(msg).slice(0, 300), stack: scrubPass(String(stack || '')).slice(0, 1200), where: (scr ? scr.id : '') + (where ? ' · ' + where : ''), ver: 'v49.1' }).catch(() => {});
     } catch (e) {}
   }
   window.addEventListener('error', e => reportErr(e.message, e.error && e.error.stack, e.filename ? String(e.filename).split('/').pop() + ':' + e.lineno : ''));
@@ -1819,11 +1822,31 @@
     clearTimeout(b._t); b._t = setTimeout(() => { b.textContent = t0; b.classList.remove('done'); }, 1800);
     const live = document.getElementById('ecLive'); if (live) live.textContent = ok ? 'Скопійовано' : 'Не вдалося скопіювати — текст виділено, натисніть Ctrl+C';
   }
-  /** Дані для розширення «Л-КОРП → єЧерга»: лише те, що вписується у форму; без паспорта. */
+  /* v49.1: паспорт водія — перевірка як на сервері (EchQueue.js echqPassCheck_), строк дії */
+  const fdt = iso => { const d = new Date(iso); return isNaN(d) ? '' : String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + d.getFullYear(); };
+  const ymdDot = v => { const m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '.' + m[2] + '.' + m[1] : ''; };
+  function passState(v) {
+    const m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); if (!m) return '';
+    const d = new Date(+m[1], +m[2] - 1, +m[3]), t = new Date(); t.setHours(0, 0, 0, 0); const soon = new Date(t.getFullYear(), t.getMonth() + 6, t.getDate());
+    return d < t ? 'expired' : d < soon ? 'soon' : '';
+  }
+  const passWarnTxt = d => d.passState === 'expired' ? 'Паспорт прострочений (дійсний до ' + ymdDot(d.passValidTo) + ') — з ним не пропустять через кордон.' : d.passState === 'soon' ? 'Паспорт спливає менш ніж за 6 місяців (' + ymdDot(d.passValidTo) + ') — частина країн не впускає з таким строком.' : '';
+  const passSub = d => (d.passValidTo ? 'дійсний до ' + ymdDot(d.passValidTo) : 'строк дії не вказано') + (d.passState ? ' — ' + (d.passState === 'expired' ? 'прострочений' : 'спливає < 6 міс') : '');
+  function passCheck(v) {
+    const bad = [], pass = String(v.passport || '').trim().toUpperCase(), cit = String(v.citizenship || '').replace(/\s+/g, ' ').trim() || 'Україна', mail = String(v.email || '').trim().toLowerCase(), valid = String(v.validTo || '').trim();
+    if (pass) { if (/\s/.test(pass)) bad.push(['pass', 'номер паспорта — без пробілів']); else if (/[А-ЯІЇЄҐ]/.test(pass)) bad.push(['pass', 'літери в номері — латиницею, не кирилицею']); else if (/[^A-Z0-9]/.test(pass)) bad.push(['pass', 'номер — лише латинські літери й цифри']); else if (pass.length < 6 || pass.length > 12) bad.push(['pass', 'номер — від 6 до 12 символів']); }
+    if (valid && !/^\d{4}-\d{2}-\d{2}$/.test(valid)) bad.push(['valid', '«Дійсний до» — дата']);
+    if (cit.length > 60 || !/^[A-Za-zА-Яа-яІіЇїЄєҐґ'’ʼ .\-()]+$/.test(cit)) bad.push(['cit', 'громадянство — назва країни']);
+    if (mail && !/^[^\s@<>"'=+][^\s@<>"'=]{0,63}@[a-z0-9.-]+\.[a-z]{2,}$/.test(mail)) bad.push(['mail', 'неправильна пошта']);
+    if (!pass && !valid && !mail) bad.push(['pass', 'впишіть номер паспорта']);
+    return { bad, val: { citizenship: cit, passport: pass, validTo: valid, email: mail } };
+  }
+  /** Дані для розширення «Л-КОРП → єЧерга»: лише те, що вписується у форму. Паспорт і пошта — лише якщо збережені (v49.1). */
   function echFillJson(p) {
     return JSON.stringify({ lcorp: 'ech-fill', v: 1, trip: p.tripId, at: new Date().toISOString(),
       checkpoint: { name: p.checkpoint.name, queue: p.checkpoint.queueText || '' },
-      drivers: p.drivers.map(d => ({ citizenship: d.citizenship, first: d.first, last: d.last, firstLat: d.firstLat, lastLat: d.lastLat, phone: d.phone, phoneCode: d.phoneCode, phoneLocal: d.phoneLocal })),
+      drivers: p.drivers.map(d => Object.assign({ citizenship: d.citizenship, first: d.first, last: d.last, firstLat: d.firstLat, lastLat: d.lastLat, phone: d.phone, phoneCode: d.phoneCode, phoneLocal: d.phoneLocal },
+        d.passport ? { passport: d.passport } : {}, d.email ? { email: d.email } : {})),
       truck: { country: p.truck.country, type: p.truck.type, brand: p.truck.brand, plate: p.truck.plate },
       trailer: { has: p.trailer.has, country: p.trailer.country, plate: p.trailer.plate },
       cargo: { has: p.cargo.has, docType: p.cargo.docType, docNo: p.cargo.docNo } });
@@ -1833,29 +1856,48 @@
     busy(true); let p = null;
     try { p = await api('ech.prep', { tripId: tid }); } catch (e) { toast(esc(e.message), 'err'); } finally { busy(false); }
     if (!p) return;
-    let n = 0;
+    let n = 0, editing = -1, formMsg = null;
     const F = (label, val, o) => { o = o || {}; const id = 'ecv' + (++n), v = val == null ? '' : String(val);
       return '<div class="ef' + (o.todo || !v ? ' ef-todo' : '') + '"><span class="ef-l">' + esc(label) + (o.sub ? '<small>' + esc(o.sub) + '</small>' : '') + '</span>' +
         (v && !o.todo ? '<span class="ef-v" id="' + id + '">' + esc(v) + '</span><button type="button" class="btn small ef-c" data-ecopy="' + id + '" aria-label="Копіювати: ' + esc(label) + '">Копіювати</button>'
           : '<span class="ef-v ef-w">' + esc(o.todo || 'вписати') + '</span><span class="tag warn">впишіть вручну</span>') + '</div>'; };
     const yn = v => v === true ? 'Так' : v === false ? 'Ні' : '';
     const cp = p.checkpoint, ds = p.drivers.length ? p.drivers : [{ citizenship: 'Україна', first: '', last: '', phone: '', firstHint: 'водія не знайдено' }];
-    const drvH = ds.map((d, i) => (ds.length > 1 ? '<h4 class="ef-h4">Водій ' + (i + 1) + (i ? ' <small>у формі — «Ще один водій»</small>' : '') + '</h4>' : '') +
+    const canPass = !me.viewAs;
+    const passRow = (d, i) => {
+      if (editing === i) return passForm(d, i);
+      const msg = formMsg && formMsg.i === i ? '<p class="pf-msg ' + formMsg.kind + '" role="status" tabindex="-1" data-pmsg="' + i + '">' + esc(formMsg.text) + '</p>' : '';
+      const st = d.passport && d.passState ? '<span class="tag ' + (d.passState === 'expired' ? 'bad' : 'warn') + '">' + (d.passState === 'expired' ? 'прострочений' : 'спливає < 6 міс') + '</span>' : '';
+      const btn = canPass && d.id ? '<button type="button" class="btn small" data-epass="' + i + '">' + (d.passSaved ? 'Змінити паспорт' : 'Зберегти для цього водія') + '</button>' : '';
+      const who = d.passSaved && d.passUpdated ? '<span class="muted small">оновлено ' + esc(fdt(d.passUpdated)) + (d.passWho ? ' · ' + esc(d.passWho) : '') + '</span>' : (canPass || !d.id ? '' : '<span class="muted small">режим перегляду — лише читання</span>');
+      return st || btn || who || msg ? '<div class="ef-pass">' + st + who + btn + '</div>' + msg : '';
+    };
+    const passForm = (d, i) => { const id = 'pf' + i;
+      return '<form class="ef-form" data-pform="' + i + '" novalidate aria-label="Паспорт водія ' + esc(d.last || '') + '">' +
+        '<div><label for="' + id + 'c">Громадянство</label><input id="' + id + 'c" name="cit" value="' + esc(d.citizenship || 'Україна') + '" autocomplete="off" maxlength="60"></div>' +
+        '<div><label for="' + id + 'p">Серія і номер закордонного паспорта</label><input id="' + id + 'p" name="pass" value="' + esc(d.passport || '') + '" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="14" placeholder="FX123456" aria-describedby="' + id + 'ph"><small class="pf-h" id="' + id + 'ph">латиницею, 6–12 символів, без пробілів</small></div>' +
+        '<div><label for="' + id + 'v">Дійсний до</label><input id="' + id + 'v" name="valid" type="date" value="' + esc(d.passValidTo || '') + '" aria-describedby="' + id + 'vh"><small class="pf-date' + (d.passState ? ' ' + (d.passState === 'expired' ? 'bad' : 'warn') : '') + '" id="' + id + 'vh" aria-live="polite">' + esc(passWarnTxt(d)) + '</small></div>' +
+        '<div><label for="' + id + 'm">Пошта для єЧерги</label><input id="' + id + 'm" name="mail" type="email" value="' + esc(d.email || '') + '" autocomplete="off" placeholder="пошта водія або фірми"></div>' +
+        '<p class="pf-msg" role="alert"></p>' +
+        '<div class="pf-btns">' + (d.passSaved && ['адмін', 'керівник'].indexOf(me.role) >= 0 ? '<button type="button" class="btn danger pf-del" data-pdel="' + i + '">Видалити паспорт</button>' : '') + '<button type="button" class="btn" data-pcancel="1">Скасувати</button><button type="submit" class="primary">Зберегти</button></div>' +
+        '<p class="muted small pf-note">Бачать лише логіст, керівник і адмін. У журналі змін — лише перші й останні 2 знаки.</p></form>'; };
+    const drvH = () => ds.map((d, i) => (ds.length > 1 ? '<h4 class="ef-h4">Водій ' + (i + 1) + (i ? ' <small>у формі — «Ще один водій»</small>' : '') + '</h4>' : '') +
       F('Громадянство', d.citizenship) + F('Ім\'я', d.first, { todo: d.first ? '' : (d.firstHint || 'вписати') }) + F('Прізвище', d.last) +
       (d.lastLat ? F('Латиницею (як у паспорті)', [d.firstLat, d.lastLat].filter(Boolean).join(' '), { sub: 'якщо форма просить латиницю — звірте з паспортом' }) : '') +
-      F('Серія та номер закордонного паспорта', '', { todo: 'з паспорта водія — програма його не зберігає' }) +
-      F('Електронна пошта', '', { todo: 'пошта водія або фірми' }) +
+      F('Серія та номер закордонного паспорта', d.passport, { todo: d.passport ? '' : 'з паспорта водія — у програмі ще немає', sub: d.passport ? passSub(d) : '' }) +
+      passRow(d, i) +
+      F('Електронна пошта', d.email, { todo: d.email ? '' : 'пошта водія або фірми' }) +
       F('Код країни', d.phoneCode || (d.phone ? '' : '+380'), { todo: d.phone && !d.phoneCode ? 'див. номер нижче' : '' }) +
       F('Номер телефону', d.phoneLocal || d.phone, { todo: d.phone ? '' : 'телефону водія в базі немає', sub: d.phoneLocal ? 'без коду країни; повністю ' + d.phone : '' })).join('');
     const tr = p.trailer, cg = p.cargo;
-    const body = '<p class="muted small">Форма <b>echerha.gov.ua</b> → «Стати в чергу»: після старту є 30 хв на заповнення — підготуйте дані тут. Кнопку «Стати в чергу» натискаєте ви, програма й розширення — ніколи.</p>' +
+    const body = () => '<p class="muted small">Форма <b>echerha.gov.ua</b> → «Стати в чергу»: після старту є 30 хв на заповнення — підготуйте дані тут. Кнопку «Стати в чергу» натискаєте ви, програма й розширення — ніколи.</p>' +
       '<div class="ec-top"><a class="primary ec-go" href="' + ECH_URL.login + '" target="_blank" rel="noopener">Відкрити єЧергу ↗</a><button type="button" class="btn" id="ecAll">Скопіювати все для розширення</button><button type="button" class="link" id="ecExt">Підключити розширення</button></div>' +
       (p.warn && p.warn.length ? '<ul class="ec-warn">' + p.warn.map(w => '<li>' + esc(w) + '</li>').join('') + '</ul>' : '') +
       '<section class="ec-b" aria-labelledby="ecb1"><h3 id="ecb1"><span class="ec-n">1</span>Пункт пропуску</h3>' +
         F('Пункт пропуску', cp.name, { sub: cp.cross && cp.cross !== cp.name ? '«Перехід» у рейсі: ' + cp.cross : '' }) +
         F('Черга', cp.queueText, { todo: cp.queueText ? '' : 'оберіть: «для вантажівок ≥ 7,5 тонн» або «для порожніх вантажівок ≥ 7,5 тонн»' }) +
         '<p class="ec-hint">' + esc(cp.hint) + '</p></section>' +
-      '<section class="ec-b" aria-labelledby="ecb2"><h3 id="ecb2"><span class="ec-n">2</span>Водій' + (ds.length > 1 ? 'і' : '') + '</h3>' + drvH + '</section>' +
+      '<section class="ec-b" aria-labelledby="ecb2"><h3 id="ecb2"><span class="ec-n">2</span>Водій' + (ds.length > 1 ? 'і' : '') + '</h3>' + drvH() + '</section>' +
       '<section class="ec-b" aria-labelledby="ecb3"><h3 id="ecb3"><span class="ec-n">3</span>Транспорт</h3>' +
         F('Країна реєстрації', p.truck.country) + F('Тип ТЗ', p.truck.type, { todo: p.truck.type ? '' : 'оберіть у формі (тягач)' }) + F('Марка', p.truck.brand, { todo: p.truck.brand ? '' : 'марки в базі немає' }) +
         F('Номер', p.truck.plate, { todo: p.truck.plate ? '' : 'держномера в базі немає', sub: p.truck.plateRaw && p.truck.plateRaw !== p.truck.plate ? 'латиницею; у базі ' + p.truck.plateRaw : 'латиницею' }) +
@@ -1869,13 +1911,45 @@
       '<section class="ec-b ec-last"><h3><span class="ec-n">5</span>Підтвердження</h3><p class="ec-hint">Перевірте все на сторінці «Підтвердження» і натисніть «Стати в чергу» самі. Після реєстрації лист єЧерги підтягнеться в програму (стан машини на дошці).</p></section>' +
       '<p class="sr" aria-live="polite" id="ecLive"></p>';
     const w = document.createElement('div'); w.className = 'ask-wrap';
-    w.innerHTML = '<div class="ask tsheet echsheet" role="dialog" aria-modal="true" aria-labelledby="ecT"><h2 id="ecT">Реєстрація в єЧергу · <span class="nw">' + esc(p.tripId) + '</span></h2>' + body +
-      '<div class="ask-btns one"><button class="btn" data-a="0">Закрити</button></div></div>';
+    const draw = () => { n = 0; w.innerHTML = '<div class="ask tsheet echsheet" role="dialog" aria-modal="true" aria-labelledby="ecT"><h2 id="ecT">Реєстрація в єЧергу · <span class="nw">' + esc(p.tripId) + '</span></h2>' + body() +
+      '<div class="ask-btns one"><button class="btn" data-a="0">Закрити</button></div></div>'; };
+    draw();
+    /* v49.1: паспорт водія — «Зберегти для цього водія» / «Змінити» (ech.pass.save; у «Журнал змін» — лише маска) */
+    w.addEventListener('submit', async e => {
+      const f = e.target.closest('[data-pform]'); if (!f) return; e.preventDefault();
+      const i = +f.dataset.pform, d = ds[i], val = { citizenship: f.querySelector('[name=cit]').value, passport: f.querySelector('[name=pass]').value, validTo: f.querySelector('[name=valid]').value, email: f.querySelector('[name=mail]').value };
+      const chk = passCheck(val);
+      f.querySelectorAll('[aria-invalid]').forEach(x => x.removeAttribute('aria-invalid'));
+      if (chk.bad.length) { chk.bad.forEach(([k]) => { const x = f.querySelector('[name=' + k + ']'); if (x) x.setAttribute('aria-invalid', 'true'); });
+        const m = f.querySelector('.pf-msg'); m.className = 'pf-msg bad'; m.textContent = 'Перевірте: ' + chk.bad.map(b => b[1]).join('; ');
+        const x0 = f.querySelector('[aria-invalid]'); if (x0) x0.focus(); return; }
+      const sb = f.querySelector('[type=submit]'); sb.disabled = true; busy(true); let r = null;
+      try { r = await api('ech.pass.save', Object.assign({ workerId: d.id }, chk.val)); }
+      catch (er) { const m = f.querySelector('.pf-msg'); m.className = 'pf-msg bad'; m.textContent = er.message || 'Не вдалося зберегти'; }
+      finally { busy(false); sb.disabled = false; }
+      if (!r) return;
+      ['citizenship', 'passport', 'passValidTo', 'passState', 'email', 'passSaved', 'passUpdated', 'passWho'].forEach(k => { if (r[k] !== undefined) d[k] = r[k]; });
+      editing = -1; formMsg = { i, kind: d.passState ? 'warn' : 'ok', text: (r.saved ? 'Збережено для ' + (d.last || 'водія') + '.' : 'Без змін.') + (d.passState ? ' ' + passWarnTxt(d) : '') };
+      draw(); const c = w.querySelector('[data-pmsg="' + i + '"]'); if (c) c.focus();
+    });
+    w.addEventListener('input', e => { const f = e.target.closest('[data-pform]'); if (!f) return;
+      if (e.target.getAttribute('aria-invalid')) { e.target.removeAttribute('aria-invalid'); const m = f.querySelector('.pf-msg'); if (m && /bad/.test(m.className)) { m.textContent = ''; m.className = 'pf-msg'; } }
+      if (e.target.name === 'pass') { const st = e.target.selectionStart, v = e.target.value.toUpperCase(); if (v !== e.target.value) { e.target.value = v; try { e.target.setSelectionRange(st, st); } catch (er) {} } }
+      if (e.target.name === 'valid') { const m = f.querySelector('.pf-date'), st = passState(e.target.value); m.textContent = st ? passWarnTxt({ passState: st, passValidTo: e.target.value }) : ''; m.className = 'pf-date' + (st ? ' ' + (st === 'expired' ? 'bad' : 'warn') : ''); }
+    });
     w.onclick = async e => {
       if (e.target === w || e.target.closest('[data-a="0"]')) { w.remove(); return; }
+      const pe = e.target.closest('[data-epass]'); if (pe) { editing = +pe.dataset.epass; formMsg = null; draw(); const x = w.querySelector('[data-pform] [name=pass]'); if (x) x.focus(); return; }
+      const pd = e.target.closest('[data-pdel]'); if (pd) { const i = +pd.dataset.pdel, d = ds[i];
+        if (!await ask('Видалити паспорт водія ' + (d.last || '') + '?', 'Номер, строк дії і пошту буде прибрано з програми. У журналі змін залишиться лише запис «видалено» з маскою номера.', 'Видалити', true)) return;
+        busy(true); let r = null; try { r = await api('ech.pass.del', { workerId: d.id }); } catch (er) { toast(esc(er.message), 'err'); } finally { busy(false); }
+        if (!r) return;
+        ['citizenship', 'passport', 'passValidTo', 'passState', 'email', 'passSaved', 'passUpdated', 'passWho'].forEach(k => { if (r[k] !== undefined) d[k] = r[k]; });
+        editing = -1; formMsg = { i, kind: 'ok', text: 'Паспорт видалено.' }; draw(); const c = w.querySelector('[data-pmsg="' + i + '"]'); if (c) c.focus(); return; }
+      if (e.target.closest('[data-pcancel]')) { const i = editing; editing = -1; draw(); const b = w.querySelector('[data-epass="' + i + '"]'); if (b) b.focus(); return; }
       if (e.target.closest('#ecExt')) { w.remove(); echExtOpen(); return; }
       const c = e.target.closest('[data-ecopy]'); if (c) { const el = $(c.dataset.ecopy); copyBtnDone(c, await copyTxt(el.textContent, el)); return; }
-      if (e.target.closest('#ecAll')) { const b = $('ecAll'); copyBtnDone(b, await copyTxt(echFillJson(p))); if (b.classList.contains('done')) toast('Скопійовано. На сторінці форми єЧерги: плашка «Заповнити з Л-КОРП» → Ctrl+V. Розширення лише заповнює поля — «Продовжити» й «Стати в чергу» натискаєте ви.'); }
+      if (e.target.closest('#ecAll')) { const b = $('ecAll'); copyBtnDone(b, await copyTxt(echFillJson(p))); if (b.classList.contains('done')) toast('Скопійовано. На сторінці форми єЧерги: плашка «Заповнити з Л-КОРП» → Ctrl+V. Розширення лише заповнює поля — «Продовжити» й «Стати в чергу» натискаєте ви.' + (p.drivers.some(d => d.passport) ? '<br><b>У буфері обміну — паспорт водія.</b> Після вставки скопіюйте щось інше.' : '')); }
     };
     dlgOpener = document.activeElement; document.body.appendChild(w); setTimeout(() => { const f = w.querySelector('.ec-go'); if (f) f.focus(); }, 40);
   }
@@ -3398,7 +3472,7 @@
   };
   // «Що нового» — один раз на пристрої для тих, хто вже бачив підказки (ADR-076)
   const NEWS49 = { key: 'news_v49', roles: ['адмін', 'керівник', 'логіст'], title: 'Що нового: єЧерга',
-    items: ['Рейс (бокова панель або повна картка) → «Підготувати реєстрацію в єЧергу»: усі дані для форми єЧерги в її порядку — пункт пропуску й черга, водії, тягач і причіп, вантаж. Кожне поле — кнопка «Копіювати». Паспорт водія програма не зберігає — його вписуєте самі.',
+    items: ['Рейс (бокова панель або повна картка) → «Підготувати реєстрацію в єЧергу»: усі дані для форми єЧерги в її порядку — пункт пропуску й черга, водії, тягач і причіп, вантаж. Кожне поле — кнопка «Копіювати». Закордонний паспорт водія можна зберегти один раз («Зберегти для цього водія») — далі він підставляється сам.',
       'Розширення Chrome «Л-КОРП → єЧерга»: на сторінці форми — плашка «Заповнити з Л-КОРП». Вставте те, що скопіювала кнопка «Скопіювати все для розширення», — поля поточного кроку заповняться. «Продовжити» і «Стати в чергу» натискаєте лише ви.',
       'Головна логіста → «Кордон і документи» → «Черги зараз»: скільки чекають на пунктах, якими ми їздимо, поруч — скільки зазвичай чекаємо ми, і наші машини в черзі. Дані надсилає розширення, поки в Chrome відкрита сторінка «Черга зараз» (раз на 10 хв).'] };
   const NEWS = { key: 'news_v48', roles: ['адмін', 'керівник', 'логіст', 'бухгалтер'], title: 'Що нового',
