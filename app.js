@@ -68,6 +68,19 @@
     }
     return out;
   }
+  /* ── Помилки на телефоні → сервер («Здоров'я програми» → «Найчастіші помилки»), ADR-086. Не більше 5 за сеанс, лише після входу ── */
+  let errSent = 0;
+  function reportErr(msg, stack, where) {
+    try {
+      msg = String(msg || ''); if (!me || errSent >= 5 || !navigator.onLine || !msg || /^Script error\.?$|ResizeObserver loop/i.test(msg)) return;
+      errSent++;
+      const scr = document.querySelector('main > section:not([hidden])');
+      api('client.err', { msg: msg.slice(0, 300), stack: String(stack || '').slice(0, 1200), where: (scr ? scr.id : '') + (where ? ' · ' + where : ''), ver: 'v41' }).catch(() => {});
+    } catch (e) {}
+  }
+  window.addEventListener('error', e => reportErr(e.message, e.error && e.error.stack, e.filename ? String(e.filename).split('/').pop() + ':' + e.lineno : ''));
+  window.addEventListener('unhandledrejection', e => { const r = e.reason || {}; if (r.net || r.code || r.name === 'AbortError') return; reportErr('Promise: ' + (r.message || r), r.stack); });
+
   /* ── Сховище телефона для черги й фото: IndexedDB (сотні МБ), а не localStorage (≈5 МБ — влазило лише ~20 фото). QA-1, UX-Б3 ── */
   const IDB = (() => {
     let dbp = null;
@@ -1263,6 +1276,9 @@
       Object.keys(groups).forEach(g => { h += '<section class="card hl-group"><h2>' + esc(g) + '</h2>' + groups[g].map(x => '<div class="hl-row lv-' + x.level + '"><span class="hl-dot" aria-label="' + word[x.level] + '">' + ico[x.level] + '</span><div><b>' + esc(x.label) + '</b><small>' + esc(x.text) + '</small></div></div>').join('') + '</section>'; });
       if (r.errTop.length) h += '<section class="card hl-group"><h2>Найчастіші помилки (7 днів)</h2>' + r.errTop.map(e => '<div class="hl-row"><span class="hl-n">' + e.n + '×</span><div>' + esc(e.text) + '<small>останній раз ' + esc(e.last) + '</small></div></div>').join('') + '</section>';
       if (r.speed.length) h += '<section class="card hl-group"><h2>Швидкість на телефоні (3 дні)</h2><table class="hl-tab"><tr><th>Дія</th><th>Зазвичай</th><th>У гірших випадках</th><th>Замірів</th></tr>' + r.speed.map(s => '<tr><td>' + esc(s.action) + '</td><td>' + (s.p50 / 1000).toFixed(1) + ' с</td><td>' + (s.p95 / 1000).toFixed(1) + ' с</td><td>' + s.n + '</td></tr>').join('') + '</table></section>';
+      if (r.people && r.people.length) h += '<section class="card hl-group"><h2>Хто працює в програмі (7 днів)</h2><div class="use-wrap"><table class="hl-tab use-tab"><tr><th>Хто</th><th>Днів</th><th>Дій</th><th>Змін</th><th>Востаннє</th></tr>' +
+        r.people.map(p => '<tr><td>' + esc(p.who) + '<small>' + esc([p.role].concat(p.top).join(' · ')) + '</small></td><td>' + p.days + '</td><td>' + p.actions + '</td><td>' + p.changes + '</td><td>' + (p.last ? esc(tkTime(p.last).split(',')[0]) : '—') + '</td></tr>').join('') +
+        '</table></div><p class="muted small">Дія — будь-яке звернення до сервера (відкрити екран, зберегти). Зміна — запис у базі через програму. Хто є в довіднику, але не заходив, — у рядках вище «з N».</p></section>';
       h += '<button class="btn" id="hlAgain">Перевірити ще раз</button>';
       $('hlBody').innerHTML = h; $('hlAgain').onclick = openHealth;
     } catch (e) { if (nav === navSeq) $('hlBody').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
