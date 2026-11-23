@@ -1268,6 +1268,8 @@
   $('userBtn').onclick = () => { const p = $('userPop'), open = p.hidden; p.hidden = !open; $('userBtn').setAttribute('aria-expanded', String(open)); if (open) { const f = p.querySelector('button'); if (f) f.focus(); } };
   $('userPop').addEventListener('click', e => { const b = e.target.closest('[data-um]'); if (!b) return; const a = b.dataset.um; closeUser();
     if (a === 'viewas') return viewAsOpen();
+    if (a === 'viewback') return viewBack();
+    if (a === 'viewswitch') { store.set('vaReopen', '1'); return viewBack(); }   // з перегляду — одразу інша роль (власниця 23.11)
     if (a === 'view') $('fontBtn').onclick(); else if (a === 'push') openPush(); else if (a === 'logout') askLogout(); else if (a === 'logoutAll') $('logoutAll').onclick(); else if (a === 'tour') { store.del('tour1_' + me.role); tour(); } });
   $('userPop').addEventListener('keydown', e => { const bs = [...$('userPop').querySelectorAll('button')].filter(b => !b.hidden), i = bs.indexOf(document.activeElement);
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); bs[(i + (e.key === 'ArrowDown' ? 1 : -1) + bs.length) % bs.length].focus(); } });
@@ -1277,6 +1279,8 @@
     $('umenu').hidden = false; $('uName').textContent = me.name; $('uAva').textContent = String(me.name || '?').trim().charAt(0).toUpperCase(); $('uPopName').textContent = me.name; $('uPopRole').textContent = me.role;
     $('umPush').hidden = KA.concat(['логіст']).indexOf(me.role) < 0 || !!me.viewAs;
     $('umViewAs').hidden = me.role !== 'адмін' || !!me.viewAs;
+    $('umViewSw').hidden = $('umViewBack').hidden = !me.viewAs; $('umLogout').hidden = $('umLogoutAll').hidden = !!me.viewAs;
+    if (me.role === 'адмін' && !me.viewAs && store.get('vaReopen')) { store.del('vaReopen'); setTimeout(viewAsOpen, 300); }
     $('gs').hidden = false; $('gsBtn').hidden = false;
   }
 
