@@ -1032,3 +1032,40 @@ html[data-zoom] .pysum .pybig b { font-size: 1.4rem; }
 .use-tab td:nth-child(n+2), .use-tab th:nth-child(n+2) { text-align: right; }
 .use-tab td small { display: block; opacity: .7; font-size: 12px; }
 .use-wrap { overflow-x: auto; }
+/* «До виставлення» (ADR-087) */
+.invrow { align-items: flex-start; gap: 12px; }
+.invrow .dmain a { color: inherit; }
+.invtext { color: var(--muted); margin-top: 2px; }
+.invchk { color: var(--warn-fg); margin-top: 2px; }
+.invrow .dwhen .row { gap: 6px; flex-wrap: wrap; justify-content: flex-end; margin-top: 6px; }
+.btn.small, .primary.small { padding: 6px 10px; font-size: 13px; min-height: 36px; }
+.dupbar { margin: 6px 0 10px; padding: 8px 12px; border: 1px solid var(--warn-bd); background: var(--warn-bg); color: var(--warn-fg); border-radius: var(--r); }
+.dupbar .link { color: inherit; font-weight: 600; }
+.dupg { border-top: 1px solid var(--line); padding: 10px 0; }
+.dupg p { margin: 0 0 6px; }
+.tfclhint { grid-column: 1 / -1; margin: -4px 0 2px; }
+.tfclhint.warn { color: var(--warn-fg); }
+#tfNewCl { justify-self: start; }
+@media (max-width: 560px) {
+  .invrow { flex-direction: column; }
+  .invrow .dwhen { justify-items: start; text-align: left; }
+  .invrow .dwhen .row { justify-content: flex-start; }
+  #inv .bhead { flex-wrap: wrap; }
+  #inv .bhead .row { width: 100%; }
+}
+/* «Панель дня» керівника (ADR-088) */
+.pnl { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin: 8px 0 16px; }
+.pcard h2 { margin: 0 0 10px; font-size: 18px; } .pcard h2 small { color: var(--muted); font-weight: 400; }
+.pwide { grid-column: 1 / -1; }
+.pbar { display: flex; height: 18px; border-radius: 9px; overflow: hidden; background: var(--line); gap: 2px; }
+.pseg { display: block; min-width: 6px; }
+.p-trip { background: var(--accent); } .p-free { background: var(--ok-fg); } .p-idle { background: var(--warn-fg); } .p-none { background: var(--line-strong); }
+.plgs { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 8px 0 4px; font-size: 14px; }
+.plg i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+.pprog { height: 14px; border-radius: 7px; background: var(--line); overflow: hidden; } .pprog span { display: block; height: 100%; background: var(--ok-fg); }
+.prows { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+.prow { display: flex; gap: 10px; align-items: center; text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--card); color: var(--ink); cursor: pointer; min-height: 48px; font: inherit; }
+.prow small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
+.prow .pn { font-size: 22px; font-weight: 700; min-width: 34px; text-align: center; color: var(--muted); white-space: nowrap; }
+.prow.p-bad { border-color: var(--bad-bd); background: var(--bad-bg); } .prow.p-bad .pn { color: var(--bad-fg); }
+.prow.p-warn { border-color: var(--warn-bd); background: var(--warn-bg); } .prow.p-warn .pn { color: var(--warn-fg); }
