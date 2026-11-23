@@ -75,7 +75,7 @@
       msg = String(msg || ''); if (!me || errSent >= 5 || !navigator.onLine || !msg || /^Script error\.?$|ResizeObserver loop/i.test(msg)) return;
       errSent++;
       const scr = document.querySelector('main > section:not([hidden])');
-      api('client.err', { msg: msg.slice(0, 300), stack: String(stack || '').slice(0, 1200), where: (scr ? scr.id : '') + (where ? ' · ' + where : ''), ver: 'v45' }).catch(() => {});
+      api('client.err', { msg: msg.slice(0, 300), stack: String(stack || '').slice(0, 1200), where: (scr ? scr.id : '') + (where ? ' · ' + where : ''), ver: 'v46' }).catch(() => {});
     } catch (e) {}
   }
   window.addEventListener('error', e => reportErr(e.message, e.error && e.error.stack, e.filename ? String(e.filename).split('/').pop() + ':' + e.lineno : ''));
@@ -936,7 +936,7 @@
     rest: ['Перерва / відпочинок', x => !!(x.drive && x.drive.tone === 'rest' && !x.drive.canNow)] };
   const BF_TOP = ['drv', 'urg', 'idle', 'trip', 'free', 'all'];
   const bRank = x => x.rank != null ? x.rank : bDrv(x) && bUrg(x) ? 0 : bUrg(x) ? 1 : x.status === 'trip' ? 2 : bIdle(x) ? 3 : x.status === 'free' ? 4 : 5;
-  const bStripe = x => bUrg(x) ? 'urg' : x.status === 'trip' ? 'trip' : bIdle(x) ? 'idle' : 'free';
+  const bStripe = x => bUrg(x) ? 'urg' : bDrv(x) ? 'work' : x.status === 'trip' ? 'trip' : bIdle(x) ? 'idle' : 'free';
   /** Стан машини одним рядком: крапка + слово (колір — не єдиний носій). */
   function bStateHtml(x) {
     if (x.status === 'trip') { const s = x.trip.st; return '<span class="bdot d-trip" aria-hidden="true"></span><b>' + esc(s && s.event ? cap(s.event) : 'В рейсі') + '</b>' + (s && s.at ? ' <span class="muted">' + esc(tkTime(s.at).split(', ').pop()) + '</span>' : ''); }
@@ -961,7 +961,8 @@
   }
   function renderBoard() {
     const b = board, q = $('bSearch').value.trim().toLowerCase();
-    $('bSub').textContent = 'Сьогодні ' + dd(b.today) + (/^\d\d:\d\d$/.test(b.updated || '') ? ' · оновлено о ' + b.updated : '') + (b.pos && b.pos.at ? ' · місце машин на ' + tkTime(b.pos.at).split(', ').pop() + (b.pos.stale ? ' (давно: вночі не оновлюється)' : '') : '') + (b.gpsError ? ' · GPS недоступний (' + b.gpsError + ')' : '');
+    $('bSub').textContent = 'Сьогодні ' + dd(b.today) + (/^\d\d:\d\d$/.test(b.updated || '') ? ' · оновлено о ' + b.updated : '') + (b.pos && b.pos.at ? ' · місце машин на ' + tkTime(b.pos.at).split(', ').pop() + (b.pos.stale ? ' (давно: вночі не оновлюється)' : '') : '') + (b.gpsError ? ' · GPS тимчасово недоступний' : '');
+    $('bSub').title = b.gpsError ? 'Технічно: ' + b.gpsError : '';
     if (bFilter === 'prob') bFilter = 'urg';                                          // старий фільтр «З проблемами»
     if (!BF[bFilter]) bFilter = 'all';
     const setF = k => { bFilter = bFilter === k && k !== 'all' ? 'all' : k; store.set('bFilter', bFilter); renderBoard(); };
@@ -991,7 +992,7 @@
       const drv = x.drivers.length ? x.drivers.map(d => '<b>' + esc(d.name) + '</b>' + (d.fromTrip ? ' <span class="muted">(за рейсом)</span>' : '') + (d.fromApp ? ' <span class="ok-mark">✓ прийняв' + (d.since ? ' ' + dd(d.since) : '') + '</span>' : '')).join(', ') : '<span class="muted">водія не вказано</span>';
       const flags = pr.map(p => flag(p.k, p.t, p.urgent, p.old)).join('');
       const route = t ? '<div class="broute">' + tripText(t) + '</div><div class="bsub">' + esc(t.id) + (t.client ? ' · ' + esc(t.client) : '') + (x.trip ? '' : ' · останній') + '</div>' : '<span class="muted">немає рейсу</span>';
-      const stSub = x.trip ? (s ? 'з ' + tkTime(s.at) : 'кроків від водія ще немає') : x.status === 'free' ? 'з ' + dd(x.since) + (nd > 0 ? ' · ' + nd + ' дн' : '') : '';
+      const stSub = x.trip ? (s && s.at ? (s.event ? cap(s.event) + ' ' : '') + 'з ' + tkTime(s.at) : s && s.event ? cap(s.event) : 'кроків від водія ще немає') : x.status === 'free' ? 'з ' + dd(x.since) + (nd > 0 ? ' · ' + nd + ' дн' : '') : '';
       // компактний рядок для комп'ютера: один рядок, повний текст — у title
       const dName = x.drivers.map(d => d.name).join(', ');
       const tr = tb.insertRow(); tr.className = 'brow s-' + bStripe(x); tr.dataset.truck = x.id;
@@ -1013,10 +1014,19 @@
       c.innerHTML = '<summary><div class="bc1"><span class="plate ua">' + esc(x.id) + '</span><span class="bwho">' + drv + '</span>' + badgeOf(x) + '</div>' +
         route + (x.trip && x.trip.unload ? '<div class="bsub">розвантаження ' + dd(x.trip.unload) + '</div>' : '') + (stSub ? '<div class="bsub">' + esc(stSub) + '</div>' : '') +
         posHtml(x.id, true) + driveHtml(x) + (x.ech ? '<div class="bsub">' + esc(echShort(x.ech)) + '</div>' : '') + (x.gpsHint ? '<div class="bhint">' + svgI(PROB.gps) + esc(x.gpsHint.text) + '</div>' : '') +
-        (flags ? '<div class="flags">' + flags + '</div>' : '') + '<span class="bmore"><span class="m1">Деталі</span><span class="m2">Згорнути</span></span></summary>' + detail(x);
+        (flags ? '<div class="flags">' + flags + '</div>' : '') +
+        (canTrip() ? x.problems.filter(p => p.k === 'drv' && p.pid).map(p => '<div class="bc-ans">' + (p.urgent ? '<button type="button" class="btn small" data-cpa="в роботі" data-pid="' + esc(p.pid) + '" data-trip="' + esc(p.trip) + '">Беру в роботу</button>' : '') +
+          '<button type="button" class="btn small" data-cpa="вирішено" data-pid="' + esc(p.pid) + '" data-trip="' + esc(p.trip) + '">Вирішено…</button></div>').join('') : '') +   // телефон: відповісти водію прямо з картки (логісти 23.11)
+        '<span class="bmore"><span class="m1">Деталі</span><span class="m2">Згорнути</span></span></summary>' + detail(x);
+      c.querySelectorAll('[data-cpa]').forEach(bt => bt.onclick = async e => { e.preventDefault(); e.stopPropagation();
+        const state = bt.dataset.cpa; let text = '';
+        if (state === 'вирішено') { text = await askText('Як вирішили?', 'Напр. EX передали, митниця пропустила', 'Вирішено'); if (!text) return; }
+        busy(true); try { await api('trip.problem.answer', { tripId: bt.dataset.trip, problemId: bt.dataset.pid, state, text, opId: 'PA-' + newId().slice(0, 16) });
+          toast(state === 'вирішено' ? '✔ Проблему закрито — водій бачить відповідь.' : '✔ Водій бачить, що проблема в роботі.'); await openBoard(true); }
+        catch (er) { toast(esc(er.message), 'err'); } finally { busy(false); } });
       cards.appendChild(c);
     });
-    if (bPanelX) { const nx = b.trucks.find(x => x.id === bPanelX.id); if (nx && !$('bPanel').hidden) { bPanelX = nx; markPanelRow(); } }
+    if (bPanelX && !$('bPanel').hidden) { const nx = list.find(x => x.id === bPanelX.id); if (nx) { bPanelX = nx; markPanelRow(); } else bPanelClose(); }   // машина пішла з фільтра — панель закривається
     const qu = b.queue || []; $('bQueue').hidden = false; $('bQueueN').textContent = qu.length;
     $('bQueueList').innerHTML = (b.queueError ? '<p class="msg small">Реєстр причепів недоступний: ' + esc(b.queueError) + '</p>' : '') + (qu.length ? '' : '<p class="muted">Зараз немає завантажених причепів, що чекають тягач.</p>') + qu.map(z => '<div class="wrow qrow"><span class="plate">' + esc(z.trailer || '?') + '</span> <b>' + tripText(z) + '</b>' +
       (z.waitDays != null ? ' <span class="pill ' + (z.waitDays >= 2 ? 'st-idle' : 'st-free') + '">' + (z.waitDays ? 'чекає ' + z.waitDays + ' дн' : 'сьогодні') + '</span>' : '') +
@@ -1049,12 +1059,12 @@
   function logDraw(loading) {
     if (loading) { $('homeWork').innerHTML = '<div class="pnl lpnl"><section class="card pcard pwide"><h2>Сьогодні</h2><p class="muted">Збираю дошку…</p></section></div>'; return; }
     const T = board.trucks, n = f => T.filter(f).length;
-    const drvN = T.reduce((a, x) => a + x.problems.filter(p => p.k === 'drv' && p.urgent).length, 0);
+    const drvN = T.reduce((a, x) => a + x.problems.filter(p => p.k === 'drv' && p.urgent).length, 0), drvW = T.reduce((a, x) => a + x.problems.filter(p => p.k === 'drv' && !p.urgent).length, 0);
     const row = (v, lvl, label, sub, act) => '<button class="prow' + (v ? ' p-' + lvl : '') + '" data-lact="' + act + '"><span class="pn">' + (v == null ? '…' : v) + '</span><span><b>' + esc(label) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></button>';
     const urgT = T.filter(bUrg), nounl = T.filter(bNoUnl), addr = T.filter(x => x.problems.some(p => p.k === 'addr'));
     const ids = l => l.slice(0, 6).map(x => x.id).join(', ') + (l.length > 6 ? '…' : '');
     $('homeWork').innerHTML = '<div class="pnl lpnl"><section class="card pcard pwide"><h2>Сьогодні</h2><div class="prows">' +
-      row(drvN, 'bad', 'Нові проблеми водіїв', drvN ? 'відповісти — у рядку дошки' : '', 'drv') +
+      row(drvN + drvW, drvN ? 'bad' : 'warn', 'Проблеми водіїв', drvN + drvW ? drvN + ' ' + (drvN % 10 === 1 && drvN % 100 !== 11 ? 'нова' : drvN % 10 >= 2 && drvN % 10 <= 4 && (drvN % 100 < 10 || drvN % 100 >= 20) ? 'нові' : 'нових') + ' · ' + drvW + ' в роботі' + (drvN ? ' — відповісти в рядку дошки' : '') : '', 'drv') +   // «в роботі» не зникає з головної (логісти 23.11)
       row(urgT.length, 'bad', 'Термінове на дошці', ids(urgT), 'urg') +
       row(logRmpd.size, 'warn', 'RMPD перед кордоном не перевірено', [...logRmpd].slice(0, 6).join(', '), 'rmpd') +
       row(addr.length, 'warn', 'Рейси без адрес для водія', ids(addr), 'addr') +
@@ -1112,10 +1122,10 @@
       bindPanel(x, null); p.focus(); return;
     }
     p.innerHTML = head + '<div class="bp-now"><div class="bp-k">Зараз · ' + esc(t.st && t.st.event ? t.st.event : 'кроків від водія ще немає') + (t.st && t.st.at ? ' · ' + esc(tkTime(t.st.at)) : '') + '</div><div class="bp-big">' + tripText(t) + '</div>' +
-      '<div class="bp-sub">завантаження ' + (dd(t.load) || '?') + ' · розвантаження: ' + (t.unload ? dd(t.unload) : '<b>не вказано</b>') + (t.cross ? ' · перехід ' + esc(t.cross) : '') + (t.client ? ' · ' + esc(t.client) : '') + '</div><div class="bp-steps" id="bpSteps"></div></div>' +
+      '<div class="bp-sub">завантаження ' + (dd(t.load) || '?') + ' · розвантаження: ' + (t.unload ? dd(t.unload) : '<b>не вказано</b>') + (t.cross ? ' · перехід ' + esc(t.cross) : '') + (t.client ? ' · ' + esc(t.client) : '') + '</div><div class="bp-steps" id="bpSteps"></div><div id="bpMark"></div></div>' +
       '<div id="bpProb"></div><h3 class="bp-h">Перед кордоном</h3><ul class="bp-list" id="bpBorder"><li class="muted"><span class="bp-m">…</span><span>Перевіряю RMPD і адреси…</span></li>' + docH + echH + '</ul>' + nextH +
       '<h3 class="bp-h">Історія змін</h3><div id="bpJrn"><button type="button" class="btn small" id="bpJrnB">Хто і що змінював</button></div>' +
-      '<div class="bp-act">' + (canTrip() ? '<button type="button" class="primary" id="bpEdit">✏️ Виправити</button>' : '') + '<span id="bpMark"></span><button type="button" class="btn" id="bpFull">Повна картка ↗</button>' +
+      '<div class="bp-act">' + (canTrip() ? '<button type="button" class="primary" id="bpEdit">✏️ Виправити</button>' : '') + '<button type="button" class="btn" id="bpFull">Повна картка ↗</button>' +
       (x.drive && x.drive.worker ? '<button class="btn tdrv" data-tdrv="' + esc(x.drive.worker) + '" data-truck="' + esc(x.id) + '" data-name="' + esc(dName) + '">Час водія</button>' : '') + '</div>';
     bindPanel(x, tid); p.focus();
     $('bpJrnB').onclick = () => jrnLoad(tid, $('bpJrn'));
@@ -1124,7 +1134,8 @@
     if (seq !== bPanelSeq || p.hidden) return;
     if (st instanceof Error || !st) { $('bpBorder').firstElementChild.innerHTML = '<span class="bp-m">!</span><span>' + esc((st && st.message) || 'Не вдалося завантажити') + '</span>'; return; }
     const last = st.steps.map(s => !!s.at).lastIndexOf(true);
-    $('bpSteps').innerHTML = '<ol class="bp-tl" aria-label="Кроки рейсу: ' + (last + 1) + ' з ' + st.steps.length + '">' + st.steps.map((s, i) => '<li class="' + (i === last ? 'now' : s.at ? 'done' : '') + '" title="' + esc(cap(s.step) + (s.at ? ' · ' + tkTime(s.at) : '')) + '"><span class="sr">' + esc(s.step) + (s.at ? ' — ' + tkTime(s.at) : '') + '</span></li>').join('') + '</ol>';
+    $('bpSteps').innerHTML = '<ol class="bp-tl" aria-label="Кроки рейсу: ' + (last + 1) + ' з ' + st.steps.length + '">' + st.steps.map((s, i) => '<li class="' + (i === last ? 'now' : s.at ? 'done' : '') + '" title="' + esc(cap(s.step) + (s.at ? ' · ' + tkTime(s.at) : '')) + '"><span class="sr">' + esc(s.step) + (s.at ? ' — ' + tkTime(s.at) : '') + '</span></li>').join('') + '</ol>' +
+      '<div class="bp-tlt" aria-hidden="true"><span>' + (last >= 0 ? 'Зараз: <b>' + esc(cap(st.steps[last].step)) + '</b>' : '') + '</span>' + (st.steps[last + 1] ? '<span>далі: ' + esc(st.steps[last + 1].step) + '</span>' : '') + '</div>';
     const open = (st.problems || []).filter(q => q.state !== 'вирішено');
     const canAns = q => me.role !== 'логіст' || q.owner !== 'керівник';
     $('bpProb').innerHTML = open.map(q => '<div class="bp-prob' + (q.state === 'в роботі' ? ' work' : '') + '"><b>⚠ Проблема водія · ' + esc(tkTime(q.at)) + ' · ' + esc(q.state || 'нова') + '</b><p>' + esc(q.text) + '</p>' +
@@ -1135,11 +1146,11 @@
     const r = (td && !(td instanceof Error) && td.rmpd) || st.rmpd, a = (td && !(td instanceof Error) && td.addr) || {}, need = (td && !(td instanceof Error) && td.need) || [];
     const li = (cls, m, txt, act) => '<li class="' + cls + '"><span class="bp-m" aria-hidden="true">' + m + '</span><span>' + txt + '</span>' + (act || '') + '</li>';
     let bh = '';
-    if (r) bh += li(r.state === 'ok' ? 'ok' : r.state === 'warn' || r.state === 'none' ? 'bad' : 'warn', r.state === 'ok' ? '✓' : r.state === 'none' ? '✕' : '!', 'RMPD: ' + esc(r.label) + (passed ? ' <span class="muted">(кордон пройдено)</span>' : ''), r.file ? '<button type="button" class="bp-a linkbtn" data-rmpd="' + esc(tid) + '" data-ver="' + esc(r.ver) + '">Відкрити</button>' : '');
+    if (r) bh += li(r.state === 'ok' ? 'ok' : r.state === 'warn' || r.state === 'none' ? 'bad' : 'warn', r.state === 'ok' ? '✓' : r.state === 'none' ? '✕' : '!', 'RMPD: ' + esc(r.label) + (r.state === 'none' && !passed ? '<br><span class="muted small">Надішліть RMPD у Telegram-бот RMPD — тут стан оновиться сам.</span>' : '') + (passed ? ' <span class="muted">(кордон пройдено)</span>' : ''), r.file ? '<button type="button" class="bp-a linkbtn" data-rmpd="' + esc(tid) + '" data-ver="' + esc(r.ver) + '">Відкрити</button>' : '');
     else bh += li('', '·', 'RMPD: для цього рейсу не потрібен');
     Object.keys(ADDR_L).forEach(k => { const isNeed = need.indexOf(k) >= 0;
       if (a[k]) bh += li('ok', '✓', ADDR_L[k] + ': ' + esc(a[k]), '<a class="bp-a" target="_blank" rel="noopener" href="' + esc(mapsUrl(a[k])) + '">Карта ↗</a>');
-      else if (isNeed) bh += li('bad', '✕', ADDR_L[k] + ' — водій бачить лише місто', office ? '<button type="button" class="bp-a linkbtn" data-bpad="' + k + '">Вписати</button>' : '');
+      else if (isNeed) bh += li('bad', '✕', ADDR_L[k] + (k === 'load' || k === 'unload' ? ' — водій бачить лише місто' : ' — водій не бачить нічого'), office ? '<button type="button" class="bp-a linkbtn" data-bpad="' + k + '">Вписати</button>' : '');
     });
     $('bpBorder').innerHTML = bh + docH + echH;
     $('bpBorder').querySelectorAll('[data-rmpd]').forEach(b => b.onclick = () => rmpdOpen(b.dataset.rmpd, b.dataset.ver));
@@ -1148,7 +1159,7 @@
       const addr = {}; Object.keys(ADDR_L).forEach(j => addr[j] = a[j] || ''); addr[k] = v.trim();
       busy(true); try { await api('trip.addr', { tripId: tid, addr }); toast('✔ Адресу збережено — водій бачить «Навігацію».'); board = null; try { store.set('boardCache', ''); } catch (e) {} await openBoard(true); const nx = board && board.trucks.find(y => y.id === x.id); if (nx) bPanelOpen(nx, bPanelFrom); }
       catch (e) { toast(esc(e.message), 'err'); } finally { busy(false); } });
-    if (office && st.next) { $('bpMark').innerHTML = '<button type="button" class="btn" id="bpMarkB">Відмітити «' + esc(ST_LABEL[st.next] || cap(st.next)) + '»</button>';
+    if (office && st.next) { $('bpMark').innerHTML = '<button type="button" class="btn small bp-mark" id="bpMarkB">Відмітити за водія: «' + esc(ST_LABEL[st.next] || cap(st.next)) + '»</button>';
       $('bpMarkB').onclick = async () => { if (!await ask('Відмітити за водія «' + (ST_LABEL[st.next] || st.next) + '»?', 'У кроці буде позначка «офіс».', 'Відмітити')) return;
         busy(true); try { await api('trip.status.add', { tripId: tid, event: st.next, opId: 'OM-' + newId().slice(0, 16) }); await openBoard(true); const nx = board && board.trucks.find(y => y.id === x.id); if (nx) bPanelOpen(nx, bPanelFrom); } catch (e) { toast(esc(e.message), 'err'); } finally { busy(false); } }; }
     $('bpProb').querySelectorAll('[data-bpa]').forEach(b => b.onclick = async () => {
@@ -1560,15 +1571,17 @@
   function routeCard(v) {
     const all = routePoints(v), p = all.find(x => !x.done); if (!p) return '';
     return '<section class="card drvroute" aria-label="Куди їхати зараз"><div class="rlab rnow">Зараз — ' + esc(p.label.toLowerCase()) + '</div><div class="raddr rbig">' + rptAddr(p, v) + '</div>' +
-      '<div class="rbtns">' + rptNav(p, 'primary') + '<button class="btn" id="rAll">Усі адреси (' + all.length + ')</button></div></section>';
+      '<div class="rbtns">' + rptNav(p, 'primary') + '<button class="btn" id="rAll" aria-label="Усі адреси (' + all.length + ')">Усі <span class="rlong">адреси </span>(' + all.length + ')</button></div></section>';
   }
   function routeAll() {
     const v = stCur; if (!v || !v.trip) return; const all = routePoints(v), cur = all.find(x => !x.done);
     const w = document.createElement('div'); w.className = 'ask-wrap';
     w.innerHTML = '<div class="ask tsheet" role="dialog" aria-modal="true"><h2>Усі адреси рейсу ' + esc(v.trip.id) + '</h2>' + all.map(p => '<div class="rpt' + (p === cur ? ' rnext' : '') + (p.done ? ' rdone' : '') + '"><div class="rlab">' + (p.done ? '✓ ' : '') + esc(p.label) + (p === cur ? ' · зараз' : '') + '</div><div class="raddr">' + rptAddr(p, v) + '</div>' + rptNav(p, p === cur ? 'primary' : 'btn') + '</div>').join('') +
       '<div class="ask-btns"><button class="btn" data-a="0">Закрити</button></div></div>';
-    w.onclick = e => { if (e.target === w || e.target.closest('[data-a="0"]')) w.remove(); };
-    dlgOpener = document.activeElement; document.body.appendChild(w);
+    const from = document.activeElement, close = () => { w.remove(); if (from && from.isConnected) try { from.focus(); } catch (e) {} };   // фокус — назад на «Усі адреси»
+    w.onclick = e => { if (e.target === w || e.target.closest('[data-a="0"]')) close(); };
+    w.onkeydown = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
+    document.body.appendChild(w); w.querySelector('[data-a="0"]').focus();
   }
   async function openTrip(id, from) {
     tripFrom = from || 'board'; $('tripBackT').textContent = tripFrom === 'view' ? 'Таблиця' : tripFrom === 'debts' ? 'Боржники' : tripFrom === 'inv' ? 'До виставлення' : tripFrom === 'mypay' ? 'Мої рейси' : tripFrom === 'probs' ? 'Проблеми водіїв' : board ? 'Дошка' : 'Назад';
@@ -1592,7 +1605,7 @@
         const office = ['адмін', 'керівник', 'логіст'].indexOf(me.role) >= 0, ST_W = { 'нова': 'нова', 'в роботі': 'в роботі', 'вирішено': 'вирішено' };
         const canAns = p => me.role !== 'логіст' || p.owner !== 'керівник';
         const probH = p => '<div class="cnote prob-' + (p.state === 'вирішено' ? 'done' : p.state === 'в роботі' ? 'work' : 'new') + '"><b>Проблема ' + tkTime(p.at) + ' · ' + esc(ST_W[p.state] || 'нова') + ' · ' + (p.owner === 'керівник' ? 'керівника' : 'логіста') + '</b><br>' + esc(p.text) +
-          (p.answer ? '<br><span class="muted small">Відповідь (' + esc(p.answerWho) + ', ' + tkTime(p.answerAt) + '): </span>' + esc(p.answer) : '') +
+          (p.answer ? '<br><span class="muted small">Відповідь (' + [esc(p.answerWho || ''), p.answerAt ? tkTime(p.answerAt) : ''].filter(Boolean).join(', ') + '): </span>' + esc(p.answer) : '') +
           (office && p.state !== 'вирішено' ? '<div class="probact">' + (p.state !== 'в роботі' ? '<button class="btn" data-pa="в роботі" data-pid="' + esc(p.id) + '">Беру в роботу</button>' : '') + (canAns(p) ? '<button class="btn" data-pa="вирішено" data-pid="' + esc(p.id) + '">Вирішено…</button>' : '<span class="muted small">Вирішує керівник</span>') + (me.role === 'логіст' && p.owner !== 'керівник' ? '<button class="btn" data-pa="керівнику" data-pid="' + esc(p.id) + '">Передати керівнику…</button>' : '') + '</div>' : '') + '</div>';
         const unlSt = v.steps.find(x => x.step === 'розвантажено' && x.at), unlD = unlSt ? new Date(unlSt.at) : null, unlIso = unlD ? unlD.getFullYear() + '-' + String(unlD.getMonth() + 1).padStart(2, '0') + '-' + String(unlD.getDate()).padStart(2, '0') : '';
         const unlBtn = office && unlSt && !r['Дата розвантаження'] && canTrip() ? '<p><button class="btn" id="tripUnl">Поставити дату розвантаження: ' + esc(unlIso.split('-').reverse().join('.')) + '</button></p>' : '';   // логіст №12
