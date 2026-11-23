@@ -1069,3 +1069,28 @@ html[data-zoom] .pysum .pybig b { font-size: 1.4rem; }
 .prow .pn { font-size: 22px; font-weight: 700; min-width: 34px; text-align: center; color: var(--muted); white-space: nowrap; }
 .prow.p-bad { border-color: var(--bad-bd); background: var(--bad-bg); } .prow.p-bad .pn { color: var(--bad-fg); }
 .prow.p-warn { border-color: var(--warn-bd); background: var(--warn-bg); } .prow.p-warn .pn { color: var(--warn-fg); }
+/* «Куди їхати» у водія; адреси для водія в картці рейсу (ідея №5, ADR-089) */
+.drvroute h2 { margin: 0 0 6px; font-size: 18px; }
+.rpt { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.drvroute h2 + .rpt { border-top: 0; }
+.rlab { grid-column: 1; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.raddr { grid-column: 1; font-weight: 600; overflow-wrap: anywhere; }
+.rnext .rlab { color: var(--accent-text); font-weight: 700; }
+.rwarn { color: var(--warn-fg); font-weight: 400; font-size: 14px; }
+.rnav { grid-column: 2; grid-row: 1 / span 2; display: inline-flex; gap: 6px; align-items: center; white-space: normal; min-height: 48px; text-decoration: none; }
+.rnav svg { width: 18px; height: 18px; }
+.addrwarn { color: var(--warn-fg); background: var(--warn-bg); border: 1px solid var(--warn-bd); border-radius: var(--r); padding: 8px 10px; }
+.addrok { color: var(--ok-fg); }
+@media (max-width: 380px) { .rpt { grid-template-columns: minmax(0, 1fr); }
+}
+html[data-zoom] .rpt { grid-template-columns: minmax(0, 1fr); }
+html[data-zoom] .rnav { grid-column: 1; grid-row: auto; justify-self: start; }
+@media (max-width: 380px) { .rnav { grid-column: 1; grid-row: auto; justify-self: start; } }
+.rnav.primary, .rnav.btn { width: auto; margin-top: 0; padding: 0 14px; }
+
+.drvroute { display: grid; gap: 6px; }
+.rnow { color: var(--accent-text); font-weight: 700; }
+.rbig { font-size: 19px; line-height: 1.3; }
+.rbtns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.rbtns .btn { min-height: 48px; }
+.rdone { opacity: .6; }
