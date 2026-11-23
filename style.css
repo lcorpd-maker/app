@@ -1862,9 +1862,27 @@ html[data-zoom] .wm, html[data-zoom] .wk-cur { hyphens: auto; -webkit-hyphens: a
 .echsheet .ec-hint { margin: 6px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
 .ec-steps { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 15px; line-height: 1.45; }
 .ec-code { padding: 10px 12px; border: 1px dashed var(--line-strong); border-radius: var(--r); background: var(--surface-2); font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; user-select: all; -webkit-user-select: all; }
+/* v49.1: паспорт водія в діалозі єЧерги */
+.ef-pass { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 0 8px; border-bottom: 1px solid var(--line); }
+.ef-pass .btn { margin-left: auto; min-height: 40px; padding: 0 12px; }
+.ef-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 12px; margin: 8px 0; padding: 4px 12px 12px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--surface-2); }
+.ef-form label { margin: 10px 0 4px; font-size: 13.5px; }
+.ef-form input { min-height: 44px; font-size: 16px; padding: 8px 12px; }
+.ef-form input[name="pass"] { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .04em; text-transform: uppercase; }
+.ef-form input[aria-invalid="true"] { border-color: var(--bad-fg); box-shadow: inset 0 0 0 1px var(--bad-fg); }
+.ef-form small { display: block; margin-top: 4px; font-size: 12.5px; color: var(--muted); }
+.ef-form small.warn { color: var(--warn-fg); font-weight: 600; } .ef-form small.bad { color: var(--bad-fg); font-weight: 600; }
+.pf-msg, .pf-btns, .pf-note { grid-column: 1 / -1; }
+.ef-form .pf-msg, .echsheet .pf-msg { margin: 8px 0 0; font-size: 14px; line-height: 1.4; } .pf-msg:empty { display: none; }
+.pf-msg.bad { color: var(--bad-fg); font-weight: 600; } .pf-msg.warn { padding: 8px 10px; border-radius: var(--r); background: var(--warn-bg); color: var(--warn-fg); } .pf-msg.ok { color: var(--ok-fg); font-weight: 600; }
+.pf-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.pf-btns .primary, .pf-btns .btn { width: auto; margin: 0; min-height: 44px; padding: 0 18px; }
+.pf-btns .pf-del { margin-right: auto; color: var(--bad-fg); border-color: var(--bad-fg); }
+.ef-form .pf-note { margin: 8px 0 0; font-size: 13px; line-height: 1.4; color: var(--muted); }
 @media (max-width: 560px) {
   .ef { grid-template-columns: minmax(0, 1fr) auto; }
   .ef-l { grid-column: 1 / -1; }
+  .ef-form { grid-template-columns: minmax(0, 1fr); }
 }
 .ech-upd { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--ok-fg); }
 .ech-upd.stale { color: var(--muted); }
