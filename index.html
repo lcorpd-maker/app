@@ -70,6 +70,7 @@
         <button class="btn" id="bNewTrip" hidden>+ Новий рейс</button>
         <button class="btn" id="bRefresh" title="Оновити">↻ Оновити</button>
       </div>
+      <div id="dupBar" class="dupbar" hidden></div>
       <div class="toolbar">
         <input id="bSearch" type="search" placeholder="Машина, водій, місто, рейс">
         <div class="chips" id="bChips" role="group" aria-label="Фільтр"></div>
@@ -103,6 +104,13 @@
       <div class="toolbar"><input id="prSearch" type="search" placeholder="Текст, рейс, машина, водій" aria-label="Пошук проблем"><select id="prWorker" aria-label="Водій"></select><div class="chips" id="prChips"></div></div>
       <div id="prList"></div>
       <p class="muted small">Черга, документи, склад та інше — вирішує логіст (може передати керівнику). Поломка, ДТП і передані — керівник. Натисніть рядок — відкриється рейс з кнопками відповіді.</p>
+    </section>
+    <section id="inv" hidden>
+      <button class="link back" data-back>← Назад</button>
+      <div class="bhead"><div><h1>До виставлення</h1><p class="muted small" id="invSub"></p></div><div class="row"><button class="primary" id="invCsv" hidden>Файл для BAS</button><button class="btn" id="invRefresh">↻ Оновити</button></div></div>
+      <div class="toolbar"><input id="invSearch" type="search" placeholder="Клієнт, ЄДРПОУ, рейс, машина"><div class="chips" id="invChips"></div></div>
+      <div id="invList"></div>
+      <p class="muted small">Безготівкові розвантажені рейси без рахунку, з 1 числа минулого місяця. Сума — на рахунок клієнту («Сума для рахунку», якщо порожня — фрахт; «безгот + готівка» — без готівкової частини). ПДВ 20% — для рейсів по Україні; міжнародні — 0%, уточнюйте. Рахунок створюється в BAS, тут — лише позначка з № і датою. «Файл для BAS» — CSV усіх ще не виставлених.</p>
     </section>
     <section id="debts" hidden>
       <button class="link back" data-back>← Назад</button>
