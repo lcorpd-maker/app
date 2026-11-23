@@ -75,7 +75,7 @@
       msg = String(msg || ''); if (!me || errSent >= 5 || !navigator.onLine || !msg || /^Script error\.?$|ResizeObserver loop/i.test(msg)) return;
       errSent++;
       const scr = document.querySelector('main > section:not([hidden])');
-      api('client.err', { msg: msg.slice(0, 300), stack: String(stack || '').slice(0, 1200), where: (scr ? scr.id : '') + (where ? ' · ' + where : ''), ver: 'v43' }).catch(() => {});
+      api('client.err', { msg: msg.slice(0, 300), stack: String(stack || '').slice(0, 1200), where: (scr ? scr.id : '') + (where ? ' · ' + where : ''), ver: 'v44' }).catch(() => {});
     } catch (e) {}
   }
   window.addEventListener('error', e => reportErr(e.message, e.error && e.error.stack, e.filename ? String(e.filename).split('/').pop() + ':' + e.lineno : ''));
@@ -292,7 +292,8 @@
     { const t = $('toast'); if (t && !t.hidden && !t.classList.contains('err')) t.hidden = true; }   // тост не лишається над новим екраном (UX Н4)
     try { if (id !== 'login' && id !== 'home') { if (!histOn) { history.pushState({ s: id }, ''); histOn = true; } }
       else { if (histOn && history.state && history.state.s) { ignorePop++; history.back(); } histOn = false; } } catch (e) {}   // «‹ Назад» у програмі прибирає свій запис історії   // «Назад» Android — на головну, а не вихід (QA-12)
-    ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck', 'tacho', 'exp', 'health', 'tdoc', 'rpt', 'debts', 'bank', 'mypay', 'probs', 'inv'].forEach(s => $(s) && ($(s).hidden = s !== id)); window.scrollTo(0, 0); }
+    ['login', 'home', 'view', 'codes', 'board', 'trip', 'docs', 'calc', 'truck', 'tacho', 'exp', 'health', 'tdoc', 'rpt', 'debts', 'bank', 'mypay', 'probs', 'inv'].forEach(s => $(s) && ($(s).hidden = s !== id)); window.scrollTo(0, 0);
+    document.body.classList.toggle('drvbar-on', id === 'home' && !!me && me.role === 'водій'); }   // місце під нижню стрічку водія (етап 1 дизайну)
 
   function showLogin(msg) {
     $('who').hidden = true; show('login'); $('loginMsg').textContent = msg || '';
@@ -328,9 +329,9 @@
       if (ok) b.onclick = () => t.action === 'inv' ? openInv() : t.action === 'probs' ? openProbs() : t.action === 'codes' ? openCodes() : t.action === 'board' ? openBoard() : t.action === 'docs' ? openDocs() : t.action === 'calc' ? openCalc() : t.action === 'truck' ? openTruck() : t.action === 'exp' ? openExp() : t.action === 'health' ? openHealth() : t.action === 'push' ? openPush() : t.action === 'debts' ? openDebts() : t.action === 'mypay' ? openPay('pay') : t.action === 'mytrips' ? openPay('trips') : openSheet(t);
       box.appendChild(b);
     });
-    $('homeWork').innerHTML = ''; $('tiles').hidden = false; if ($('drvOutBox')) $('drvOutBox').innerHTML = '';
+    $('homeWork').innerHTML = ''; $('tiles').hidden = false; if ($('drvOutBox')) $('drvOutBox').innerHTML = ''; drvBar(false);
     if (me.role === 'водій') {
-      $('homeTitle').textContent = 'Мій рейс'; $('homeHint').textContent = ''; $('tiles').hidden = true;
+      $('homeTitle').textContent = 'Мій рейс'; $('homeHint').textContent = ''; $('tiles').hidden = true; drvBar(true);
       // один запит паралельно з другим і один показ екрана: без проміжних «Завантаження…» → картка → «Мій рейс»
       let cache = null; try { cache = JSON.parse(store.get('homeDrv') || 'null'); } catch (e) {}
       if (cache && cache.login === me.login) drawDriverHome(cache.st, cache.sv); else $('homeWork').innerHTML = '<div class="card tkwork"><p class="muted">Завантаження вашого рейсу…</p></div>';
@@ -409,7 +410,7 @@
     // немає поточного рейсу — коротка картка роботи (або «поки немає») і звичайні плитки
     $('homeWork').innerHTML = '<div id="timeBox"></div>' + (has ? '<div id="homeWorkCard">' + workHtml(st.planned, true) + '</div>' : '<div class="card tkwork"><b>Запланованої роботи поки немає.</b><div class="muted small">Щойно логіст призначить рейс — він з\'явиться тут.</div></div>');
     $('homeWork').insertAdjacentHTML('beforeend', docsAlert(st && st.docs)); $('homeWork').querySelectorAll('.docalert').forEach(b => b.onclick = () => openTruck());
-    $('tiles').hidden = false; bindWork(); renderTimeBox();
+    $('tiles').hidden = true; bindWork(); renderTimeBox();   // плитки водія дублювали нижню стрічку — прибрано (етап 1 дизайну)
     if (!$('drvOutBox')) { const d = document.createElement('div'); d.id = 'drvOutBox'; $('tiles').after(d); }
     $('drvOutBox').innerHTML = prof; $('drvOut').onclick = askLogout; $('pushBtn').onclick = openPush;
   }
@@ -433,9 +434,34 @@
     'розмитнення': 'Натисніть, коли пройшли розмитнення.', 'на розвантаженні': 'Натисніть, коли приїдете на склад розвантаження.', 'розвантажено': 'Натисніть, коли машину розвантажили.' };
   // ADR-065: на головній — лише 4 кнопки (за звітами водіїв-тестувальників і побажанням власниці): заправки йдуть картками UTA, «Спідометр» — у «Моя машина»
   const LOGIST_TEL = CFG.LOGIST_TEL || '';   // «Подзвонити логісту» — номер у config.js (критик У6)
-  const QUICK = [['Моя машина', 'truck', 'M3 16V7a1 1 0 011-1h10v10M14 9h4l3 3v4h-7M6.5 18.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm11 0a1.5 1.5 0 100-3 1.5 1.5 0 000 3z'],
-    ['Гроші', 'exp', 'M3 7h18v10H3zM12 15a3 3 0 100-6 3 3 0 000 6zM6 10v4M18 10v4'], ['Фото документів', 'tdoc', 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7'], ['Рейси й зарплата', 'pay', 'M4 19V5M4 19h16M8 15l3-4 3 2 5-6'], ['Проблема', 'problem', 'M12 4l9 16H3zM12 10v4M12 17h.01']];
+  const QUICK = [['Машина', 'truck', 'M3 16V7a1 1 0 011-1h10v10M14 9h4l3 3v4h-7M6.5 18.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm11 0a1.5 1.5 0 100-3 1.5 1.5 0 000 3z'],
+    ['Гроші', 'exp', 'M3 7h18v10H3zM12 15a3 3 0 100-6 3 3 0 000 6zM6 10v4M18 10v4'], ['Фото', 'tdoc', 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7'], ['Зарплата', 'pay', 'M4 19V5M4 19h16M8 15l3-4 3 2 5-6'], ['Проблема', 'problem', 'M12 4l9 16H3zM12 10v4M12 17h.01']];
+  // етап 1 дизайну (23.11): розділи водія — у закріпленій нижній стрічці; на кнопці — коротке слово, у aria-label — повна назва (містить видиме слово)
+  const QUICK_ARIA = { truck: 'Моя машина', exp: 'Гроші', tdoc: 'Фото документів', pay: 'Рейси й зарплата', problem: 'Проблема — повідомити логіста' };
   const svgI = d => '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>';
+  /** Нижня стрічка водія (етап 1 дизайну, 23.11): 5 розділів з підписами, видно на головній і з рейсом, і без нього. */
+  function drvBar(on) {
+    const n = $('drvBar'); if (!n) return;
+    if (!on) { n.hidden = true; return; }
+    if (!n.dataset.ready) {
+      n.innerHTML = QUICK.map(q => '<button type="button" class="q' + (q[1] === 'problem' ? ' problem' : '') + '" data-q="' + q[1] + '" aria-label="' + esc(QUICK_ARIA[q[1]] || q[0]) + '">' + svgI(q[2]) + '<span>' + esc(q[0]) + '</span></button>').join('');
+      n.onclick = e => { const b = e.target.closest('[data-q]'); if (!b) return; const q = b.dataset.q;
+        if (q === 'truck') openTruck(); else if (q === 'exp') openExp(); else if (q === 'tdoc') openTdoc(); else if (q === 'pay') openPay('pay'); else if (q === 'problem') drvProblem(); };
+      n.dataset.ready = '1';
+    }
+    n.hidden = false;
+  }
+  // відкрита клавіатура (поле вводу у фокусі) — нижню стрічку ховаємо, щоб не лягала на поле
+  document.addEventListener('focusin', e => { if (e.target.matches && e.target.matches('textarea, select, input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=file])')) document.body.classList.add('kbd'); });
+  document.addEventListener('focusout', () => document.body.classList.remove('kbd'));
+  /** «Проблема» зі стрічки: та сама форма на головній, з прокруткою до неї; без поточного рейсу — дзвінок логісту. */
+  async function drvProblem() {
+    const box = $('stProbBox');
+    if (!box) { if (await ask('Проблема', 'Зараз у вас немає поточного рейсу — повідомлення нема до чого прив\'язати. Подзвоніть логісту, він допоможе.', '📞 Подзвонити логісту') && LOGIST_TEL) location.href = 'tel:' + LOGIST_TEL; return; }
+    if (!box.hidden) { const r = box.getBoundingClientRect(); if (r.top >= 0 && r.top < innerHeight * .6) { box.hidden = true; return; } }   // уже перед очима — друге натискання ховає
+    box.hidden = false; box.scrollIntoView({ block: 'start', behavior: smooth() });
+    const f = box.querySelector('.probone'); if (f) try { f.focus({ preventScroll: true }); } catch (e) {}
+  }
   const dayName = iso => { if (!iso) return ''; const d = new Date(iso + 'T12:00:00'); return isNaN(d) ? '' : dd(iso) + ', ' + d.toLocaleDateString('uk-UA', { weekday: 'long' }); };
   function renderStatus(msg) {
     const box = $('stBox'); if (!box) return;
@@ -457,16 +483,15 @@
       '<div class="when">' + (loaded ? (p.unload ? dayName(p.unload) : 'дату уточнить логіст') : (p.load ? dayName(p.load) : '')) + '</div></div>' +
       '<div><div class="road" style="--p:' + pct + '%"><i></i><b></b></div><div class="ends"><span>' + esc(v.trip.from) + (p.load ? ', ' + dd(p.load) : '') + '</span><span>' + esc(v.trip.to) + '</span></div></div>' +
       '<div class="facts">' + facts + '</div></article>' + routeCard(v);   // актуальна адреса за статусом (рішення власниці 23.11)
+    // етап 1 дизайну (23.11): картка рейсу → «Зараз — …» з адресою → документ / RMPD → кнопка кроку; розділи — у нижній стрічці (drvBarInit)
+    h += docsAlert(tk && tk.docs);
+    if (v.rmpd && v.rmpd.file && !store.get('rmpdSeen_' + v.rmpd.ver)) h += '<button class="docalert rmpdalert st-' + (v.rmpd.state === 'ok' ? 'ok' : 'soon') + '" data-rmpd="' + esc(v.trip.id) + '" data-ver="' + esc(v.rmpd.ver) + '">📄 RMPD готовий' + (v.rmpd.state === 'ok' ? ' · ✓ перевірено' : ' · ще перевіряється') + ' — відкрити ›</button>';
+    if (v.rmpd && v.rmpd.file && store.get('rmpdSeen_' + v.rmpd.ver)) h += '<button class="docalert rmpdbtn st-' + (v.rmpd.state === 'ok' ? 'ok' : 'soon') + '" data-rmpd="' + esc(v.trip.id) + '" data-ver="' + esc(v.rmpd.ver) + '">📄 RMPD' + (v.rmpd.state === 'ok' ? ' · ✓ перевірено' : ' · ще перевіряється') + (rmpdCached(v.rmpd.ver) ? ' · є на телефоні' : '') + ' — відкрити ›</button>';   // переглянутий RMPD — рядком на головній (у нижній стрічці лише 5 розділів, етап 1 дизайну 23.11)
     h += '<div class="next-action">' + (v.next ? '<button class="primary stgo" data-st="' + esc(v.next) + '"' + (stPending ? ' disabled' : '') + '>' + svgI('M5 12l5 5L20 7') + esc(ST_LABEL[v.next] || v.next) + '</button><p>' + esc(ST_HINT[v.next] || '') + '</p>' + (ahead.length ? '<p><button class="link" id="stAhead">Я вже далі</button></p><div id="stAheadBox" class="stahead" hidden><p class="muted small">Попередні кроки лишаться невідміченими — їх можна дописати потім.</p>' + ahead.map(x => '<button class="btn" data-st="' + esc(x) + '">' + esc(ST_LABEL[x] || x) + '</button>').join('') + '</div>' : '')
       : '<div class="cinfo">Усі кроки рейсу відмічено. Дякуємо!</div>') + '</div>';
     if (v.last && v.last.canUndo) { const left = me.role === 'водій' ? (String(v.last.id).startsWith('q:') ? 0 : Math.max(1, 15 - Math.floor((Date.now() - new Date(v.last.at)) / 60000))) : 0;
       h += '<p class="undo-line"><button class="link" id="stUndo">' + svgI('M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3') + 'Скасувати «' + esc(v.last.event) + '»' + (left ? ' (ще ' + left + ' хв)' : '') + '</button></p>'; }
     if (msg) h += '<p class="stmsg" role="status">' + msg + '</p>';
-    const rmpdQ = v.rmpd && v.rmpd.file && store.get('rmpdSeen_' + v.rmpd.ver) ? '<button class="q rmpdbtn" data-rmpd="' + esc(v.trip.id) + '" data-ver="' + esc(v.rmpd.ver) + '">' + svgI('M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h4') + 'RMPD' + (rmpdCached(v.rmpd.ver) ? '<small>є на телефоні</small>' : '') + '</button>' : '';   // RMPD — плитка поруч із «Проблема» (дизайнер №10)
-    h += '<div class="quick">' + QUICK.map(q => '<button class="q' + (q[1] === 'problem' ? ' problem' : '') + '" data-q="' + q[1] + '">' + svgI(q[2]) + esc(q[0]) + '</button>').join('') + rmpdQ + '</div>';
-    h += docsAlert(tk && tk.docs);
-    if (v.rmpd && v.rmpd.file && !store.get('rmpdSeen_' + v.rmpd.ver)) h += '<button class="docalert rmpdalert st-' + (v.rmpd.state === 'ok' ? 'ok' : 'soon') + '" data-rmpd="' + esc(v.trip.id) + '" data-ver="' + esc(v.rmpd.ver) + '">📄 RMPD готовий' + (v.rmpd.state === 'ok' ? ' · ✓ перевірено' : ' · ще перевіряється') + ' — відкрити ›</button>';
-    // переглянутий RMPD — плитка в .quick (вище)
     if (v.rmpd && v.rmpd.file) { const ver = v.rmpd.ver, tid = v.trip.id; setTimeout(() => { if (!rmpdCached(ver) && navigator.onLine) rmpdFetch(tid, ver).catch(() => {}); }, 1500); }   // на кордоні може не бути зв'язку — завантажуємо заздалегідь
     // «Проблема»: спершу великі готові причини — одне натискання й надіслано; свій текст — за бажанням (без автоматичної клавіатури)
     h += '<div class="stprob card" id="stProbBox" hidden><a class="btn calllog" href="tel:' + LOGIST_TEL + '">📞 Подзвонити логісту</a><b>Що сталося? Натисніть — логіст отримає одразу (поломка й ДТП — і керівник)</b><div class="probgrid">' + ['Довга черга', 'Поломка', 'Документи', 'Затримка на складі', 'ДТП'].map(c => '<button class="btn probone" data-pq="' + c + '">' + c + '</button>').join('') + '</div>' +
@@ -500,7 +525,7 @@
     box.querySelectorAll('[data-st]').forEach(b => b.onclick = e => { e.stopPropagation(); send(b.dataset.st); });
     box.querySelectorAll('.rmpdalert').forEach(b => b.onclick = () => { rmpdOpen(b.dataset.rmpd, b.dataset.ver); b.remove(); });
     box.querySelectorAll('.rmpdbtn').forEach(b => b.onclick = () => rmpdOpen(b.dataset.rmpd, b.dataset.ver));   // UX r2-Н1
-    box.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { if (b.dataset.q === 'truck') openTruck(); else if (b.dataset.q === 'exp') openExp(); else if (b.dataset.q === 'fuel') openExp('Пальне'); else if (b.dataset.q === 'tdoc') openTdoc(); else if (b.dataset.q === 'pay') openPay('pay'); else if (b.dataset.q === 'problem') { $('stProbBox').hidden = !$('stProbBox').hidden; if (!$('stProbBox').hidden) $('stProbBox').scrollIntoView({ block: 'nearest', behavior: smooth() }); } });
+    box.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { if (b.dataset.q === 'truck') openTruck(); else if (b.dataset.q === 'exp') openExp(); else if (b.dataset.q === 'fuel') openExp('Пальне'); else if (b.dataset.q === 'tdoc') openTdoc(); else if (b.dataset.q === 'pay') openPay('pay'); else if (b.dataset.q === 'problem') drvProblem(); });
     box.querySelectorAll('[data-pq]').forEach(b => b.onclick = async () => { if (await ask('Надіслати логісту: «' + b.dataset.pq + '»?', navigator.onLine ? 'Логіст і керівник отримають повідомлення одразу.' : 'Зараз немає зв\'язку — повідомлення збережеться на телефоні й піде саме, щойно з\'явиться зв\'язок. Терміново — подзвоніть.', 'Так, надіслати')) { $('stProbBox').hidden = true; stLock = 0; send('проблема', b.dataset.pq); } });
     if ($('hintYes')) $('hintYes').onclick = () => { stLock = 0; send(v.hint.step, undefined, true); };
     if ($('hintNo')) $('hintNo').onclick = () => { store.set(hk, String(Date.now() + 3 * 3600000)); renderStatus(); };
@@ -895,7 +920,7 @@
   }
   function renderBoard() {
     const b = board, q = $('bSearch').value.trim().toLowerCase();
-    $('bSub').textContent = 'Сьогодні ' + dd(b.today) + ' · оновлено о ' + b.updated + (b.pos && b.pos.at ? ' · місце машин на ' + tkTime(b.pos.at).split(', ').pop() + (b.pos.stale ? ' (давно: вночі не оновлюється)' : '') : '') + (b.gpsError ? ' · GPS: ' + b.gpsError : '');
+    $('bSub').textContent = 'Сьогодні ' + dd(b.today) + ' · оновлено о ' + b.updated + (b.pos && b.pos.at ? ' · місце машин на ' + tkTime(b.pos.at).split(', ').pop() + (b.pos.stale ? ' (давно: вночі не оновлюється)' : '') : '') + (b.gpsError ? ' · GPS недоступний (' + b.gpsError + ')' : '');
     const F = { all: ['Усі', () => true], trip: ['В рейсі', x => x.status === 'trip'], free: ['Вільні', x => x.status === 'free'],
       prob: ['З проблемами', x => x.problems.some(p => p.urgent || p.k === 'drv' || p.k === 'gps')],   // лише термінове (логіст №4)
       can: ['Можуть їхати зараз', x => !!(x.drive && x.drive.canNow && !x.drive.moving)],
@@ -1041,8 +1066,13 @@
       'Фрахт': z['Фрахт'] == null ? '' : z['Фрахт'], 'Валюта': z['Валюта'] || 'EUR', 'Клієнт (як записано)': z['Клієнт (як записано)'] || '', 'Вантаж': z['Вантаж'] || '', 'Перехід': z['Перехід'] || '', 'Оплата': z['Оплата'] || 'безгот' } : null;
     const v = r || fromZ || { 'Авто ID': opts.truck || '', 'Валюта': 'EUR', 'Оплата': 'безгот' };
     const has = c => !L.cols || L.cols.indexOf(c) >= 0;
-    const inp = (c, extra, type) => has(c) ? '<label for="tf_' + c.replace(/\W/g, '') + '">' + esc(c.replace(' (як записано)', '')) + '</label><input id="tf_' + c.replace(/\W/g, '') + '" data-c="' + esc(c) + '"' + (type ? ' type="' + type + '"' : '') + ' value="' + esc(type === 'date' ? tfDate(v[c]) : (v[c] == null ? '' : v[c])) + '"' + (extra || '') + '>' : '';
-    const sel = (c, list, empty) => has(c) ? '<label for="tf_' + c.replace(/\W/g, '') + '">' + esc(c) + '</label><select id="tf_' + c.replace(/\W/g, '') + '" data-c="' + esc(c) + '">' + (empty ? '<option value="">' + empty + '</option>' : '') + list.map(o => '<option value="' + esc(o[0]) + '"' + (String(v[c] || '') === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select>' : '';
+    // id поля з назви колонки: кирилиця раніше зникала (\W), і всі підписи вказували на одне id «tf_» — тепер кожен label[for] веде на своє поле
+    const tfId = c => 'tf_' + Array.from(c).map(ch => /\w/.test(ch) ? ch : ch.codePointAt(0).toString(36)).join('');
+    const inpR = (c, extra, type) => has(c) ? '<label for="' + tfId(c) + '">' + esc(c.replace(' (як записано)', '')) + '</label><input id="' + tfId(c) + '" data-c="' + esc(c) + '"' + (type ? ' type="' + type + '"' : '') + ' value="' + esc(type === 'date' ? tfDate(v[c]) : (v[c] == null ? '' : v[c])) + '"' + (extra || '') + '>' : '';
+    const selR = (c, list, empty) => has(c) ? '<label for="' + tfId(c) + '">' + esc(c) + '</label><select id="' + tfId(c) + '" data-c="' + esc(c) + '">' + (empty ? '<option value="">' + empty + '</option>' : '') + list.map(o => '<option value="' + esc(o[0]) + '"' + (String(v[c] || '') === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select>' : '';
+    // підпис і поле — одна комірка сітки .tfgrid (інакше на ширині ≥ 900 px підписи стояли над чужими полями)
+    const cell = h => h ? '<div class="tff">' + h + '</div>' : '';
+    const inp = (c, extra, type) => cell(inpR(c, extra, type)), sel = (c, list, empty) => cell(selR(c, list, empty));
     const truckOpts = L.trucks.concat(v['Авто ID'] && L.trucks.indexOf(String(v['Авто ID'])) < 0 ? [String(v['Авто ID'])] : []).map(t => [t, t]);
     const drvOpts = L.drivers.map(d => [d.id, d.name + ' · ' + d.id]);
     const html = '<div class="tform">' +
@@ -1054,10 +1084,10 @@
         inp('Перехід', ' list="tfCross" placeholder="Краківець, Шегині, по Україні…"') + inp('Вантаж') + '</div>' +
         (has('АДР') ? '<label class="tfchk"><input type="checkbox" id="tf_adr"' + (v['АДР'] ? ' checked' : '') + '> АДР (небезпечний вантаж)</label>' : '') + '<p class="muted small" id="tfType"></p>' +
         (isNew && !z ? '<div id="tfMoreW" hidden><label for="tfMore">Ще такі самі рейси — дати завантаження</label><input id="tfMore" placeholder="напр. 26.11, 27.11, 29.11" autocomplete="off"><p class="muted small">Кожна дата — окремий рейс з наступним номером; маршрут, клієнт, фрахт — однакові. У переліку рейсів вони покажуться одним рядком.</p></div>' : '') + '</fieldset>' +
-      (has('Фрахт') ? '<fieldset><legend>Клієнт і оплата</legend><div class="tfgrid">' + inp('Клієнт (як записано)', ' list="tfClients" autocomplete="off" placeholder="почніть вводити назву"') + (has('Клієнт ID') ? '<input type="hidden" data-c="Клієнт ID" value="' + esc(v['Клієнт ID'] || '') + '">' : '') +
-        '<p class="muted small tfclhint" id="tfClHint"></p><button type="button" class="btn small" id="tfNewCl">+ Новий клієнт</button>' + inp('Фрахт', ' inputmode="decimal"') + sel('Валюта', ['EUR', 'UAH', 'USD', 'PLN'].map(x => [x, x])) +
+      (has('Фрахт') ? '<fieldset><legend>Клієнт і оплата</legend><div class="tfgrid">' + '<div class="tff tfcl">' + inpR('Клієнт (як записано)', ' list="tfClients" autocomplete="off" placeholder="почніть вводити назву"') + (has('Клієнт ID') ? '<input type="hidden" data-c="Клієнт ID" value="' + esc(v['Клієнт ID'] || '') + '">' : '') +
+        '<p class="muted small tfclhint" id="tfClHint"></p><button type="button" class="btn small" id="tfNewCl">+ Новий клієнт</button></div>' + inp('Фрахт', ' inputmode="decimal"') + sel('Валюта', ['EUR', 'UAH', 'USD', 'PLN'].map(x => [x, x])) +
         inp('Сума для рахунку', ' inputmode="decimal" placeholder="порожньо — як фрахт"') + inp('Причина різниці', ' placeholder="напр. повернення клієнту за…"') +
-        sel('Оплата', TF_PAY.concat(v['Оплата'] && TF_PAY.indexOf(String(v['Оплата'])) < 0 ? [String(v['Оплата'])] : []).map(x => [x, TF_PAY.indexOf(x) < 0 ? x + ' (як було записано)' : x]), '— оберіть —') + '<span class="tfcash" id="tfCashW">' + inp('Готівкою', ' inputmode="decimal" placeholder="скільки клієнт платить готівкою"') + '</span>' + inp('Відстрочка, днів', ' inputmode="numeric"') + inp('Контакт клієнта') + '</div>' +
+        sel('Оплата', TF_PAY.concat(v['Оплата'] && TF_PAY.indexOf(String(v['Оплата'])) < 0 ? [String(v['Оплата'])] : []).map(x => [x, TF_PAY.indexOf(x) < 0 ? x + ' (як було записано)' : x]), '— оберіть —') + '<div class="tff tfcash" id="tfCashW">' + inpR('Готівкою', ' inputmode="decimal" placeholder="скільки клієнт платить готівкою"') + '</div>' + inp('Відстрочка, днів', ' inputmode="numeric"') + inp('Контакт клієнта') + '</div>' +
         (has('Сума для рахунку') ? '<p class="muted small" id="tfInv"></p>' : '') + '<p class="muted small">Зарплата водію рахується від фрахту. Рахунок клієнту — на «Суму для рахунку» (більша, коли є повернення). Оплата «безгот + готівка» — вкажіть, скільки готівкою; рахунок — на решту.</p></fieldset>' : '') +
       '<fieldset><legend>Примітки</legend>' + (has('Примітки') ? '<textarea data-c="Примітки" rows="3">' + esc(v['Примітки'] || '') + '</textarea>' : '') + '</fieldset>' +
       (has('Простій, днів') ? '<fieldset><legend>Для зарплати водія</legend><p class="muted small">Факт фіксує логіст, скільки з цього водію — вирішує керівник.</p>' +
@@ -1389,7 +1419,8 @@
       if (r['Причина різниці']) h += '<div class="kv"><span>Причина різниці</span><b>' + esc(r['Причина різниці']) + '</b></div>';
       return h; };
     const f = (label, c, cls) => has(c) ? '<div class="kv' + (cls ? ' ' + cls : '') + '"><span>' + esc(label) + '</span><b>' + esc(fmt(typeof r[c] === 'number' ? money(r[c]) : r[c])) + '</b></div>' : '';
-    const unl = r['Дата розвантаження'], due = r['Очікувана оплата'];
+    const realDate = x => { if (x == null || x === '' || typeof x !== 'string' && !(x instanceof Date)) return false; const d = new Date(x); return !isNaN(d) && d.getFullYear() >= 2000; };   // 0/1 з таблиці — не дата («27.01.1900», етап 1 дизайну)
+    const unl = r['Дата розвантаження'], due = realDate(r['Очікувана оплата']) ? r['Очікувана оплата'] : '';
     const late = due && !r['Оплачено'] && new Date(due) < new Date(new Date().toDateString());
     let h = '<div class="thead"><div class="ttl"><h1>Рейс ' + esc(r['Рейс ID']) + '</h1><span id="tripBadge"></span>' + (canTrip() ? '<button class="btn" id="tripEdit">✏️ Виправити</button>' : '') + '<span id="tripCall"></span></div>' +
       '<p class="tplates">' + [r['Авто ID'] && '<span class="plate ua">' + esc(r['Авто ID']) + '</span>', r['Водій (як записано)'] && esc(r['Водій (як записано)']), r['Тип'] && esc(r['Тип']), r['АДР'] && '<span class="badge b-warn">' + svgI(PROB.drv) + 'АДР</span>', r['Кругорейс ID'] && 'кругорейс ' + esc(r['Кругорейс ID'])].filter(Boolean).join(' · ') + '</p></div>';
@@ -1397,7 +1428,7 @@
       '<div class="arrow">→</div><div><span class="muted small">Розвантаження</span><b>' + esc(r['Куди'] || '—') + '</b><span>' + (unl ? esc(fmt(unl)) : '<span class="muted">дата не вказана</span>') + '</span></div></div><div id="tripSt"></div><div id="tripDocs"></div>';
     const cargo = [f('Вантаж', 'Вантаж'), f('Тонн', 'Тонн'), f('Перехід', 'Перехід'), f('Км', 'Км'), f('Пальне, л', 'Пальне, л'), f('Допомагав вантажити', 'Допомагав'), f('ТТН документів', 'ТТН документів')].join('');
     const pay = [f('Клієнт', 'Клієнт (як записано)'), f('Клієнт ID', 'Клієнт ID'), f('Контакт клієнта', 'Контакт клієнта'), (has('Фрахт') ? '<div class="kv big"><span>Фрахт</span><b>' + esc(money(r['Фрахт'])) + '\u00a0' + esc(({ EUR: '€', PLN: 'zł', USD: '$', UAH: 'грн' })[String(r['Валюта'] || '').toUpperCase()] || r['Валюта'] || '') + '</b></div>' : ''), invKv(r), f('Оплата', 'Оплата'),
-      f('Відстрочка, днів', 'Відстрочка, днів'), f('Очікувана оплата', 'Очікувана оплата', late ? 'bad' : ''), f('Оплачено', 'Оплачено', 'ok'), f('Коментар оплати', 'Коментар оплати')].join('');
+      f('Відстрочка, днів', 'Відстрочка, днів'), (due ? f('Очікувана оплата', 'Очікувана оплата', late ? 'bad' : '') : ''), f('Оплачено', 'Оплачено', 'ok'), f('Коментар оплати', 'Коментар оплати')].join('');
     const sal = [f('Зарплата (Аналітика)', 'Зарплата (Аналітика)'), f('Зарплата (нова)', 'Зарплата (нова)'), f('Особлива ставка', 'Особлива ставка'), f('Як порахована', 'Як порахована')].join('');
     h += '<div class="tgrid">';
     if (cargo) h += '<section class="card"><h2>Вантаж і дорога</h2>' + cargo + '</section>';
