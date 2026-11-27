@@ -1943,8 +1943,44 @@
       (body || '<div class="nores">' + (mMine() && !rows.some(r => mIsMine(r.x)) ? 'За вами ще немає машин. Закріпіть машину в її панелі («Закріпити за мною») або вимкніть «Мої машини».' : 'Нічого не знайдено. Шукайте за знаком, прізвищем, причепом або містом.') + '</div>');
   }
   function mFlowHtml(rows) {
+    rows = rows.filter(r => kOk(r.x));
     return M_ST.map((s, i) => { const l = rows.filter(r => r.st === s[0]), hot = l.some(r => r.lvl === 'bad');
-      return (i === 6 ? '<span class="gap"></span>' : i ? '<span class="ar" aria-hidden="true">›</span>' : '') + '<button type="button" data-mst="' + s[0] + '" aria-pressed="' + (M.stage === s[0]) + '"' + (hot ? ' class="hot"' : '') + ' aria-label="' + esc(s[1] + ': ' + l.length + (hot ? ', є потрібна дія' : '') + ' — показати лише цей етап') + '">' + s[1] + '<b>' + l.length + '</b></button>'; }).join('');
+      if (!l.length && M.stage !== s[0]) return '';   // v52 (принцип 5): етап без машин мовчить
+      return '<button type="button" data-mst="' + s[0] + '" aria-pressed="' + (M.stage === s[0]) + '"' + (hot ? ' class="hot"' : '') + ' aria-label="' + esc(s[1] + ': ' + l.length + (hot ? ', є потрібна дія' : '') + ' — показати лише цей етап') + '">' + s[1] + '<b>' + l.length + '</b></button>'; }).join('');
+  }
+
+  /* ── v52: «План роботи · 14 днів» (рішення власниці 27.11): поточний рейс з етапом, наступний, порожні дні — «без роботи» ── */
+  const PL_D = 14;
+  function mPlanHtml(rows) {
+    const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+    const ix = iso => { if (!iso) return null; const d = new Date(iso + 'T00:00:00'); return Math.round((d - t0) / 864e5); };
+    const cl = n => Math.max(0, Math.min(PL_D, n)), dl = n => { const d = new Date(t0); d.setDate(d.getDate() + n); return dd(isoDay(d)); };
+    let win = 0;
+    const L = rows.filter(r => kOk(r.x)).slice().sort((a, b) => a.x.id.localeCompare(b.x.id)).map(r => {
+      const segs = []; let open = false;   // open — дата розвантаження невідома: далі не вгадуємо
+      const add = (t, lab, kind) => { if (open) return; const a = cl(ix(t.load) == null ? 0 : ix(t.load)), u = ix(t.unload);
+        const b = u == null ? PL_D : cl(u + 1); if (u == null) open = true; if (b > a) segs.push({ a, b, lab: lab + (u == null ? ' · без дати розвантаження' : ''), kind: kind + (u == null ? ' unk' : '') }); };
+      if (r.t) add(r.t, (r.t.from || '?') + ' → ' + (r.t.to || '?') + ' · ' + String(M_STN[r.st] || '').toLowerCase(), 'trip' + (r.t.order ? ' ord' : ''));
+      if (r.x.next) add(r.x.next, (r.x.next.from || '?') + ' → ' + (r.x.next.to || '?') + (r.x.next.order ? ' (заявка)' : ''), 'trip' + (r.x.next.order ? ' ord' : ''));
+      const busy = Array(PL_D).fill(false); segs.forEach(g => { for (let i = g.a; i < g.b; i++) busy[i] = true; });
+      const gaps = []; for (let i = 0; i < PL_D;) { if (busy[i]) { i++; continue; } let j = i; while (j < PL_D && !busy[j]) j++; gaps.push({ a: i, b: j }); i = j; }
+      if (gaps.some(g => g.a < 7)) win++;
+      return { r, segs, gaps };
+    });
+    const head = Array.from({ length: PL_D }, (_, i) => { const d = new Date(t0); d.setDate(d.getDate() + i); const we = d.getDay() === 0 || d.getDay() === 6;
+      return '<span class="' + (i === 0 ? 'td' : '') + (we ? ' we' : '') + '">' + (i === 0 ? 'сьогодні' : dl(i)) + '</span>'; }).join('');
+    const bar = (g, lab, cls) => '<span class="pb ' + cls + '" style="grid-column:' + (g.a + 1) + '/' + (g.b + 1) + '" title="' + esc(lab) + '">' + esc(lab) + '</span>';
+    const rowsH = L.map(o => '<div class="pl-r"><button type="button" class="pl-w" data-msel="' + esc(o.r.x.id) + '">' + mPlate(o.r.x.id) + '<span>' + esc((o.r.who || '').split(',')[0]) + '</span></button><div class="pl-g">' +
+      o.segs.map(g => bar(g, g.lab, g.kind)).join('') + o.gaps.map(g => bar(g, (g.a === 0 ? 'вільна зараз' : 'без роботи з ' + dl(g.a)) + ' · ' + (g.b - g.a) + ' дн', 'gap')).join('') + '</div></div>').join('');
+    // телефон (принцип 11): замість смуг — коли кожна машина звільняється
+    const ph = L.filter(o => o.gaps.length).sort((a, b) => a.gaps[0].a - b.gaps[0].a).map(o => '<li><button type="button" class="linkbtn" data-msel="' + esc(o.r.x.id) + '">' + mPlate(o.r.x.id) + '</button><span>' + esc((o.r.who || '').split(',')[0]) + '</span><b>' + (o.gaps[0].a === 0 ? 'вільна зараз' : 'вільна з ' + dl(o.gaps[0].a)) + '</b></li>').join('');
+    return { sum: win ? '<b>' + win + ' ' + plural(win, 'машина має', 'машини мають', 'машин мають') + ' вільні дні цього тижня</b> · пунктир — шукати вантаж' : 'усі машини зайняті на тиждень вперед',
+      body: '<div class="pl-desk"><div class="pl-r pl-hd"><span></span><div class="pl-g">' + head + '</div></div>' + rowsH + '</div>' + (ph ? '<ul class="pl-ph">' + ph + '</ul>' : '') };
+  }
+  function mTagsHtml() {
+    const t = []; const kn = { intl: 'ЄС', dom: 'Україна' }[hKind];
+    if (kn) t.push(['hk', kn]); if (mSort() !== 'prob') t.push(['sort', mSort() === 'stage' ? 'за етапом' : 'за знаком']); if (M.stage) t.push(['st', M_STN[M.stage] || '']);
+    return t.map(x => '<button type="button" class="tag-x" data-mtag="' + x[0] + '" aria-label="Прибрати: ' + esc(x[1]) + '">' + esc(x[1]) + ' ×</button>').join('');
   }
 
   /* ── розгортки ── */
@@ -2073,13 +2109,15 @@
     if (mDropId) mDropDraw(D);
     const vis = mVisible(mRows), all = mRows.filter(r => kOk(r.x));
     $('m51Flow').innerHTML = board ? mFlowHtml(mRows) : '';
+    if (board) { const P = mPlanHtml(mVisible(mRows)); $('m51PlanSum').innerHTML = P.sum; $('m51PlanB').innerHTML = P.body; $('m51Plan').hidden = false; } else $('m51Plan').hidden = true;
+    $('m51Tags').innerHTML = mTagsHtml();
     $('m51List').innerHTML = board ? mListHtml(mRows) : (homeLErr && !board ? '<p class="msg">' + esc(homeLErr) + '</p>' : hSk(6));
     $('m51Cnt').textContent = board ? (vis.length === all.length ? all.length + ' ' + plural(all.length, 'машина', 'машини', 'машин') : vis.length + ' з ' + all.length) : '';
     const now = new Date();
     $('m51Sub').innerHTML = esc(now.toLocaleDateString('uk-UA', { weekday: 'long', day: 'numeric', month: 'long' })) + (board ? ' · ' + all.length + ' ' + plural(all.length, 'машина', 'машини', 'машин') + ' · ' + all.filter(r => r.t).length + ' у рейсі' : '') + ' · <span id="hAgo">' + esc(hAgo()) + '</span>' + (board && board.pos && board.pos.at ? ', GPS ' + esc(hhmm(board.pos.at)) : '');
     document.querySelectorAll('#m51 [data-msort]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.msort === mSort())));
     document.querySelectorAll('#m51 [data-hk]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.hk === hKind)));
-    if ($('m51More')) { const kn = { intl: 'ЄС', dom: 'Україна' }[hKind]; $('m51More').innerHTML = 'Уточнити' + (kn ? ' <small>· ' + kn + '</small>' : ''); $('m51More').classList.toggle('on', !!kn); }
+    { const n = (hKind !== 'all' ? 1 : 0) + (mSort() !== 'prob' ? 1 : 0) + (M.stage ? 1 : 0); $('m51Flt').innerHTML = 'Фільтр' + (n ? ' <small>' + n + '</small>' : ''); }
     $('m51Mine').setAttribute('aria-pressed', String(mMine())); $('m51Mine').hidden = !lgMany();
     m51Side();   // v52: «Парк зараз» прибрано (рішення 27.11) — праворуч лише рейс вибраної машини, без вибору список на всю ширину
     if (fk) { const f = box.querySelector(fk); if (f) f.focus({ preventScroll: true }); }
@@ -2092,13 +2130,15 @@
       '<div class="m51-drops"><div class="dbar" id="m51Chips" role="toolbar" aria-label="Розгортки: RMPD, справи, причепи, документи, показники"></div><div class="drop" id="m51Drop" role="region" hidden></div></div>' +
       '<div class="m51-work"><div class="m51-l">' +
         '<div class="lbar"><label class="m51-q"><span class="sr">Знайти машину</span><input id="m51Q" type="search" placeholder="Знак, водій, місто" autocomplete="off" enterkeyhint="search"><kbd aria-hidden="true">/</kbd></label>' +
-          '<div class="seg" role="group" aria-label="Порядок">' + [['prob', 'Спершу дія'], ['stage', 'За етапом'], ['plate', 'За знаком']].map(s => '<button type="button" data-msort="' + s[0] + '" aria-pressed="false">' + s[1] + '</button>').join('') + '</div>' +
-          '<button type="button" class="btn small m51-more" id="m51More" aria-expanded="false" aria-controls="m51Kind">Уточнити</button>' +   // v51: на телефоні «ЄС / Україна» сховано під «Уточнити» (макет v0.5, 1.5)
-          '<div class="seg kind" id="m51Kind" role="group" aria-label="Які рейси">' + [['all', 'Усі'], ['intl', 'ЄС'], ['dom', 'Україна']].map(k => '<button type="button" data-hk="' + k[0] + '" aria-pressed="false">' + k[1] + '</button>').join('') + '</div>' +
+          '<button type="button" class="btn small m51-flt" id="m51Flt" aria-expanded="false" aria-controls="m51FltP">Фільтр</button><span class="m51-tags" id="m51Tags"></span>' +   // v52 (принцип 2): на виду пошук і один «Фільтр»
           '<button type="button" class="btn small m51-mine" id="m51Mine" aria-pressed="false" hidden title="Машини, чий рейс ви ведете, і закріплені за вами">Мої машини</button>' +
           '<span class="m51-cnt" id="m51Cnt" role="status"></span></div>' +
-        '<div class="flow" id="m51Flow" role="group" aria-label="Етапи: клік — показати лише цей етап"></div>' +
+        '<div class="m51-fltp card" id="m51FltP" hidden><div class="fg"><span class="fl">Порядок</span><div class="seg" role="group" aria-label="Порядок">' + [['prob', 'Спершу дія'], ['stage', 'За етапом'], ['plate', 'За знаком']].map(s => '<button type="button" data-msort="' + s[0] + '" aria-pressed="false">' + s[1] + '</button>').join('') + '</div></div>' +
+          '<div class="fg"><span class="fl">Які рейси</span><div class="seg" role="group" aria-label="Які рейси">' + [['all', 'Усі'], ['intl', 'ЄС'], ['dom', 'Україна']].map(k => '<button type="button" data-hk="' + k[0] + '" aria-pressed="false">' + k[1] + '</button>').join('') + '</div></div>' +
+          '<p class="muted small">Етап — кнопками над «Планом роботи».</p></div>' +
         '<div class="m51-list" id="m51List" role="list" aria-label="Статуси машин"></div>' +
+        '<section class="card m51-plan" id="m51Plan" aria-labelledby="m51PlanT"><div class="pl-h"><h2 id="m51PlanT">План роботи · 14 днів</h2><span class="pl-sum" id="m51PlanSum"></span></div>' +
+          '<div class="flow" id="m51Flow" role="group" aria-label="Етапи зараз: клік — показати лише цей етап"></div><div id="m51PlanB"></div></section>' +
       '</div><aside class="m51-side" id="m51Side" aria-label="Вибрана машина або парк зараз"><div class="card m51-sum" id="m51Sum" aria-labelledby="m51SumT"></div></aside></div></div>';
   }
   /** Панель рейсу (bPanelOpen) живе на дошці; на головній логіста її вузол переїжджає в праву колонку. */
@@ -2125,6 +2165,8 @@
       const so = e.target.closest('[data-msort]'); if (so) { mSet('sort', so.dataset.msort); mDraw(); return; }
       const hk = e.target.closest('#m51 [data-hk]'); if (hk) { hKind = hk.dataset.hk; store.set('hKind', hKind); mDraw(); return; }
       if (e.target.closest('#m51More')) { const on = !box.classList.contains('kind-on'); box.classList.toggle('kind-on', on); $('m51More').setAttribute('aria-expanded', String(on)); if (on) { const b = box.querySelector('#m51Kind [aria-pressed="true"]') || box.querySelector('#m51Kind button'); if (b) b.focus(); } return; }
+      if (e.target.closest('#m51Flt')) { const p = $('m51FltP'), on = p.hidden; p.hidden = !on; $('m51Flt').setAttribute('aria-expanded', String(on)); if (on) { const b = p.querySelector('[aria-pressed="true"]'); if (b) b.focus(); } return; }
+      const tg = e.target.closest('[data-mtag]'); if (tg) { const k = tg.dataset.mtag; if (k === 'hk') { hKind = 'all'; store.set('hKind', 'all'); } else if (k === 'sort') mSet('sort', 'prob'); else M.stage = ''; mDraw(); return; }
       if (e.target.closest('#m51Mine')) { mSet('mine', mMine() ? '0' : '1'); mDraw(); return; }
       const fs = e.target.closest('[data-mst]'); if (fs) { M.stage = M.stage === fs.dataset.mst ? '' : fs.dataset.mst; mDraw(); return; }
       const rm = e.target.closest('[data-mrmpd]'); if (rm) { const x = board.trucks.find(y => y.id === rm.dataset.mrmpd); m51Close(); if (x && x.trip) openTrip(x.trip.id, 'home'); return; }
