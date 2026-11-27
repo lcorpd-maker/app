@@ -2532,3 +2532,7 @@ body.nav-on #bChips .chip, body.nav-on .bs, body.nav-on #board .btn { border-rad
 .tf-dir { margin: 8px 0 0; } .tf-dir summary { cursor: pointer; font-size: 14px; color: var(--ink-2); }
 .m51 .dirx { font-weight: 400; color: var(--muted); }
 .bp-qf input[type="checkbox"] { width: 18px; height: 18px; min-height: 0; margin: 0; flex: none; }
+/* v53: кругорейс у панелі рейсу — тихо */
+.bp-kv #bpCircEd { font-size: 12px; min-height: 0; margin-left: 6px; font-weight: 400; }
+.bp-circf { display: inline-flex; gap: 6px; align-items: center; margin-left: 6px; }
+.bp-circf input { width: 9em; padding: 4px 6px; }

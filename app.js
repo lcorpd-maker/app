@@ -2346,6 +2346,13 @@
     return bpKv('Напрям', (d.v ? esc(d.v) + ' <span class="muted">· ' + esc(DIR_SRC[d.src] || d.src) + (d.ok ? ', збігається з ' + esc(d.ok) : '') + '</span>' : '') +
       (d.conflict ? '<span class="bp-dirw">' + esc(d.conflict) + '</span>' + btns : ''));
   }
+  /** v53: кругорейс рейсу — тихо; номер ставить сервер (експорт — новий, імпорт/переїзд — поточний), по Україні — логіст сам. */
+  function bpCircKv(t, wr, truck) {
+    if (!t || t.order) return '';
+    const c = t.circle || '', f = wr ? '<span class="bp-circf" hidden><input id="bpCirc" value="' + esc(c) + '" placeholder="напр. ' + esc((truck || '0000') + '-…') + '" size="10"> <button type="button" class="btn small" id="bpCircSave">Зберегти</button></span>' : '';
+    if (!c && !wr) return '';
+    return bpKv('Кругорейс', (c ? esc(c) : '<span class="muted">не вказано</span>') + (wr ? ' <button type="button" class="linkbtn" id="bpCircEd">' + (c ? 'змінити' : 'вказати') + '</button>' + f : ''));
+  }
   function bpQueueSec(t, wr) {
     if (!t || !t.dir || t.dir.v !== 'експорт' || !t.qh) return '';
     const h = t.qh, reg = /зареєстр/i.test(t.q || ''), dis = wr ? '' : ' disabled';
@@ -2411,7 +2418,7 @@
     const ev = t.st && t.st.event, intl = !!t.cross && echIntl(t.type, t.cross);
     p.innerHTML = back + '<section class="bp-sec bp-top"><div class="bp-ttl"><h2 id="bpTitle"><span class="sr">Рейс </span>' + esc(tid) + '</h2>' + badge(ST_GRP[ev] || 'go', ev ? cap(ev) : 'В рейсі') + xBtn + '</div>' +
       '<div class="bp-route">' + esc(t.from || '?') + ' — ' + esc(t.to || '?') + '</div>' + plates +
-      '<dl class="bp-kv">' + bpKv('Клієнт', esc(t.client || '')) + bpKv('Тип', esc([t.type, t.adr ? 'АДР' : ''].filter(Boolean).join(', '))) + bpKv('Перехід', esc(t.cross || '')) + bpDirKv(t, wr) + bpKv('Фрахт', bFreight(t)) +
+      '<dl class="bp-kv">' + bpKv('Клієнт', esc(t.client || '')) + bpKv('Тип', esc([t.type, t.adr ? 'АДР' : ''].filter(Boolean).join(', '))) + bpKv('Перехід', esc(t.cross || '')) + bpDirKv(t, wr) + bpCircKv(t, wr, x.id) + bpKv('Фрахт', bFreight(t)) +
         bpKv('Дати', 'завантаження ' + (dd(t.load) || '?') + ' · розвантаження ' + (t.unload ? dd(t.unload) : '<span class="bpr">не вказано</span>')) + '</dl>' + lgH + '</section>' +
       bpSec('Рух зараз' + (mv && mv.at ? ' <span class="bp-cap">GPS ' + esc(hhmm(mv.at)) + '</span>' : ''), '<div id="bpMoveNow">' + bpMoveHtml(x, mv) + '</div>' + drvH + '<details class="bp-fold" id="bpMv"><summary>Рух і зупинки · план до розвантаження</summary><div id="bpMvBody"><p class="muted small">Завантажую…</p></div></details>', ' id="bpMoveSec"') +
       bpQueueSec(t, wr) +
@@ -2516,6 +2523,8 @@
   function bindPanel(x, tid) {
     { const p = $('bPanel');   // v52: напрям при розбіжності; «Черга на експорт»
       p.querySelectorAll('[data-bpdir]').forEach(b => b.onclick = () => bpTripSave(tid, { 'Напрям': b.dataset.bpdir }, '✔ Напрям: ' + b.dataset.bpdir));
+      const ce = p.querySelector('#bpCircEd'); if (ce) ce.onclick = () => { const f = p.querySelector('.bp-circf'); f.hidden = !f.hidden; if (!f.hidden) p.querySelector('#bpCirc').focus(); };
+      const cs = p.querySelector('#bpCircSave'); if (cs) cs.onclick = () => { const v = p.querySelector('#bpCirc').value.trim(); bpTripSave(tid, { 'Кругорейс ID': v }, v ? '✔ Кругорейс: ' + v : '✔ Кругорейс прибрано'); };
       if ($('bpQSt')) $('bpQSt').onchange = () => { $('bpQAtL').hidden = !$('bpQSt').value; if ($('bpQSt').value && !$('bpQAt').value) $('bpQAt').value = isoDay(new Date()); };
       if ($('bpQSave')) $('bpQSave').onclick = () => bpTripSave(tid, { 'Дата виїзду': $('bpQPlan').value, 'Виїзд погоджено': $('bpQAgr').checked ? 'так' : '', 'Черга': $('bpQSt').value, 'Дата реєстрації в черзі': $('bpQSt').value ? $('bpQAt').value : '' }, '✔ Чергу збережено'); }
     const p = $('bPanel');
