@@ -1977,6 +1977,24 @@
     return { sum: win ? '<b>' + win + ' ' + plural(win, 'машина має', 'машини мають', 'машин мають') + ' вільні дні цього тижня</b> · пунктир — шукати вантаж' : 'усі машини зайняті на тиждень вперед',
       body: '<div class="pl-desk"><div class="pl-r pl-hd"><span></span><div class="pl-g">' + head + '</div></div>' + rowsH + '</div>' + (ph ? '<ul class="pl-ph">' + ph + '</ul>' : '') };
   }
+  /* ── v52 · крок 3: віджети внизу на всю ширину (рішення 27.11): черги на виїзд, курс НБУ, RMPD ── */
+  let nbuR = null, nbuTry = 0;
+  function nbuFetch() { if (nbuR || Date.now() - nbuTry < 10 * 60000) return; nbuTry = Date.now();
+    api('calc.init').then(r => { if (r && r.rates) { nbuR = r.rates; if (mOn()) mDraw(); } }).catch(() => {}); }
+  function mWgHtml(rows) {
+    const T = board ? board.trucks.filter(kOk) : [];
+    const card = (cls, h) => '<section class="card wg ' + cls + '">' + h + '</section>';
+    const q = card('wg-q', echQueueHtml(T));
+    const n = nbuR ? card('wg-nbu', '<h3 class="hw-h3">Курс НБУ <span class="ech-upd">' + esc(nbuR.date ? 'на ' + nbuR.date.slice(0, 5) : '') + (nbuR.src && nbuR.src !== 'НБУ' ? ' · з параметрів' : '') + '</span></h3><div class="wg-fx">' +
+      ['EUR', 'PLN', 'USD'].filter(k => nbuR[k]).map(k => '<div><span>' + k + '</span><b class="tnum">' + Number(nbuR[k]).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + '</b></div>').join('') + '</div>') : card('wg-nbu', '<h3 class="hw-h3">Курс НБУ</h3>' + hSk(3));
+    const A = rows.filter(r => r.t && !r.t.order && r.k === 'i' && kOk(r.x)), c = s => A.filter(r => s.indexOf(r.t.rmpd || '') >= 0);
+    const ok = c(['ok']), wt = c(['wait', 'ai']), wr = c(['warn']), no = c(['none']).filter(r => r.nearB || r.x.ech);
+    const todo = wr.map(r => [r, 'RMPD ≠ CMR', 'Звірити']).concat(no.map(r => [r, 'виклик на кордон, RMPD немає', 'Відкрити']));
+    const rm = card('wg-rmpd', '<h3 class="hw-h3">RMPD <span class="ech-upd">активні міжнародні рейси</span></h3>' +
+      '<div class="wg-n"><div><b>' + ok.length + '</b><span>перевірено</span></div><div class="' + (wt.length ? 'w' : '') + '"><b>' + wt.length + '</b><span>чекає перевірки</span></div><div class="' + (wr.length ? 'b' : '') + '"><b>' + wr.length + '</b><span>розбіжність з CMR</span></div></div>' +
+      (todo.length ? '<ul class="wg-l">' + todo.slice(0, 4).map(o => '<li><span>' + mPlate(o[0].x.id) + ' ' + esc(o[1]) + '</span><button type="button" class="btn small" data-mrmpd="' + esc(o[0].x.id) + '">' + o[2] + '</button></li>').join('') + '</ul>' : '<p class="hcalm">' + svgI(ST_ICO.ok) + ' Дій з RMPD зараз немає</p>'));
+    return q + rm + n;   // черги — ліворуч на всю висоту; праворуч RMPD і курс одне під одним (без порожніх карток)
+  }
   function mTagsHtml() {
     const t = []; const kn = { intl: 'ЄС', dom: 'Україна' }[hKind];
     if (kn) t.push(['hk', kn]); if (mSort() !== 'prob') t.push(['sort', mSort() === 'stage' ? 'за етапом' : 'за знаком']); if (M.stage) t.push(['st', M_STN[M.stage] || '']);
@@ -2002,7 +2020,7 @@
     const body = '<div class="dcols"><div><div class="nums"><div><b>' + cand.length + '</b><span>потрібно</span></div><div class="' + (n(['none']) ? 'b' : '') + '"><b>' + n(['none']) + '</b><span>не надіслано</span></div>' +
       '<div><b>' + n(['wait', 'ai']) + '</b><span>на перевірці</span></div><div class="' + (n(['warn']) ? 'w' : '') + '"><b>' + n(['warn']) + '</b><span>розбіжність</span></div><div><b>' + n(['ok']) + '</b><span>звірено</span></div></div>' +
       (rows.length ? '<ul class="ilist">' + rows.map(li).join('') + '</ul>' : '<p class="hcalm">' + svgI(ST_ICO.ok) + ' Усі RMPD перед кордоном надіслано</p>') + '</div>' +
-      '<div><div class="dsub">Пункти пропуску зараз · єЧерга</div>' + bp + (me.role === 'логіст' ? '<div class="m51-ech">' + echQueueHtml(T) + '</div>' : '') + '</div></div>';
+      '<div><div class="dsub">Пункти пропуску зараз · єЧерга</div>' + bp + '' + '</div></div>';
     return { n: rows.length, lv: bad ? 'bad' : rows.length ? 'warn' : '', body, meta: cand.length + ' ' + plural(cand.length, 'рейс', 'рейси', 'рейсів') + ' до кордону',
       foot: '<span>«Відкрити» — картка рейсу з файлом RMPD. Кому нагадувати автоматично — ще не вирішено, тож поки нагадуйте водієві самі.</span>' };
   }
@@ -2111,6 +2129,7 @@
     $('m51Flow').innerHTML = board ? mFlowHtml(mRows) : '';
     if (board) { const P = mPlanHtml(mVisible(mRows)); $('m51PlanSum').innerHTML = P.sum; $('m51PlanB').innerHTML = P.body; $('m51Plan').hidden = false; } else $('m51Plan').hidden = true;
     $('m51Tags').innerHTML = mTagsHtml();
+    if (board) { $('m51Wg').innerHTML = mWgHtml(mRows); nbuFetch(); }
     $('m51List').innerHTML = board ? mListHtml(mRows) : (homeLErr && !board ? '<p class="msg">' + esc(homeLErr) + '</p>' : hSk(6));
     $('m51Cnt').textContent = board ? (vis.length === all.length ? all.length + ' ' + plural(all.length, 'машина', 'машини', 'машин') : vis.length + ' з ' + all.length) : '';
     const now = new Date();
@@ -2139,7 +2158,8 @@
         '<div class="m51-list" id="m51List" role="list" aria-label="Статуси машин"></div>' +
         '<section class="card m51-plan" id="m51Plan" aria-labelledby="m51PlanT"><div class="pl-h"><h2 id="m51PlanT">План роботи · 14 днів</h2><span class="pl-sum" id="m51PlanSum"></span></div>' +
           '<div class="flow" id="m51Flow" role="group" aria-label="Етапи зараз: клік — показати лише цей етап"></div><div id="m51PlanB"></div></section>' +
-      '</div><aside class="m51-side" id="m51Side" aria-label="Вибрана машина або парк зараз"><div class="card m51-sum" id="m51Sum" aria-labelledby="m51SumT"></div></aside></div></div>';
+      '</div><aside class="m51-side" id="m51Side" aria-label="Вибрана машина або парк зараз"><div class="card m51-sum" id="m51Sum" aria-labelledby="m51SumT"></div></aside></div>' +
+      '<div class="m51-wg" id="m51Wg" aria-label="Довідкове: черги, курс, RMPD"></div></div>';
   }
   /** Панель рейсу (bPanelOpen) живе на дошці; на головній логіста її вузол переїжджає в праву колонку. */
   function bpRescue() { const p = $('bPanel'), w = document.querySelector('#board .bwork'); if (p && w && p.parentNode !== w) { p.hidden = true; p.innerHTML = ''; w.appendChild(p); document.body.classList.remove('bpanel-on', 'bpanel-full'); bPanelX = null; } }

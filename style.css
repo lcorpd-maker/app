@@ -2478,3 +2478,35 @@ body.nav-on #bChips .chip, body.nav-on .bs, body.nav-on #board .btn { border-rad
 .m51 .pl-ph li b { margin-left: auto; color: var(--warn-fg); font-size: 13px; }
 @media (max-width: 767px) { .m51 .pl-desk { display: none; } .m51 .pl-ph { display: block; } }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .m51 .pb.trip { background: #2E2858; color: #DAD3FA; } }
+/* v52 · крок 3: віджети внизу */
+.m51 .m51-wg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; align-items: stretch; }
+.m51 .m51-wg:empty { display: none; }
+.m51 .wg { padding: 14px 16px; margin: 0; }
+.m51 .wg .hw-h3 { margin-top: 0; }
+.m51 .wg-l { list-style: none; margin: 0; padding: 0; }
+.m51 .wg-l li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.m51 .wg-n { display: flex; gap: 20px; margin-bottom: 8px; }
+.m51 .wg-n b { display: block; font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.m51 .wg-n span { font-size: 12px; color: var(--muted); }
+.m51 .wg-n .w b { color: var(--warn-fg); } .m51 .wg-n .b b { color: var(--bad-fg); }
+@media (max-width: 1023px) { .m51 .m51-wg { grid-template-columns: minmax(0, 1fr); } }
+/* віджети: заголовки звичайним регістром, черги — по рядку на пункт (менше висоти, без порожнечі в сусідніх картках) */
+.m51 .wg .hw-h3 { align-items: baseline; color: var(--ink); font-size: 16px; font-weight: 700; letter-spacing: 0; text-transform: none; margin: 0 0 8px; }
+.m51 .wg .hw-h3 .ech-upd { font-size: 12px; font-weight: 600; color: var(--muted); }
+.m51 .wg .hw-h3 .ech-upd.stale { color: var(--warn-fg); }
+.m51 .wg .ech-list { gap: 0; }
+.m51 .wg .ech-r { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: baseline; padding: 6px 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; }
+.m51 .wg .ech-r.ours { border-left: 0; }
+.m51 .wg .ech-r.ours .ech-l b::after { content: ' · наш'; font-weight: 600; font-size: 12px; color: var(--muted); }
+.m51 .wg .ech-m { margin: 0; justify-content: flex-end; }
+.m51 .wg .ech-w { font-size: 14px; }
+.m51 .wg .ech-us { grid-column: 1 / -1; font-size: 12px; }
+.m51 .wg .ech-trs { grid-column: 1 / -1; margin-top: 2px; }
+.m51 .wg .ech-foot { margin: 8px 0 0; font-size: 13px; }
+@media (min-width: 1024px) {
+  .m51 .m51-wg { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto; }
+  .m51 .m51-wg .wg-q { grid-row: 1 / span 2; }
+}
+.m51 .wg-fx { display: flex; gap: 28px; }
+.m51 .wg-fx span { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
+.m51 .wg-fx b { font-size: 18px; font-weight: 800; }
