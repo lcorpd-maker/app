@@ -32,7 +32,7 @@
   const HINT = {
     'адмін': 'Повний доступ. Таблиці поки лише для перегляду — змінювати їх можна буде згодом.',
     'керівник': 'Дошка, калькулятор і документи працюють. Таблиці поки лише для перегляду.',
-    'логіст': 'Дошка машин — головне. Кроки від водіїв видно на дошці й у картці рейсу.',
+    'логіст': 'Машини зараз — головне. Кроки від водіїв видно в списку машин і в картці рейсу.',
     'бухгалтер': 'Поки — перегляд даних. Рахунки, акти й оплати з банку з\'являться згодом.',
     'механік': 'Дошка машин і документи працюють. Облік ремонтів і ТО з\'явиться згодом.',
     'водій': 'Почніть з «Моя машина»: відмітьте, яку машину ви прийняли. Тут же ваші рейси, витрати й зарплата.'
@@ -1243,7 +1243,7 @@
   const OFF = ['адмін', 'керівник', 'логіст', 'бухгалтер', 'механік'], LKA = ['адмін', 'керівник', 'логіст'], KA = ['адмін', 'керівник'];
   const NAV = [
     { id: 'home', t: 'Головна', ico: 'home', roles: OFF },
-    { id: 'board', t: 'Дошка машин', g: 0, ico: 'board', roles: ['адмін', 'керівник', 'логіст', 'механік'] },
+    { id: 'board', t: 'Дошка машин', g: 0, ico: 'board', roles: ['адмін', 'керівник', 'механік'] },   // v52: у логіста дошка = головна «Машини зараз» (рішення власниці 27.11)
     { id: 'sheet:Заявки', t: 'Заявки', g: 0, sheet: 'Заявки', ico: 'inbox', roles: LKA },
     { id: 'sheet:Рейси', t: 'Рейси', g: 0, sheet: 'Рейси', ico: 'route', roles: ['адмін', 'керівник', 'логіст', 'бухгалтер'] },
     { id: 'sheet:Кругорейси', t: 'Кругорейси', g: 0, sheet: 'Кругорейси', ico: 'loop', roles: LKA },
@@ -2002,16 +2002,15 @@
     const f = hwBody(hwFree);
     D.push({ id: 'free', t: 'Звільняються', ttl: 'Звільняються за 72 год', n: board ? +(String(f.meta || '').match(/\d+/) || [0])[0] : '', lv: /fr-it (bad|warn)/.test(f.body) ? 'warn' : '', body: f.body, meta: f.meta && /\d/.test(f.meta) ? f.meta : '' });
     D.push(Object.assign({ id: 'docs', t: 'Документи й TIR', ttl: 'Документи й TIR' }, board ? mDocsDrop(T) : sk));
-    const u = hwBody(hwUtil), K = homeL && homeL.kinds && homeL.kinds[hKey()], c = K && K.toDate && K.toDate.cur;
-    D.push({ id: 'load', t: 'Завантаженість', ttl: 'Завантаженість парку', n: c && c.util != null ? c.util : '', u: '%', lv: '', body: u.body, meta: u.meta || '' });
-    const w = hwBody(hwWeek), lw = homeL && (homeL.dow <= 2 ? K && K.weeks[K.weeks.length - 2] : c);
-    D.push({ id: 'week', t: 'Тиждень', ttl: homeL && homeL.dow <= 2 ? 'Минулий тиждень у цифрах' : 'Тиждень у цифрах', n: lw ? lw.unl : '', u: ' розв.', lv: '', body: w.body, meta: w.meta || '' });
-    const cl = hwBody(hwCal);
-    D.push({ id: 'cal', t: 'Календар', ttl: 'Календар парку', n: '', lv: '', body: cl.body, meta: cl.meta || '' });
-    return D;
+    const u = hwBody(hwUtil), w = hwBody(hwWeek), cl = hwBody(hwCal);
+    D.push({ id: 'stats', t: 'Показники', ttl: 'Показники парку', n: '', lv: '', quiet: true, meta: '',
+      body: '<h3 class="drop-sub">Завантаженість</h3>' + u.body + '<h3 class="drop-sub">' + (homeL && homeL.dow <= 2 ? 'Минулий тиждень у цифрах' : 'Тиждень у цифрах') + '</h3>' + w.body + '<h3 class="drop-sub">Календар парку</h3>' + cl.body });
+    // v52 (принцип 5): розгортка з нулем мовчить, крім відкритої зараз
+    D.forEach(d => { if (d.id === 'trl' && !d.n && canQueue()) { d.n = ''; d.quiet = true; } });   // причепів 0 — тиха кнопка без нуля: звідси записують новий причіп
+    return D.filter(d => !(d.n === 0 || d.n === '0') || d.id === mDropId);
   }
   function mChipsHtml(D) {
-    return D.map(d => '<button type="button" class="dchip' + (d.lv === 'bad' ? ' bad' : '') + '" data-mdrop="' + d.id + '" aria-expanded="' + (mDropId === d.id) + '" aria-controls="m51Drop"' +
+    return D.map(d => '<button type="button" class="dchip' + (d.lv === 'bad' ? ' bad' : '') + (d.quiet ? ' quiet' : '') + '" data-mdrop="' + d.id + '" aria-expanded="' + (mDropId === d.id) + '" aria-controls="m51Drop"' +
       ' aria-label="' + esc(d.ttl + (d.n !== '' && d.n != null ? ': ' + d.n + (d.u || '') : '') + (d.lv === 'bad' ? ' — потрібна дія' : d.lv === 'warn' ? ' — варто глянути' : '')) + '">' +
       (d.lv ? '<i class="sig" aria-hidden="true"></i>' : '') + esc(d.t) + (d.n !== '' && d.n != null ? ' <span class="n">' + esc(d.n) + (d.u ? '<small>' + esc(d.u) + '</small>' : '') + '</span>' : '') + '</button>').join('');
   }
@@ -2061,6 +2060,8 @@
   }
 
   /* ── малювання ── */
+  function m51Side() { const box = $('m51'); if (!box) return; const open = !$('bPanel').hidden && $('bPanel').parentNode === $('m51Side');
+    box.classList.toggle('side-off', !open); if ($('m51Sum')) { $('m51Sum').hidden = true; $('m51Sum').innerHTML = ''; } }
   let mRows = [];
   function mDraw() {
     const box = $('m51'); if (!box) return;
@@ -2080,13 +2081,13 @@
     document.querySelectorAll('#m51 [data-hk]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.hk === hKind)));
     if ($('m51More')) { const kn = { intl: 'ЄС', dom: 'Україна' }[hKind]; $('m51More').innerHTML = 'Уточнити' + (kn ? ' <small>· ' + kn + '</small>' : ''); $('m51More').classList.toggle('on', !!kn); }
     $('m51Mine').setAttribute('aria-pressed', String(mMine())); $('m51Mine').hidden = !lgMany();
-    $('m51Sum').innerHTML = mSumHtml(mRows); $('m51Sum').hidden = !$('bPanel').hidden && $('bPanel').parentNode === $('m51Side');
+    m51Side();   // v52: «Парк зараз» прибрано (рішення 27.11) — праворуч лише рейс вибраної машини, без вибору список на всю ширину
     if (fk) { const f = box.querySelector(fk); if (f) f.focus({ preventScroll: true }); }
   }
   /** Каркас головної логіста — один раз на показ; далі mDraw лише перемальовує частини (панель машини не скидається). */
   function mSkel() {
     return '<div id="m51" class="m51">' +
-      '<div class="m51-hd"><span class="m51-sub" id="m51Sub"></span><span class="m51-acts"><button type="button" class="btn small" id="m51Ref" title="Оновити дані" aria-label="Оновити">↻ Оновити</button>' +
+      '<div class="m51-hd"><span class="m51-meta"><span class="m51-sub" id="m51Sub"></span><button type="button" class="m51-ref" id="m51Ref" title="Оновити зараз" aria-label="Оновити дані">↻</button></span><span class="m51-acts">' +
         (canTrip() && !me.viewAs ? '<button type="button" class="primary small" id="m51New">+ Новий рейс</button>' : '') + '</span></div>' +
       '<div class="m51-drops"><div class="dbar" id="m51Chips" role="toolbar" aria-label="Розгортки: RMPD, справи, причепи, документи, показники"></div><div class="drop" id="m51Drop" role="region" hidden></div></div>' +
       '<div class="m51-work"><div class="m51-l">' +
@@ -2237,7 +2238,7 @@
   let bPanelX = null, bPanelFrom = null, bPanelSeq = 0;
   const bWide = () => window.innerWidth >= 1200;
   function markPanelRow() { document.querySelectorAll('#m51List [data-mid]').forEach(r => r.setAttribute('aria-pressed', String(!$('bPanel').hidden && !!bPanelX && r.dataset.mid === bPanelX.id)));
-    if ($('m51Sum')) $('m51Sum').hidden = !$('bPanel').hidden && $('bPanel').parentNode === $('m51Side');
+    m51Side();
     document.querySelectorAll('#bRows tr.brow').forEach(r => { const on = !$('bPanel').hidden && bPanelX && r.dataset.truck === bPanelX.id; r.classList.toggle('sel', on); const o = r.querySelector('.bopen'); if (o) o.setAttribute('aria-expanded', String(on)); }); }
   function bPanelClose() {
     const p = $('bPanel'); if (p.hidden) return; p.hidden = true; p.innerHTML = ''; document.body.classList.remove('bpanel-on', 'bpanel-full'); navAuto(); markPanelRow();

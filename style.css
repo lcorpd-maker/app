@@ -2428,3 +2428,14 @@ body.nav-on #bChips .chip, body.nav-on .bs, body.nav-on #board .btn { border-rad
   body.nav-on .bs, body.nav-on .bfilters .bsum .bs { min-height: 36px; padding: 0 12px; font-size: 14px; }
   body.nav-on .bs b, body.nav-on .bfilters .bsum .bs b { font-size: 16px; }
 }
+
+/* ── v52 · головна логіста (рішення 27.11): одна сторінка замість головної й дошки ── */
+.m51 .m51-meta { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.m51 .m51-ref { border: 0; background: none; padding: 2px 6px; min-height: 28px; border-radius: 6px; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
+.m51 .m51-ref:hover { background: var(--surface-2); color: var(--ink); }
+.m51.side-off .m51-work { grid-template-columns: minmax(0, 1fr); }
+.m51.side-off .m51-side { display: none; }
+@media (min-width: 1200px) { .m51 .m51-side { position: sticky; top: 76px; align-self: start; } }
+.m51 .dchip.quiet { background: none; border-style: dashed; color: var(--ink-2); }
+.m51 .drop-sub { margin: 16px 0 8px; font-size: 15px; }
+.m51 .drop-sub:first-child { margin-top: 0; }
