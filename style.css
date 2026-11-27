@@ -2510,3 +2510,7 @@ body.nav-on #bChips .chip, body.nav-on .bs, body.nav-on #board .btn { border-rad
 .m51 .wg-fx { display: flex; gap: 28px; }
 .m51 .wg-fx span { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
 .m51 .wg-fx b { font-size: 18px; font-weight: 800; }
+/* як в ескізі: етапи над планом — малі кнопки з рамкою; поточний порядок тихим текстом біля «Фільтра» */
+.m51 .m51-plan .flow button { border: 1px solid var(--line-2, #D3D9DF); background: var(--card); min-height: 28px; padding: 0 10px; color: var(--ink); }
+.m51 .m51-plan .flow { gap: 6px; }
+.m51 .m51-ord { align-self: center; font-size: 13px; color: var(--muted); }

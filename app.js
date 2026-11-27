@@ -1984,7 +1984,7 @@
   function mWgHtml(rows) {
     const T = board ? board.trucks.filter(kOk) : [];
     const card = (cls, h) => '<section class="card wg ' + cls + '">' + h + '</section>';
-    const q = card('wg-q', echQueueHtml(T));
+    const q = card('wg-q', echQueueHtml(T).replace('Черги зараз', 'Черги на виїзд'));
     const n = nbuR ? card('wg-nbu', '<h3 class="hw-h3">Курс НБУ <span class="ech-upd">' + esc(nbuR.date ? 'на ' + nbuR.date.slice(0, 5) : '') + (nbuR.src && nbuR.src !== 'НБУ' ? ' · з параметрів' : '') + '</span></h3><div class="wg-fx">' +
       ['EUR', 'PLN', 'USD'].filter(k => nbuR[k]).map(k => '<div><span>' + k + '</span><b class="tnum">' + Number(nbuR[k]).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + '</b></div>').join('') + '</div>') : card('wg-nbu', '<h3 class="hw-h3">Курс НБУ</h3>' + hSk(3));
     const A = rows.filter(r => r.t && !r.t.order && r.k === 'i' && kOk(r.x)), c = s => A.filter(r => s.indexOf(r.t.rmpd || '') >= 0);
@@ -1998,7 +1998,7 @@
   function mTagsHtml() {
     const t = []; const kn = { intl: 'ЄС', dom: 'Україна' }[hKind];
     if (kn) t.push(['hk', kn]); if (mSort() !== 'prob') t.push(['sort', mSort() === 'stage' ? 'за етапом' : 'за знаком']); if (M.stage) t.push(['st', M_STN[M.stage] || '']);
-    return t.map(x => '<button type="button" class="tag-x" data-mtag="' + x[0] + '" aria-label="Прибрати: ' + esc(x[1]) + '">' + esc(x[1]) + ' ×</button>').join('');
+    return t.map(x => '<button type="button" class="tag-x" data-mtag="' + x[0] + '" aria-label="Прибрати: ' + esc(x[1]) + '">' + esc(x[1]) + ' ×</button>').join('') + (mSort() === 'prob' ? '<span class="m51-ord">спершу термінові</span>' : '');
   }
 
   /* ── розгортки ── */
