@@ -2519,3 +2519,16 @@ body.nav-on #bChips .chip, body.nav-on .bs, body.nav-on #board .btn { border-rad
 .m51 .wg-fx .wg-d { display: block; margin: 2px 0 0; }
 .ech-sp { display: none; }
 .m51 .wg-fx .wg-d.up, .m51 .wg-fx .wg-d.dn { color: var(--ink-2); }   /* курс: зміна — довідка, не тривога */
+/* v52: напрям і черга на експорт у панелі рейсу */
+.bp-dirw { display: block; margin-top: 2px; color: var(--warn-fg); font-size: 13px; }
+.bp-dirb { display: inline-flex; gap: 6px; margin-top: 4px; }
+.bp-qh { margin: 0 0 10px; font-size: 14px; } .bp-qh.tb b { color: var(--bad-fg); } .bp-qh.tw b { color: var(--warn-fg); }
+.tb { color: var(--bad-fg); } .tw { color: var(--warn-fg); }
+.bp-qf { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; align-items: end; }
+.bp-qf label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.bp-qf label.ck { display: flex; align-items: center; gap: 6px; font-weight: 400; }
+.bp-qf input[type="date"], .bp-qf select { min-height: 36px; }
+.bp-qf .btn { justify-self: start; }
+.tf-dir { margin: 8px 0 0; } .tf-dir summary { cursor: pointer; font-size: 14px; color: var(--ink-2); }
+.m51 .dirx { font-weight: 400; color: var(--muted); }
+.bp-qf input[type="checkbox"] { width: 18px; height: 18px; min-height: 0; margin: 0; flex: none; }

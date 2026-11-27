@@ -1863,7 +1863,11 @@
     const miss = [], add = (lv, tx, act, key) => miss.push({ lv, tx, act: act || 'Відкрити', key: key || '' });
     const passed = t && M_AFTER.indexOf(ev) >= 0, nearB = st === 'brd' || !!(x.ech && /черз|готуйт|виклик/.test(x.ech.state || '')) || !!(x.gpsHint && /кордон/.test(x.gpsHint.step || ''));
     if (t && t.order) add('warn', 'заявка — рейс не створено', 'Відкрити');
-    if (real && k === 'i' && !passed && t.rmpd === 'none') add(nearB ? 'bad' : 'warn', 'немає RMPD', 'Відкрити', 'rmpd');
+    // v52 (рішення 25.11): відсутній RMPD — не сигнал сам по собі; лише виклик на кордон, або імпорт і машина вже завантажена
+    const echCall = !!(x.ech && /черз|готуйт|виклик/.test(x.ech.state || '')), imp = !!(t && t.dir && t.dir.v === 'імпорт'), loaded = !!ev && ev !== 'на завантаженні';
+    if (real && k === 'i' && !passed && t.rmpd === 'none' && (echCall || (imp && loaded))) add(echCall ? 'bad' : 'warn', echCall ? 'виклик на кордон, RMPD немає' : 'імпорт завантажено, RMPD немає', 'Відкрити', 'rmpd');
+    if (real && t.qh && t.qh.lvl) add(t.qh.lvl, t.qh.text, 'Відкрити', 'q');                    // v52: черга на експорт
+    if (real && t.dir && t.dir.conflict) add('warn', 'перевірте напрям', 'Відкрити', 'dir');
     if (real && k === 'i' && !passed && t.rmpd === 'warn') add('warn', 'RMPD ≠ CMR', 'Звірити', 'rmpd');
     x.problems.filter(p => p.k === 'drv').forEach(p => add(p.urgent ? 'bad' : 'warn', p.urgent ? 'проблема водія' : 'проблема в роботі', 'Відкрити'));
     if (real) { const h = STEP_AGE(x); if (h > 12) add(h > 24 ? 'bad' : 'warn', 'без кроку ' + (h >= 48 ? Math.floor(h / 24) + ' дн' : h >= 24 ? '1 дн ' + Math.round(h - 24) + ' год' : Math.round(h) + ' год'), 'Відкрити'); }
@@ -1883,13 +1887,14 @@
     const mvT = mv ? (mv.moving ? 'їде' : 'стоїть') + (mv.min != null && mv.min >= 0 ? ' ' + durTxt(mv.min) : '') + (mv.stale ? ' · дані давні' : '') : x.drive ? x.drive.main : x.gps ? gpsText(x.gps) : 'немає GPS';
     // чого чекає: єЧерга → план рейсу → наступний рейс → причіп з черги
     let nx = '';
-    if (x.ech && real && !passed) nx = 'Кордон' + (x.ech.call ? ' ≈ ' + whenTxt(x.ech.call) : '') + ' · єЧерга' + (x.ech.queue ? ' №' + x.ech.queue : ' · ' + x.ech.state);
+    if (real && !passed && t.qh && !echCall) nx = t.qh.line;
+    else if (x.ech && real && !passed) nx = 'Кордон' + (x.ech.call ? ' ≈ ' + whenTxt(x.ech.call) : '') + ' · єЧерга' + (x.ech.queue ? ' №' + x.ech.queue : ' · ' + x.ech.state);
     else if (t) nx = st === 'load' && t.load && daysFrom(t.load) <= 0 ? 'Завантаження ' + (daysFrom(t.load) === 0 ? 'сьогодні' : dd(t.load)) + ' · ' + (t.from || '?') : t.unload ? 'Розвантаження ' + (daysFrom(t.unload) === 0 ? 'сьогодні' : dd(t.unload)) + ' · ' + (t.to || '?') : 'Розвантаження не вказано · ' + (t.to || '?');
     else if (x.next) nx = 'Далі ' + dd(x.next.load) + ' · ' + (x.next.from || '?') + ' → ' + (x.next.to || '?') + (x.next.order ? ' (заявка)' : '');
     else if (fit) nx = 'Підходить причіп ' + (fit.trailer || '?') + ' · ' + (fit.from || '');
     else nx = k === 'idle' && daysFrom(x.since) > 14 ? 'Чи внесено рейс?' : 'Немає заявки';
     const stage = !t ? (k === 'free' ? 'Вільна з ' + dd(x.since) : x.status === 'none' ? 'Немає рейсів' : 'Простій з ' + dd(x.since) + ' · ' + daysFrom(x.since) + ' дн')
-      : st === 'tob' && t.cross ? 'До МП ' + t.cross : st === 'brd' && t.cross ? 'Кордон · ' + t.cross : M_STN[st];
+      : (st === 'tob' && t.cross ? 'До МП ' + t.cross : st === 'brd' && t.cross ? 'Кордон · ' + t.cross : M_STN[st]) ;
     return { x, t, k, st, miss, lvl, at, mvT, go: !!(mv && mv.moving), nx, stage, fit, nearB,
       route: t ? (t.from || '?') + ' → ' + (t.to || '?') : 'Без рейсу', who: x.drivers.map(d => d.name).join(', ') };
   }
@@ -1926,7 +1931,7 @@
     const lab = x.id + (r.who ? ', ' + r.who : '') + '. ' + r.route + ', ' + r.stage + '. ' + r.at + ', ' + r.mvT + '. ' + r.nx + (mt ? '. Бракує: ' + m.map(q => q.tx).join(', ') : '. Усе є');
     return '<div class="m51-rw" role="listitem"><div class="m51-r' + (r.lvl ? ' ' + r.lvl : '') + '" role="button" tabindex="0" data-mid="' + esc(x.id) + '" aria-pressed="' + sel + '" aria-label="' + esc(lab) + '">' +
       '<div class="ca"><span class="p">' + mPlate(x.id) + '<b>' + esc(r.who || '—') + '</b></span><span class="l2">' + (x.trailer ? 'причіп ' + esc(x.trailer) : 'без причепа') + '</span></div>' +
-      '<div class="cb"><span class="l1">' + esc(r.route) + '</span>' + st2 + '</div>' +
+      '<div class="cb"><span class="l1">' + esc(r.route) + (r.t && r.t.dir && r.t.dir.v ? '<span class="dirx"> · ' + esc(r.t.dir.v) + '</span>' : '') + '</span>' + st2 + '</div>' +
       '<div class="cc"><span class="l1">' + esc(r.at) + '</span><span class="l2"><span class="' + (r.go ? 'go' : 'stop') + '" aria-hidden="true"></span>' + esc(r.mvT) + '</span></div>' +
       '<div class="cd"><span class="l1">' + esc(r.nx) + '</span>' + (mt ? '<span class="l2 ' + (r.lvl === 'bad' ? 'b' : 'w') + '">' + esc(mt) + '</span>' : '<span class="l2 ok">усе є</span>') + '</div></div>' +
       (qa ? '<span class="qa"><button type="button" class="btn small" tabindex="-1" data-mqa="' + esc(x.id) + '" aria-label="' + esc(qa + ': ' + x.id) + '">' + esc(qa) + '</button></span>' : '') + '</div>';
@@ -1990,8 +1995,8 @@
         return '<div><span>' + k + '</span><b class="tnum">' + Number(nbuR[k]).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + '</b>' +
           (d ? '<i class="wg-d ' + (d > 0 ? 'up' : 'dn') + '">' + (d > 0 ? '↑ ' : '↓ ') + Math.abs(d).toLocaleString('uk-UA', { minimumFractionDigits: 2 }) + '</i>' : d === 0 ? '<i class="wg-d">без змін</i>' : '') + '</div>'; }).join('') + '</div>') : card('wg-nbu', '<h3 class="hw-h3">Курс НБУ</h3>' + hSk(3));
     const A = rows.filter(r => r.t && !r.t.order && r.k === 'i' && kOk(r.x)), c = s => A.filter(r => s.indexOf(r.t.rmpd || '') >= 0);
-    const ok = c(['ok']), wt = c(['wait', 'ai']), wr = c(['warn']), no = c(['none']).filter(r => r.nearB || r.x.ech);
-    const todo = wr.map(r => [r, 'RMPD ≠ CMR', 'Звірити']).concat(no.map(r => [r, 'виклик на кордон, RMPD немає', 'Відкрити']));
+    const ok = c(['ok']), wt = c(['wait', 'ai']), wr = c(['warn']), no = A.filter(r => r.miss.some(m => m.key === 'rmpd' && /RMPD немає/.test(m.tx)));
+    const todo = wr.map(r => [r, 'RMPD ≠ CMR', 'Звірити']).concat(no.map(r => [r, r.miss.find(m => m.key === 'rmpd' && /RMPD немає/.test(m.tx)).tx, 'Відкрити']));
     const rm = card('wg-rmpd', '<h3 class="hw-h3">RMPD <span class="ech-upd">активні міжнародні рейси</span></h3>' +
       '<div class="wg-n"><div><b>' + ok.length + '</b><span>перевірено</span></div><div class="' + (wt.length ? 'w' : '') + '"><b>' + wt.length + '</b><span>чекає перевірки</span></div><div class="' + (wr.length ? 'b' : '') + '"><b>' + wr.length + '</b><span>розбіжність з CMR</span></div></div>' +
       (todo.length ? '<ul class="wg-l">' + todo.slice(0, 4).map(o => '<li><span>' + mPlate(o[0].x.id) + ' ' + esc(o[1]) + '</span><button type="button" class="btn small" data-mrmpd="' + esc(o[0].x.id) + '">' + o[2] + '</button></li>').join('') + '</ul>' : '<p class="hcalm">' + svgI(ST_ICO.ok) + ' Дій з RMPD зараз немає</p>'));
@@ -2052,6 +2057,9 @@
     const T = board ? board.trucks.filter(kOk) : [], D = [];
     const sk = { n: '', lv: '', body: hSk(3), meta: '' };
     D.push(Object.assign({ id: 'rmpd', t: 'RMPD', ttl: 'RMPD перед кордоном' }, board ? mRmpdDrop(T) : sk));
+    if (board) { const Q = T.map(mRow).filter(r => r.t && r.t.qh && r.t.qh.lvl).sort((a, b) => (b.t.qh.lvl === 'bad') - (a.t.qh.lvl === 'bad'));
+      D.push({ id: 'expq', t: 'Експорт: черга', ttl: 'Черга на експорт — коли реєструвати', n: Q.length, lv: Q.some(r => r.t.qh.lvl === 'bad') ? 'bad' : Q.length ? 'warn' : '',
+        meta: 'черга зараз і як росте — проти дня виїзду', body: Q.length ? '<ul class="wg-l">' + Q.map(r => '<li><span>' + mPlate(r.x.id) + ' ' + esc(r.t.qh.line) + ' · <b class="' + (r.t.qh.lvl === 'bad' ? 'tb' : 'tw') + '">' + esc(r.t.qh.text) + '</b></span><button type="button" class="btn small" data-msel="' + esc(r.x.id) + '">Відкрити</button></li>').join('') + '</ul>' : '<p class="hcalm">' + svgI(ST_ICO.ok) + ' Реєструвати зараз нікого не треба</p>' }); }
     const a = hwBody(hwAct), an = +(String(a.meta || '').match(/\d+/) || [0])[0];
     D.push({ id: 'act', t: 'Потребує дії', ttl: 'Потребує дії', n: board ? an : '', lv: /p-bad/.test(a.body) ? 'bad' : an ? 'warn' : '', body: a.body, meta: 'усе, що зручно зробити пакетом; окремі машини вже стоять першими у списку' });
     D.push(Object.assign({ id: 'trl', t: 'Причепи в черзі', ttl: 'Причепи в черзі' }, board ? mQueueDrop() : sk));
@@ -2330,6 +2338,29 @@
   }
   const bpSec = (h, body, attrs) => '<section class="bp-sec"' + (attrs || '') + '>' + (h ? '<h3>' + h + '</h3>' : '') + body + '</section>';
   const bpKv = (k, v) => v ? '<dt>' + esc(k) + '</dt><dd>' + v + '</dd>' : '';
+  /* v52 (рішення 27.11): напрям визначає програма — у панелі тихо; кнопки вибору лише коли джерела розходяться або напрям невідомий */
+  const DIR_SRC = { 'логіст': 'вказав логіст', 'RMPD': 'з RMPD', 'адреса замитнення': 'за адресою замитнення', 'адреса розмитнення': 'за адресою розмитнення', 'маршрут': 'за маршрутом' };
+  function bpDirKv(t, wr) {
+    const d = t && t.dir; if (!d) return '';
+    const btns = wr && d.conflict ? ' <span class="bp-dirb">' + ['експорт', 'імпорт'].map(v => '<button type="button" class="btn small" data-bpdir="' + v + '">' + cap(v) + '</button>').join('') + '</span>' : '';
+    return bpKv('Напрям', (d.v ? esc(d.v) + ' <span class="muted">· ' + esc(DIR_SRC[d.src] || d.src) + (d.ok ? ', збігається з ' + esc(d.ok) : '') + '</span>' : '') +
+      (d.conflict ? '<span class="bp-dirw">' + esc(d.conflict) + '</span>' + btns : ''));
+  }
+  function bpQueueSec(t, wr) {
+    if (!t || !t.dir || t.dir.v !== 'експорт' || !t.qh) return '';
+    const h = t.qh, reg = /зареєстр/i.test(t.q || ''), dis = wr ? '' : ' disabled';
+    return bpSec('Черга на експорт', '<p class="bp-qh ' + (h.lvl === 'bad' ? 'tb' : h.lvl === 'warn' ? 'tw' : '') + '">' + esc(h.line) + '<br><b>' + esc(h.text) + '</b></p>' +
+      '<div class="bp-qf"><label>День виїзду<input type="date" id="bpQPlan" value="' + esc(t.plan || '') + '"' + dis + '></label>' +
+      '<label class="ck"><input type="checkbox" id="bpQAgr"' + (t.agreed ? ' checked' : '') + dis + '> погоджено з керівником</label>' +
+      '<label>Черга<select id="bpQSt"' + dis + '><option value="">не зареєстровано</option><option value="зареєстровано"' + (reg ? ' selected' : '') + '>зареєстровано</option></select></label>' +
+      '<label id="bpQAtL"' + (reg ? '' : ' hidden') + '>Дата реєстрації<input type="date" id="bpQAt" value="' + esc(t.qAt || '') + '"' + dis + '></label>' +
+      (wr ? '<button type="button" class="btn small" id="bpQSave">Зберегти</button>' : '') + '</div>');
+  }
+  async function bpTripSave(tid, row, okMsg) {
+    try { busy(true); await api('save', { sheet: 'Рейси', row: Object.assign({ 'Рейс ID': tid }, row) }); toast(okMsg || '✔ Збережено');
+      if (mOn()) logLoad(true); else openBoard(true); }
+    catch (e) { toast(esc(e.message), 'err'); } finally { busy(false); }
+  }
   /** «Рух зараз»: одразу з позиції дошки; «Було» і км — після board.moves. */
   function bpMoveHtml(x, mv, mvx) {
     const cur = mv || null, km = mvx && mvx.km;
@@ -2380,9 +2411,10 @@
     const ev = t.st && t.st.event, intl = !!t.cross && echIntl(t.type, t.cross);
     p.innerHTML = back + '<section class="bp-sec bp-top"><div class="bp-ttl"><h2 id="bpTitle"><span class="sr">Рейс </span>' + esc(tid) + '</h2>' + badge(ST_GRP[ev] || 'go', ev ? cap(ev) : 'В рейсі') + xBtn + '</div>' +
       '<div class="bp-route">' + esc(t.from || '?') + ' — ' + esc(t.to || '?') + '</div>' + plates +
-      '<dl class="bp-kv">' + bpKv('Клієнт', esc(t.client || '')) + bpKv('Тип', esc([t.type, t.adr ? 'АДР' : ''].filter(Boolean).join(', '))) + bpKv('Перехід', esc(t.cross || '')) + bpKv('Фрахт', bFreight(t)) +
+      '<dl class="bp-kv">' + bpKv('Клієнт', esc(t.client || '')) + bpKv('Тип', esc([t.type, t.adr ? 'АДР' : ''].filter(Boolean).join(', '))) + bpKv('Перехід', esc(t.cross || '')) + bpDirKv(t, wr) + bpKv('Фрахт', bFreight(t)) +
         bpKv('Дати', 'завантаження ' + (dd(t.load) || '?') + ' · розвантаження ' + (t.unload ? dd(t.unload) : '<span class="bpr">не вказано</span>')) + '</dl>' + lgH + '</section>' +
       bpSec('Рух зараз' + (mv && mv.at ? ' <span class="bp-cap">GPS ' + esc(hhmm(mv.at)) + '</span>' : ''), '<div id="bpMoveNow">' + bpMoveHtml(x, mv) + '</div>' + drvH + '<details class="bp-fold" id="bpMv"><summary>Рух і зупинки · план до розвантаження</summary><div id="bpMvBody"><p class="muted small">Завантажую…</p></div></details>', ' id="bpMoveSec"') +
+      bpQueueSec(t, wr) +
       bpSec('Що не закрито <span class="count-pill" id="bpOpenN">…</span>', '<ul class="bp-open" id="bpProb"><li class="muted"><span></span><span>Перевіряю RMPD, адреси, проблеми…</span></li></ul>', ' id="bpOpenSec"') +
       bpSec('Статуси', '<ol class="bp-tl2" id="bpSteps"></ol><div id="bpMark"></div>') + nextH +
       '<section class="bp-sec"><details class="bp-fold" id="bpMore"><summary>Документи · RMPD · адреси · історія змін</summary><h4 class="bp-h">Перед кордоном</h4><ul class="bp-list" id="bpBorder"><li class="muted"><span class="bp-m">…</span><span>Перевіряю RMPD і адреси…</span></li>' + docH + echH + '</ul>' +
@@ -2482,6 +2514,10 @@
       catch (er) { toast(esc(er.message), 'err'); } finally { busy(false); } });
   }
   function bindPanel(x, tid) {
+    { const p = $('bPanel');   // v52: напрям при розбіжності; «Черга на експорт»
+      p.querySelectorAll('[data-bpdir]').forEach(b => b.onclick = () => bpTripSave(tid, { 'Напрям': b.dataset.bpdir }, '✔ Напрям: ' + b.dataset.bpdir));
+      if ($('bpQSt')) $('bpQSt').onchange = () => { $('bpQAtL').hidden = !$('bpQSt').value; if ($('bpQSt').value && !$('bpQAt').value) $('bpQAt').value = isoDay(new Date()); };
+      if ($('bpQSave')) $('bpQSave').onclick = () => bpTripSave(tid, { 'Дата виїзду': $('bpQPlan').value, 'Виїзд погоджено': $('bpQAgr').checked ? 'так' : '', 'Черга': $('bpQSt').value, 'Дата реєстрації в черзі': $('bpQSt').value ? $('bpQAt').value : '' }, '✔ Чергу збережено'); }
     const p = $('bPanel');
     p.querySelector('.bp-x').onclick = bPanelClose; p.querySelectorAll('.bp-back').forEach(b => b.onclick = bPanelClose);
     p.querySelectorAll('[data-bpz]').forEach(b => b.onclick = () => orderToTrip(b.dataset.bpz));
@@ -2811,6 +2847,8 @@
       '<fieldset><legend>Маршрут</legend><div class="tfgrid">' + inp('Звідки', ' placeholder="місто завантаження"') + inp('Дата завантаження', '', 'date') + inp('Куди', ' placeholder="місто розвантаження"') + inp('Дата розвантаження', '', 'date') +
         inp('Перехід', ' list="tfCross" placeholder="Краківець, Шегині, по Україні…"') + inp('Вантаж') + '</div>' +
         (has('АДР') ? '<label class="tfchk"><input type="checkbox" id="tf_adr"' + (v['АДР'] ? ' checked' : '') + '> АДР (небезпечний вантаж)</label>' : '') + '<p class="muted small" id="tfType"></p>' +
+        (has('Напрям') ? '<details class="tf-dir"' + (v['Напрям'] ? ' open' : '') + '><summary>Напрям: ' + (v['Напрям'] ? esc(v['Напрям']) + ' (вказано вручну)' : 'програма визначить сама') + '</summary>' +   // v52: зазвичай не потрібно — напрям визначається з RMPD, заявки, маршруту
+          '<div class="tfgrid">' + sel('Напрям', [['експорт', 'експорт'], ['імпорт', 'імпорт']], 'визначити автоматично') + '</div><p class="muted small">Міняйте, лише якщо програма помилилась: тоді вона більше не перезапише напрям сама.</p></details>' : '') +
         (isNew && !z ? '<div id="tfMoreW" hidden><label for="tfMore">Ще такі самі рейси — дати завантаження</label><input id="tfMore" placeholder="напр. 26.11, 27.11, 29.11" autocomplete="off"><p class="muted small">Кожна дата — окремий рейс з наступним номером; маршрут, клієнт, фрахт — однакові. У переліку рейсів вони покажуться одним рядком.</p></div>' : '') + '</fieldset>' +
       (has('Фрахт') ? '<fieldset><legend>Клієнт і оплата</legend><div class="tfgrid">' + '<div class="tff tfcl">' + inpR('Клієнт (як записано)', ' list="tfClients" autocomplete="off" placeholder="почніть вводити назву"') + (has('Клієнт ID') ? '<input type="hidden" data-c="Клієнт ID" value="' + esc(v['Клієнт ID'] || '') + '">' : '') +
         '<p class="muted small tfclhint" id="tfClHint"></p><button type="button" class="btn small" id="tfNewCl">+ Новий клієнт</button></div>' + inp('Фрахт', ' inputmode="decimal"') + sel('Валюта', ['EUR', 'UAH', 'USD', 'PLN'].map(x => [x, x])) +
