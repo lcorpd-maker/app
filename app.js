@@ -2098,7 +2098,6 @@
           '<span class="m51-cnt" id="m51Cnt" role="status"></span></div>' +
         '<div class="flow" id="m51Flow" role="group" aria-label="Етапи: клік — показати лише цей етап"></div>' +
         '<div class="m51-list" id="m51List" role="list" aria-label="Статуси машин"></div>' +
-        '<p class="legend5"><span><i class="lg-bad"></i>потрібна дія зараз</span><span><i class="lg-warn"></i>варто глянути</span><span>без смуги — усе за планом</span></p>' +
       '</div><aside class="m51-side" id="m51Side" aria-label="Вибрана машина або парк зараз"><div class="card m51-sum" id="m51Sum" aria-labelledby="m51SumT"></div></aside></div></div>';
   }
   /** Панель рейсу (bPanelOpen) живе на дошці; на головній логіста її вузол переїжджає в праву колонку. */

@@ -2406,3 +2406,25 @@ body:has(#home:not([hidden]) #m51) .gs-kbd { display: none; }   /* на голо
   .m51 .m51-more { display: inline-flex; min-height: 42px; }
   .m51:not(.kind-on) .lbar .seg.kind { display: none; }
 }
+
+/* ── v52 · пакет 0 дизайн-системи v0.2 (27.11): основа для офісних екранів. Кабінет водія не чіпаємо (лише body.nav-on). ──
+   §0: фокус-рамка на h1 після переходу — прибрано (фокус для читача екрана лишається);
+   §3–4.2: кнопки й чипи — прямокутні (6 px), «таблетка» лише в бейджах і лічильниках; висоти: кнопка 36, мала 30, чип 32; телефон — 44+. */
+h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus { outline: none; }
+body.nav-on { --r-sm: 6px; }
+body.nav-on .btn, body.nav-on .primary, body.nav-on .chip, body.nav-on .pchip, body.nav-on .hcount,
+body.nav-on .dupchip, body.nav-on .seg, body.nav-on .seg button, body.nav-on .dbar button, body.nav-on .m51 .flow button { border-radius: var(--r-sm); }
+@media (min-width: 768px) {
+  body.nav-on .btn, body.nav-on .primary.small { min-height: 36px; }
+  body.nav-on .btn.small, body.nav-on .primary.small { min-height: 30px; padding: 0 10px; }
+  body.nav-on .chip, body.nav-on .dupchip { min-height: 32px; padding: 0 10px; font-size: 14px; }
+  body.nav-on .chip small { font-weight: 700; }
+}
+/* пакет 0 — дошка машин: попередні шари стилів дошки мають вищу вагу (#board, #bChips), тому тут окремо */
+body.nav-on #bChips .chip, body.nav-on .bs, body.nav-on #board .btn { border-radius: var(--r-sm); }
+@media (min-width: 768px) {
+  body.nav-on #board .btn, body.nav-on #board .bhead .btn { min-height: 36px; font-size: 14px; padding: 0 14px; }
+  body.nav-on #bChips .chip { min-height: 32px; }
+  body.nav-on .bs, body.nav-on .bfilters .bsum .bs { min-height: 36px; padding: 0 12px; font-size: 14px; }
+  body.nav-on .bs b, body.nav-on .bfilters .bsum .bs b { font-size: 16px; }
+}
