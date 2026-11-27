@@ -2536,3 +2536,51 @@ body.nav-on #bChips .chip, body.nav-on .bs, body.nav-on #board .btn { border-rad
 .bp-kv #bpCircEd { font-size: 12px; min-height: 0; margin-left: 6px; font-weight: 400; }
 .bp-circf { display: inline-flex; gap: 6px; align-items: center; margin-left: 6px; }
 .bp-circf input { width: 9em; padding: 4px 6px; }
+/* v53: «Парк» і «Водії» — терміни: ≤45 ледь жовтий · ≤30 бурштиновий · ≤15 майже червоний · прострочено — яскраво-червоний */
+.pk-c { display: inline-block; padding: 2px 8px; margin: 2px 4px 2px 0; border-radius: 6px; font-size: 12px; line-height: 1.5; background: var(--chip, rgba(110,119,125,.10)); color: var(--muted, #5b646b); white-space: nowrap; }
+.pk-c.pk-y { background: #FDF5DF; color: #7A4F00; }
+.pk-c.pk-a { background: #FAC775; color: #5E3600; }
+.pk-c.pk-r { background: #F6B8A3; color: #6E1F0C; }
+.pk-c.pk-x { background: #D9303A; color: #fff; }
+.pk-c.pk-m { background: transparent; border: 1px dashed var(--line-strong); color: var(--muted, #5b646b); }
+#pkSub .pk-c { margin-right: 6px; }
+#park .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pk-list { border: 1px solid var(--line); border-radius: 12px; background: var(--card); overflow: hidden; }
+.pk-row + .pk-row { border-top: 1px solid var(--line); }
+.pk-row.on { background: var(--bg-soft, rgba(110,119,125,.04)); }
+.pk-h { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 12px; width: 100%; text-align: left; background: none; border: 0; padding: 10px 14px; font: inherit; color: inherit; cursor: pointer; }
+.pk-h:hover { background: var(--hover, rgba(110,119,125,.06)); }
+.pk-who { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pk-who b { font-weight: 600; }
+.pk-cs { display: flex; flex-wrap: wrap; align-content: flex-start; }
+.pk-card { padding: 4px 14px 14px; }
+.pk-f { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; margin: 4px 0 6px; }
+.pk-f label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted, #5b646b); gap: 2px; }
+.pk-f label.ck { flex-direction: row; align-items: center; gap: 6px; padding-bottom: 8px; }
+.pk-f input:not([type]) , .pk-f input[data-pkfield] { padding: 5px 8px; min-height: 34px; }
+.pk-docs { border-top: 1px solid var(--line); margin-top: 6px; }
+.pk-d { display: grid; grid-template-columns: 190px 150px 150px minmax(0, 1fr); gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.pk-d .pk-c { justify-self: start; }
+.pk-act { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; }
+.pk-act .linkbtn { min-height: 0; font-size: 13px; }
+.pk-ed { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; padding: 8px 10px; margin: 6px 0; border: 1px solid var(--line-strong); border-radius: 8px; }
+.pk-ed label { display: flex; flex-direction: column; font-size: 12px; gap: 2px; }
+.pk-h3 { font-size: 14px; margin: 14px 0 0; }
+.pk-ab { margin: 6px 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#pkFoot .pk-c { margin-right: 4px; }
+@media (max-width: 767px) {
+  .pk-h { grid-template-columns: 1fr; gap: 4px; padding: 10px 12px; }
+  .pk-who { flex-direction: row; flex-wrap: wrap; gap: 0 8px; align-items: baseline; }
+  .pk-card { padding: 4px 12px 12px; }
+  .pk-d { grid-template-columns: 1fr auto; gap: 2px 8px; }
+  .pk-d > span:nth-child(2) { grid-column: 1; grid-row: 2; }
+  .pk-d > .pk-c { grid-column: 2; grid-row: 1; }
+  .pk-act { grid-column: 1 / -1; justify-content: flex-start; }
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pk-c.pk-y { background: #3A2E10; color: #F5D58A; } :root:not([data-theme="light"]) .pk-c.pk-a { background: #6A4719; color: #FFE0B0; } :root:not([data-theme="light"]) .pk-c.pk-r { background: #7A2E1E; color: #FFD3C6; } }
+:root[data-theme="dark"] .pk-c.pk-y { background: #3A2E10; color: #F5D58A; } :root[data-theme="dark"] .pk-c.pk-a { background: #6A4719; color: #FFE0B0; } :root[data-theme="dark"] .pk-c.pk-r { background: #7A2E1E; color: #FFD3C6; }
+
+.pk-act select { width: auto; min-height: 32px; padding: 4px 28px 4px 8px; font-size: 13px; }
+.pk-ab label.ck, .pk-f label.ck { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; font-size: 13px; color: var(--ink); margin: 0; }
+.pk-ab label.ck input, .pk-f label.ck input { width: 18px; height: 18px; min-height: 0; margin: 0; flex: none; }
+.pk-act .muted.small { font-size: 12px; }

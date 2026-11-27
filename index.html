@@ -140,6 +140,14 @@
       <p class="muted small">Дані — з бази (аркуші «Терміни документів» і «ТІР карнети», переносяться щоночі з «Маршрутів»). Документи звільнених водіїв і здані карнети не показуються.</p>
     </section>
 
+    <!-- v53: «Парк» і «Водії» (рішення 27.11) -->
+    <section id="park" hidden>
+      <button class="link back" data-back>← Назад</button>
+      <div class="bhead"><div><h1 id="pkH">Парк</h1><p class="muted small" id="pkSub"></p></div><button class="btn" id="pkRefresh">↻ Оновити</button></div>
+      <div class="toolbar"><input id="pkSearch" type="search" placeholder="Машина, держномер, водій, документ" aria-label="Пошук"><div class="seg" id="pkSeg" role="group" aria-label="Що показати"></div><div class="seg" id="pkFlt" role="group" aria-label="Фільтр"></div></div>
+      <div id="pkList"></div>
+      <p class="muted small" id="pkFoot"></p>
+    </section>
     <section id="probs" hidden>
       <button class="link back" data-back>← Назад</button>
       <div class="bhead"><div><h1>Проблеми водіїв</h1><p class="muted small" id="prSub"></p></div><div class="row"><button class="btn" id="prRefresh">↻ Оновити</button></div></div>
