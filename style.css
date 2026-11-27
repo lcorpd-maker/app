@@ -2470,7 +2470,7 @@ body.nav-on #bChips .chip, body.nav-on .bs, body.nav-on #board .btn { border-rad
 .m51 .pb { grid-row: 1; height: 22px; border-radius: 4px; display: flex; align-items: center; padding: 0 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; font-weight: 600; }
 .m51 .pb.trip { background: #E9E5F8; color: #3C2F7A; }
 .m51 .pb.trip.ord { background: none; border: 1.5px solid #B9AEE6; color: #3C2F7A; }
-.m51 .pb.unk { -webkit-mask-image: linear-gradient(to right, #000 70%, rgba(0,0,0,.35)); mask-image: linear-gradient(to right, #000 70%, rgba(0,0,0,.35)); }
+.m51 .pb.unk { background-image: repeating-linear-gradient(135deg, transparent 0 7px, rgba(255,255,255,.55) 7px 13px); font-style: italic; }   /* v53.2: оцінка кінця рейсу */
 .m51 .pb.gap { border: 1.5px dashed var(--warn-bd); background: var(--warn-bg); color: var(--warn-fg); }
 :root[data-theme="dark"] .m51 .pb.trip { background: #2E2858; color: #DAD3FA; }
 .m51 .pl-ph { display: none; list-style: none; margin: 0; padding: 0; }
@@ -2615,3 +2615,26 @@ body.nav-on #bChips .chip, body.nav-on .bs, body.nav-on #board .btn { border-rad
 .pk-panel .pk-dl + .pk-sm { margin: 2px 0 0; }
 .pk-num { white-space: nowrap; }
 .pk-t .pk-act select { min-width: 200px; }
+/* v53.2: RMPD — таблиця «У черзі єЧерги зараз» */
+.eqt { border-collapse: collapse; font-size: 14px; width: 100%; } .eqt td { padding: 5px 10px 5px 0; border-bottom: 1px solid var(--line); vertical-align: baseline; } .eqt td:first-child { width: 56px; } .eqt .s { color: var(--muted, #5b646b); font-size: 12px; }
+/* v53.2: панель рейсу — стрічка стану і розділи, що згортаються */
+.bp-strip { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+.bps { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 13px; line-height: 1.4; background: rgba(110,119,125,.10); color: var(--ink); white-space: nowrap; }
+.bps i { font-style: normal; font-weight: 700; font-size: 12px; }
+.bps small { color: var(--muted, #5b646b); font-size: 12px; }
+.bps.ok { background: rgba(31,135,84,.10); } .bps.ok i { color: #1F8754; }
+.bps.warn { background: var(--warn-bg); color: var(--warn-fg); } .bps.bad { background: var(--bad-bg); color: var(--bad-fg); }
+details.bp-col > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+details.bp-col > summary::-webkit-details-marker { display: none; }
+details.bp-col > summary h3 { margin: 0; display: inline-flex; align-items: center; gap: 6px; }
+details.bp-col > summary h3::before { content: '▸'; font-size: 11px; color: var(--muted, #8a939a); width: 10px; }
+details.bp-col[open] > summary h3::before { content: '▾'; }
+details.bp-col > summary .bp-sum { color: var(--muted, #5b646b); font-size: 13px; font-weight: 400; }
+details.bp-col[open] > summary .bp-sum { display: none; }
+details.bp-col[open] > summary { margin-bottom: 8px; }
+.bp-kvd { margin-top: 6px; }
+.bp-kvd > summary { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 4px 0; }
+.bp-kvd > summary .bp-sum { display: inline !important; color: var(--muted, #5b646b); }
+.bp-kvd > summary .bp-more { color: #2F6FD6; white-space: nowrap; }
+.bp-kvd > summary .bp-more::after { content: ' ▸'; } .bp-kvd[open] > summary .bp-more::after { content: ' ▾'; }
+.bp-kvd[open] > summary .bp-sum { visibility: hidden; }
