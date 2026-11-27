@@ -1269,7 +1269,7 @@
     { id: 'sheet:Журнал змін', t: 'Журнал змін', g: 5, sheet: 'Журнал змін', ico: 'table', roles: KA },
     { id: 'health', t: 'Здоров\'я програми', g: 5, ico: 'pulse', roles: KA }
   ];
-  const PINS_DEF = { 'логіст': ['board', 'sheet:Заявки', 'calc', 'probs'], 'керівник': ['board', 'probs', 'exp', 'debts'], 'адмін': ['health', 'board', 'codes', 'sheet:Журнал змін'], 'бухгалтер': ['debts', 'inv', 'exp'], 'механік': ['board', 'docs'] };
+  const PINS_DEF = { 'логіст': ['sheet:Заявки', 'sheet:Рейси', 'calc', 'probs'],   /* v52: дошка в логіста = головна */ 'керівник': ['board', 'probs', 'exp', 'debts'], 'адмін': ['health', 'board', 'codes', 'sheet:Журнал змін'], 'бухгалтер': ['debts', 'inv', 'exp'], 'механік': ['board', 'docs'] };
   const ICO = { home: 'M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10', board: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', inbox: 'M3 13l3-8h12l3 8v6H3zM3 13h5l1 3h6l1-3h5',
     route: 'M6 20a2 2 0 100-4 2 2 0 000 4zM18 8a2 2 0 100-4 2 2 0 000 4zM6 16V9a3 3 0 013-3h7M18 8v7a3 3 0 01-3 3H8', loop: 'M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3M18 3v4h-4M6 21v-4h4',
     calc: 'M6 3h12a1 1 0 011 1v16a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1zM8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01', alert: 'M12 4l9 16H3zM12 10v4M12 17h.01',
