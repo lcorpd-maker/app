@@ -3757,20 +3757,32 @@
 
   /* ── Документи й терміни (етап 2): що спливає по машинах, водіях і ТІР ── */
   let docs = null, dKind = store.get('dKind') || 'all', dHorizon = store.get('dHorizon') || '30';
-  /* ── v53: «Парк» і «Водії» (рішення власниці 27.11.2026). Дані — дія park (Park.gs). Терміни: ≤45 ледь жовтий · ≤30 бурштиновий · ≤15 майже червоний · прострочено — червоний. ── */
-  let pk = null, pkMode = 'park', pkKind = 'trucks', pkOpen = '', pkEd = '', pkFltV = 'all', pkFiles = {};
-  const PK_LV = { y: 'pk-y', a: 'pk-a', r: 'pk-r', x: 'pk-x' };
+  /* ── v53.1: «Парк» і «Водії», версія 2 (поради UX-розробника й дизайнера, погоджено 27.11): рядок = один сигнал, групи за терміновістю,
+     панель праворуч, документи групами, копіювання — клік по номеру або «⧉», ТІР — у вкладці «Дозволи». Дані — дія park (Park.gs).
+     Терміни: ≤45 ледь жовтий · ≤30 бурштиновий · ≤15 майже червоний · прострочено — червоний. ── */
+  let pk = null, pkMode = 'park', pkKind = 'trucks', pkOpen = '', pkEd = '', pkChar = false, pkMore = false, pkFiles = {};
+  const PK_LV = { y: 'pk-y', a: 'pk-a', r: 'pk-r', x: 'pk-x' }, PK_RANK = { x: 0, r: 1, a: 2, y: 3 };
+  const PK_CP = '<svg class="pk-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 011-1h10"/></svg>';
   const pkD = iso => iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(0, 4) : '';
-  const pkWhen = d => d.missing ? 'не внесено' : d.left == null ? (d.until ? 'до ' + pkD(d.until) : 'без терміну') : d.left < 0 ? 'прострочено ' + (-d.left) + ' дн' : d.left === 0 ? 'сьогодні останній день' : d.left <= 45 ? d.left + ' ' + plural(d.left, 'день', 'дні', 'днів') : 'до ' + pkD(d.until);
-  const pkChip = (d, label) => '<span class="pk-c ' + (d.missing ? 'pk-m' : PK_LV[d.lvl] || '') + '">' + esc(label || d.type) + (d.missing ? '' : d.lvl ? ' · ' + esc(pkWhen(d)) : '') + '</span>';
-  const pkAbChip = a => a ? '<span class="pk-c ' + (PK_LV[a.lvl] || '') + '" title="Орієнтовно — за рейсами (експорт → імпорт), останні 180 днів">За кордоном ≈' + a.used + ' з 90 · лишилось ' + Math.max(a.left, 0) + '</span>' : '<span class="pk-c">Посвідка ЄС — дні не рахуємо</span>';
-  const pkHot = it => (it.docs || []).some(d => d.lvl) || (it.tir || []).some(d => d.lvl) || !!(it.abroad && it.abroad.lvl);
-  const pkWorst = it => Math.min.apply(null, [999].concat((it.docs || []).concat(it.tir || []).filter(d => d.lvl).map(d => d.left), it.abroad && it.abroad.lvl ? [it.abroad.left] : []));
+  const pkDs = iso => iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) : '';
+  const pkDays = n => n + ' ' + plural(n, 'день', 'дні', 'днів');
+  const pkWhen = d => d.left < 0 ? 'прострочено ' + pkDays(-d.left) : d.left === 0 ? 'сьогодні останній день' : pkDays(d.left);
+  const pkChip = (lvl, txt) => '<span class="pk-c ' + (PK_LV[lvl] || '') + '">' + esc(txt) + '</span>';
+  const pkWide = () => window.innerWidth >= 1024;
+  /** Усі сигнали об'єкта: документи, ТІР на руках, дні за кордоном → [{lvl, left, t}] від найгіршого. */
+  function pkSig(it) {
+    const s = (it.docs || []).filter(d => d.lvl).map(d => ({ lvl: d.lvl, left: d.left, t: d.type + ' · ' + pkWhen(d), until: d.until }));
+    (it.tir || []).filter(d => d.lvl).forEach(d => s.push({ lvl: d.lvl, left: d.left, t: 'ТІР ' + d.num + ' · ' + pkWhen(d), until: d.until }));
+    if (it.abroad && it.abroad.lvl) s.push({ lvl: it.abroad.lvl, left: it.abroad.left, t: 'за кордоном · лишилось ' + pkDays(Math.max(it.abroad.left, 0)) + ' з 90' });
+    return s.sort((a, b) => (PK_RANK[a.lvl] - PK_RANK[b.lvl]) || (a.left - b.left));
+  }
+  const pkGrp = it => { const w = pkSig(it)[0]; return !w ? 'ok' : w.lvl === 'x' || w.lvl === 'r' ? 'bad' : 'warn'; };
+  const pkList = () => !pk ? [] : pkMode === 'drivers' ? pk.drivers : pkKind === 'trailers' ? pk.trailers : pkKind === 'tir' ? (pk.tir || []) : pk.trucks.filter(t => t.active);
+  const pkIdOf = it => pkKind === 'tir' && pkMode === 'park' ? it.num : it.id;
   async function openPark(mode, force) {
     pkMode = mode === 'drivers' ? 'drivers' : 'park'; SCR_NAV.park = pkMode;
-    if (pkOpen && !force) pkOpen = ''; pkEd = '';
+    if (!force) { pkOpen = ''; pkEd = ''; pkChar = false; pkMore = false; }
     show('park'); $('pkH').textContent = pkMode === 'drivers' ? 'Водії' : 'Парк';
-    $('pkSearch').placeholder = pkMode === 'drivers' ? 'Прізвище, машина, документ' : 'Машина, держномер, водій, документ';
     if (!pk || force) $('pkList').innerHTML = hSk(5);
     pkDraw();
     if (!pk || force || Date.now() - (pk._at || 0) > 120000) await pkLoad(force);
@@ -3779,80 +3791,98 @@
     try { const r = await api('park', force ? { force: true } : {}); r._at = Date.now(); pk = r; pkDraw(); }
     catch (e) { if (!pk) $('pkList').innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; else toast(esc(e.message), 'err'); }
   }
-  function pkItems() {
-    if (!pk) return [];
-    const list = pkMode === 'drivers' ? pk.drivers : pkKind === 'trailers' ? pk.trailers : pk.trucks.filter(t => t.active);
-    const q = $('pkSearch').value.trim().toLowerCase();
-    return list.filter(it => !q || [it.id, it.plate, it.name, it.model, it.truck, it.type].concat(it.drivers || [], (it.docs || []).map(d => d.type + ' ' + (d.num || ''))).join(' ').toLowerCase().indexOf(q) >= 0)
-      .filter(it => pkFltV !== 'hot' || pkHot(it))
-      .sort((a, b) => pkFltV === 'hot' ? pkWorst(a) - pkWorst(b) : String(a.name || a.id).localeCompare(String(b.name || b.id), 'uk'));
-  }
   function pkDraw() {
     if ($('park').hidden) return;
-    const seg = pkMode === 'park' ? [['trucks', 'Тягачі' + (pk ? ' ' + pk.trucks.filter(t => t.active).length : '')], ['trailers', 'Причепи' + (pk ? ' ' + pk.trailers.length : '')]] : [];
+    $('pkSearch').placeholder = pkMode === 'drivers' ? 'Прізвище, машина, документ' : pkKind === 'tir' ? 'Номер карнета, водій, машина' : 'Машина, держномер, водій, документ';
+    const seg = pkMode === 'park' ? [['trucks', 'Тягачі'], ['trailers', 'Причепи'], ['tir', 'Дозволи']] : [];
     $('pkSeg').innerHTML = seg.map(k => '<button type="button" data-pkk="' + k[0] + '" aria-pressed="' + (pkKind === k[0]) + '">' + esc(k[1]) + '</button>').join(''); $('pkSeg').hidden = !seg.length;
-    const all = pk ? (pkMode === 'drivers' ? pk.drivers : pkKind === 'trailers' ? pk.trailers : pk.trucks.filter(t => t.active)) : [], nh = all.filter(pkHot).length;
-    $('pkFlt').innerHTML = [['all', 'Усі'], ['hot', 'Потребує уваги' + (nh ? ' ' + nh : '')]].map(k => '<button type="button" data-pkf="' + k[0] + '" aria-pressed="' + (pkFltV === k[0]) + '">' + esc(k[1]) + '</button>').join('');
+    $('pkFlt').hidden = true; $('pkFoot').innerHTML = ''; if ($('pkRefresh')) $('pkRefresh').hidden = true;
     if (!pk) return;
-    const lv = l => all.reduce((n, it) => n + (it.docs || []).concat(it.tir || []).filter(d => d.lvl === l).length + (it.abroad && it.abroad.lvl === l ? 1 : 0), 0);
-    const x = lv('x'), r = lv('r');
-    $('pkSub').innerHTML = (x ? '<span class="pk-c pk-x">' + x + ' прострочено</span>' : '') + (r ? '<span class="pk-c pk-r">' + r + ' · 15 днів і менше</span>' : '') + (!x && !r ? 'Термінових документів немає' : '');
-    const items = pkItems();
-    $('pkList').innerHTML = items.length ? '<div class="pk-list">' + items.map(pkRow).join('') + '</div>' : '<p class="hcalm">' + (pkFltV === 'hot' ? 'Усе гаразд — нічого не спливає за 45 днів.' : 'Нічого не знайдено.') + '</p>';
-    $('pkFoot').innerHTML = '<span class="pk-c pk-y">≤45 дн</span><span class="pk-c pk-a">≤30 дн</span><span class="pk-c pk-r">≤15 дн · на головній</span><span class="pk-c pk-x">прострочено</span> ' +
-      (pkMode === 'drivers' ? 'Дні за кордоном — орієнтовно, за рейсами водія (від експорту до розвантаження імпорту), останні 180 днів; ліміт — 90.' : 'Сповіщення про терміни приходять із 45 днів.');
-  }
-  function pkRow(it) {
-    const open = pkOpen === it.id, docs = it.docs || [], hot = docs.filter(d => d.lvl).sort((a, b) => a.left - b.left), ok = docs.filter(d => !d.lvl && !d.missing), miss = docs.filter(d => d.missing);
-    let who, chips;
-    if (pkMode === 'drivers') {
-      who = '<b>' + esc(it.name) + '</b><span class="muted small">' + (it.truck ? 'на ' + esc(it.truck) : 'без машини') + '</span>';
-      chips = hot.map(d => pkChip(d)).join('') + pkAbChip(it.abroad) + ok.map(d => pkChip(d)).join('');
-    } else if (pkKind === 'trailers') {
-      who = '<b>' + esc(it.plate || it.id) + '</b><span class="muted small">' + esc([it.type, it.mega ? 'мега' : ''].filter(Boolean).join(', ') || 'причіп') + '</span><span class="muted small">' + esc(pkDims(it)) + '</span>';
-      chips = hot.map(d => pkChip(d)).join('') + ok.map(d => pkChip(d)).join('');
-    } else {
-      who = '<b>' + esc(it.id) + '</b><span class="muted small">' + esc([it.model, it.year].filter(Boolean).join(' · ') || it.plate) + (it.eco ? ' · ' + esc(it.eco) : '') + '</span><span class="muted small">' + esc((it.drivers || []).join(', ')) + '</span>';
-      chips = hot.map(d => pkChip(d)).join('') + (it.tir || []).map(t => pkChip(Object.assign({ type: 'ТІР ' + t.num }, t), 'ТІР ' + t.num + (/вод/i.test(t.where) ? ' · у водія' : ''))).join('') + ok.map(d => pkChip(d)).join('');
+    const all = pkList(), tirMode = pkMode === 'park' && pkKind === 'tir';
+    const sig = all.map(pkSig), x = sig.filter(s => s[0] && s[0].lvl === 'x').length, r = sig.filter(s => s[0] && s[0].lvl === 'r').length;
+    const ago = Math.round((Date.now() - pk._at) / 60000), what = pkMode === 'drivers' ? [all.length, 'водій', 'водії', 'водіїв'] : tirMode ? [all.length, 'карнет', 'карнети', 'карнетів'] : pkKind === 'trailers' ? [all.length, 'причіп', 'причепи', 'причепів'] : [all.length, 'тягач', 'тягачі', 'тягачів'];
+    $('pkSub').innerHTML = what[0] + ' ' + plural(what[0], what[1], what[2], what[3]) + (x ? ' · <b class="tb">' + x + ' прострочено</b>' : '') + (r ? ' · ' + r + ' до 15 днів' : '') +
+      ' · оновлено ' + (ago < 1 ? 'щойно' : ago + ' хв тому') + ' · <button type="button" class="link" data-pkre>оновити</button>';
+    const q = $('pkSearch').value.trim().toLowerCase();
+    const items = all.filter(it => !q || [it.id, it.num, it.plate, it.name, it.model, it.truck, it.type, it.workerName].concat(it.drivers || [], (it.docs || []).map(d => d.type + ' ' + (d.num || ''))).join(' ').toLowerCase().indexOf(q) >= 0);
+    const open = pkOpen ? all.find(it => pkIdOf(it) === pkOpen) : null;
+    let list;
+    if (tirMode) list = items.length ? '<div class="pk-list">' + items.sort((a, b) => (a.left == null ? 1e4 : a.left) - (b.left == null ? 1e4 : b.left)).map(pkTirRow).join('') + '</div>' : '<p class="hcalm">' + (all.length ? 'Нічого не знайдено.' : 'Карнетів і дозволів поки немає. ЄКМТ, коли з’являться, теж будуть тут.') + '</p>';
+    else {
+      const G = { bad: [], warn: [], ok: [] }; items.forEach(it => G[pkGrp(it)].push(it));
+      const srt = a => a.sort((p, q2) => { const s1 = pkSig(p)[0], s2 = pkSig(q2)[0]; return s1 && s2 ? (PK_RANK[s1.lvl] - PK_RANK[s2.lvl]) || (s1.left - s2.left) : String(p.name || p.plate || p.id).localeCompare(String(q2.name || q2.plate || q2.id), 'uk'); });
+      list = [['bad', 'Потрібна дія'], ['warn', 'Варто глянути'], ['ok', 'Усе гаразд']].filter(g => G[g[0]].length).map(g => '<h2 class="pk-g">' + g[1] + ' · ' + G[g[0]].length + '</h2><div class="pk-list">' + srt(G[g[0]]).map(pkRow).join('') + '</div>').join('') || '<p class="hcalm">Нічого не знайдено.</p>';
     }
-    if (miss.length) chips += '<span class="pk-c pk-m">не внесено: ' + miss.length + '</span>';
-    return '<div class="pk-row' + (open ? ' on' : '') + '"><button type="button" class="pk-h" data-pko="' + esc(it.id) + '" aria-expanded="' + open + '"><span class="pk-who">' + who + '</span><span class="pk-cs">' + chips + '</span></button>' + (open ? pkCard(it) : '') + '</div>';
+    const ae = document.activeElement, fk = ae && ae.dataset && ae.dataset.pko ? '[data-pko="' + ae.dataset.pko + '"]' : '';
+    if (open && !tirMode) {
+      const panel = '<aside class="pk-panel" aria-label="' + esc(pkLabel(open)) + '">' + pkPanel(open) + '</aside>';
+      $('pkList').innerHTML = pkWide() ? '<div class="pk-wrap"><div>' + list + '</div>' + panel + '</div>' : '<button type="button" class="link back" data-pkback>‹ ' + (pkMode === 'drivers' ? 'Усі водії' : pkKind === 'trailers' ? 'Усі причепи' : 'Усі тягачі') + '</button>' + panel;
+    } else $('pkList').innerHTML = list;
+    if (fk) { const f = $('pkList').querySelector(fk); if (f) f.focus({ preventScroll: true }); }
   }
   const pkDims = p => [p.len && p.wid && p.hgt ? p.len + '×' + p.wid + '×' + p.hgt + ' м' : '', p.cap ? p.cap + ' т' : '', p.vol ? p.vol + ' м³' : '', p.pal ? p.pal + ' пал' : ''].filter(Boolean).join(' · ');
   const pkWho = it => pkMode === 'drivers' ? 'Працівник ' + it.id + ' ' + it.name : pkKind === 'trailers' ? 'Причіп ' + it.id : 'Авто ' + it.id;
   const pkLabel = it => pkMode === 'drivers' ? it.name : pkKind === 'trailers' ? (it.plate || it.id) : it.id;
-  function pkCard(it) {
-    const ed = pk.can && pk.can.edit, f = (k, l, v, w) => '<label>' + esc(l) + '<input data-pkfield="' + esc(k) + '" value="' + esc(v || '') + '"' + (w ? ' size="' + w + '"' : '') + (ed ? '' : ' readonly') + '></label>';
-    let h = '<div class="pk-card">';
-    if (pkMode === 'park' && pkKind === 'trucks') h += '<div class="pk-f">' + f('Марка і модель', 'Марка і модель', it.model, 16) + f('Рік', 'Рік', it.year, 5) + f('VIN', 'VIN', it.vin, 19) + f('Екоклас', 'Екоклас', it.eco, 7) + (ed ? '<button type="button" class="btn small" data-pksave="Авто">Зберегти</button>' : '') + '</div>' +
-      '<p class="muted small">Держномер ' + esc(it.plate || '—') + (it.drivers && it.drivers.length ? ' · водій ' + esc(it.drivers.join(', ')) : '') + '</p>';
-    if (pkMode === 'park' && pkKind === 'trailers') h += '<div class="pk-f">' + f('Тип', 'Тип', it.type, 10) + '<label class="ck"><input type="checkbox" data-pkfield="Мега"' + (it.mega ? ' checked' : '') + (ed ? '' : ' disabled') + '> мега</label>' +
-      f('Довжина, м', 'Довжина, м', it.len, 5) + f('Ширина, м', 'Ширина, м', it.wid, 5) + f('Висота, м', 'Висота, м', it.hgt, 5) + f('Вантажопідйомність, т', 'Вантажопідйомність, т', it.cap, 5) + f('Об\'єм, м³', 'Об\'єм, м³', it.vol, 5) + f('Палети', 'Палети', it.pal, 4) +
-      (ed ? '<button type="button" class="btn small" data-pksave="Причепи">Зберегти</button>' : '') + '</div>';
-    if (pkMode === 'drivers') h += '<p class="pk-ab">' + pkAbChip(it.abroad) + (pk.can && pk.can.eu ? ' <label class="ck"><input type="checkbox" data-pkeu' + (it.eu ? ' checked' : '') + '> має посвідку на проживання в ЄС (дні не рахувати)</label>' : '') + '</p>' + (it.phone ? '<p class="muted small">Телефон ' + esc(it.phone) + '</p>' : '');
-    h += '<div class="pk-docs">' + (it.docs || []).map((d, i) => pkDocRow(it, d, i)).join('') + '</div>';
-    if (pkMode === 'park' && pkKind === 'trucks' && (it.tir || []).length) h += '<h3 class="pk-h3">ТІР-карнети</h3><div class="pk-docs">' + it.tir.map((t, i) => pkTirRow(it, t, i)).join('') + '</div>';
-    if (pkMode === 'drivers' && (it.tir || []).length) h += '<h3 class="pk-h3">ТІР-карнети на руках</h3><div class="pk-docs">' + it.tir.map(t => '<div class="pk-d"><span>ТІР ' + esc(t.num) + '</span><span class="muted">машина ' + esc(t.truck || '—') + '</span>' + pkChip(t, t.until ? 'до ' + pkD(t.until) : 'без терміну') + '<span></span></div>').join('') + '</div>';
-    return h + '</div>';
+  function pkRow(it) {
+    const s = pkSig(it), w = s[0], miss = (it.docs || []).filter(d => d.missing).length, on = pkOpen === it.id;
+    let who, sub;
+    if (pkMode === 'drivers') { who = '<b>' + esc(it.name) + '</b>'; sub = it.truck ? 'на ' + esc(it.truck) : 'без машини'; }
+    else if (pkKind === 'trailers') { who = '<b>' + esc(it.plate || it.id) + '</b> <span class="pk-sm">' + esc([it.type, it.mega ? 'мега' : ''].filter(Boolean).join(', ')) + '</span>'; sub = esc(pkDims(it) || 'характеристики не внесено'); }
+    else { who = '<span class="pk-l1">' + mPlate(it.id) + ' <b>' + esc((it.drivers || []).join(', ') || '—') + '</b></span>'; sub = esc([it.model, it.year].filter(Boolean).join(' · ') || it.plate); }
+    const okUntil = (it.docs || []).filter(d => d.until && !d.lvl).map(d => d.until).sort()[0];
+    const rest = [s.length > 1 ? 'ще ' + (s.length - 1) + ' ' + plural(s.length - 1, 'спливає', 'спливають', 'спливають') : '', miss ? 'не внесено ' + miss : ''].filter(Boolean).join(' · ');
+    const sigH = w ? pkChip(w.lvl, w.t) + (rest ? '<span class="pk-sm">' + esc(rest) + '</span>' : '') : '<span class="pk-calm">усе гаразд' + (okUntil ? ' до ' + esc(okUntil.slice(5, 7) + '.' + okUntil.slice(0, 4)) : '') + (miss ? ' · не внесено ' + miss : '') + '</span>';
+    return '<button type="button" class="pk-i' + (on ? ' on' : '') + '" data-pko="' + esc(it.id) + '" aria-expanded="' + on + '"><span class="pk-who">' + who + '<span class="pk-sm">' + sub + '</span></span><span class="pk-sig">' + sigH + '</span><span class="pk-dt">' + (w && w.until ? esc(pkDs(w.until)) : '') + '</span><span class="pk-chev" aria-hidden="true">›</span></button>';
   }
-  function pkDocRow(it, d, i) {
-    const ed = pk.can && pk.can.edit && !d.pass, key = it.id + '|' + i;
-    let h = '<div class="pk-d"><span>' + esc(d.type) + '</span><span class="muted">' + esc(d.pass && d.num && d.num.length > 4 ? '•••' + d.num.slice(-3) : d.num || (d.missing ? '' : '—')) + '</span>' + pkChip(d, d.missing ? 'не внесено' : d.until ? 'до ' + pkD(d.until) : 'без терміну') + '<span class="pk-act">' +
-      (!d.missing ? '<button type="button" class="btn small" data-pkcopy="' + i + '">Текст</button>' : '') +
-      (d.file ? '<button type="button" class="btn small" data-pkfile="' + esc(d.id) + '" data-pkn="' + esc(pkLabel(it) + ' · ' + d.type) + '">Файл</button>' : '') +
-      (ed ? '<button type="button" class="linkbtn" data-pked="' + i + '">' + (d.missing ? 'Внести' : 'Оновити') + '</button>' : '') +
-      (d.pass ? '<span class="muted small">змінюється в діалозі єЧерги</span>' : '') + '</span></div>';
+  function pkPanel(it) {
+    const ed = pk.can && pk.can.edit, docs = it.docs || [];
+    let h = '<div class="pk-ph"><h2>' + (pkMode === 'drivers' ? esc(it.name) + (it.truck ? ' <span class="pk-sm">на ' + esc(it.truck) + '</span>' : '') : pkKind === 'trailers' ? esc(it.plate || it.id) : mPlate(it.id) + ' ' + esc((it.drivers || []).join(', '))) + '</h2>' +
+      '<button type="button" class="btn small" data-pkall>' + PK_CP + 'Копіювати всі дані</button>' + (pkWide() ? '<button type="button" class="bp-x" data-pkx aria-label="Закрити">' + svgI(BP_ICO.x) + '</button>' : '') + '</div>';
+    if (pkMode === 'drivers') {
+      if (it.phone) h += '<p class="pk-tel">' + (hPhone() ? '<a href="tel:' + esc(it.phone.replace(/[^\d+]/g, '')) + '">' + esc(it.phone) + '</a>' : '<button type="button" class="pk-num" data-pkcp="' + esc(it.phone) + '">' + esc(it.phone) + PK_CP + '</button>') + '</p>';
+      h += '<div class="pk-ab"><div><b>' + (it.eu ? 'Дні за кордоном не рахуємо' : it.abroad ? 'За кордоном ≈' + it.abroad.used + ' з 90 днів' : '—') + '</b>' + (it.abroad ? ' ' + (it.abroad.lvl ? pkChip(it.abroad.lvl, 'лишилось ' + pkDays(Math.max(it.abroad.left, 0))) : '<span class="pk-sm">лишилось ' + pkDays(it.abroad.left) + '</span>') : '') +
+        '<div class="pk-sm">' + (it.eu ? 'має посвідку на проживання в ЄС' : 'орієнтовно, за рейсами водія за останні 180 днів') + '</div></div>' +
+        (pk.can && pk.can.eu ? '<label class="ck"><input type="checkbox" data-pkeu' + (it.eu ? ' checked' : '') + '> посвідка ЄС</label>' : '') + '</div>';
+    } else h += pkChars(it, ed);
+    const tir = it.tir || [];
+    if (tir.length) h += '<p class="pk-has">На руках: ' + tir.map(t => 'ТІР ' + esc(t.num) + (t.until ? ' до ' + esc(pkDs(t.until)) : '') + (t.lvl ? ' ' + pkChip(t.lvl, pkDays(Math.max(t.left, 0))) : '') + (pkMode === 'park' && /вод/i.test(t.where) ? ' · у водія ' + esc(t.workerName || '') : '')).join('; ') + ' <button type="button" class="link" data-pktirgo>Дозволи →</button></p>';
+    const need = docs.filter(d => d.lvl).sort((a, b) => a.left - b.left), miss = docs.filter(d => d.missing), ok = docs.filter(d => !d.lvl && !d.missing);
+    if (need.length) h += '<h3 class="pk-h3">Потребує дії</h3>' + need.map(d => pkDocRow(it, d)).join('');
+    if (miss.length) h += '<h3 class="pk-h3">Не внесено</h3>' + miss.map(d => pkDocRow(it, d)).join('');
+    if (ok.length) h += '<button type="button" class="pk-more" data-pkmore aria-expanded="' + pkMore + '">' + (pkMore ? '▾' : '▸') + ' ' + (need.length || miss.length ? 'Ще ' : '') + ok.length + ' ' + plural(ok.length, 'документ', 'документи', 'документів') + ' у порядку</button>' + (pkMore ? ok.map(d => pkDocRow(it, d)).join('') : '');
+    return h;
+  }
+  function pkChars(it, ed) {
+    const truck = pkKind !== 'trailers';
+    const F = truck ? [['Марка і модель', 'Марка', it.model], ['Рік', 'Рік', it.year], ['VIN', 'VIN', it.vin], ['Екоклас', 'Екоклас', it.eco]]
+      : [['Тип', 'Тип', it.type], ['Довжина, м', 'Довжина, м', it.len], ['Ширина, м', 'Ширина, м', it.wid], ['Висота, м', 'Висота, м', it.hgt], ['Вантажопідйомність, т', 'Вантажопідйомність, т', it.cap], ['Об\'єм, м³', 'Об\'єм, м³', it.vol], ['Палети', 'Палети', it.pal]];
+    if (pkChar && ed) return '<div class="pk-f" data-pksheet="' + (truck ? 'Авто' : 'Причепи') + '">' + F.map(f => '<label>' + esc(f[1]) + '<input data-pkfield="' + esc(f[0]) + '" value="' + esc(f[2] || '') + '"></label>').join('') +
+      (truck ? '' : '<label class="ck"><input type="checkbox" data-pkfield="Мега"' + (it.mega ? ' checked' : '') + '> мега</label>') + '<button type="button" class="link" data-pkchar>Готово</button><span class="pk-sm">зберігається саме</span></div>';
+    const dl = F.filter(f => f[2]).map(f => '<dt>' + esc(f[1]) + '</dt><dd>' + (f[0] === 'VIN' ? '<button type="button" class="pk-num" data-pkcp="' + esc(f[2]) + '">' + esc(f[2]) + PK_CP + '</button>' : esc(f[2])) + '</dd>').join('') + (!truck && it.mega ? '<dt>Мега</dt><dd>так</dd>' : '');
+    return (dl ? '<dl class="pk-dl">' + dl + '</dl>' : '<p class="pk-sm">Характеристики ще не внесено.</p>') + (truck && it.plate ? '<p class="pk-sm">Держномер ' + esc(it.plate) + '</p>' : '') + (ed ? '<button type="button" class="link pk-chl" data-pkchar>' + (dl ? 'Змінити характеристики' : 'Внести характеристики') + '</button>' : '');
+  }
+  const pkDocTxt = (it, d) => pkLabel(it) + ' · ' + d.type + (d.num ? ': № ' + d.num : '') + (d.until ? ', діє до ' + pkD(d.until) : '');
+  function pkDocRow(it, d) {
+    const ed = pk.can && pk.can.edit && !d.pass, i = it.docs.indexOf(d), key = it.id + '|' + i;
+    const shown = d.pass && d.num && d.num.length > 4 ? '•••' + d.num.slice(-3) : d.num;
+    const term = d.missing ? '<span class="pk-c pk-m">не внесено</span>' : d.until ? (d.lvl ? pkChip(d.lvl, 'до ' + pkDs(d.until) + ' · ' + pkWhen(d)) : '<span class="pk-sm">до ' + esc(pkD(d.until)) + '</span>') : '<span class="pk-sm">без терміну</span>';
+    let h = '<div class="pk-d"><span class="pk-dn">' + esc(d.type) + '</span><span>' + (d.missing ? '' : '<button type="button" class="pk-num" data-pkcd="' + i + '" title="Копіювати назву, номер і термін">' + (shown ? esc(shown) : '<span class="pk-sm">без номера</span>') + PK_CP + '</button>') + '</span>' + term +
+      '<span class="pk-act">' + (d.file ? '<button type="button" class="btn small" data-pkfile="' + esc(d.id) + '" data-pkn="' + esc(pkLabel(it) + ' · ' + d.type) + '">Файл</button>' : '') +
+      (ed ? '<button type="button" class="btn small" data-pked="' + i + '">' + (d.missing ? 'Внести' : 'Оновити') + '</button>' : d.pass ? '<span class="pk-sm" title="Паспорт змінюється в діалозі єЧерги">через єЧергу</span>' : '') + '</span></div>';
     if (pkEd === key) h += '<div class="pk-ed"><label>Номер<input id="pkEdNum" value="' + esc(d.num || '') + '"></label><label>Діє до<input type="date" id="pkEdUntil" value="' + esc(d.until || '') + '"></label>' +
       '<label>Файл (фото або PDF)<input type="file" id="pkEdFile" accept="image/*,application/pdf"></label><button type="button" class="primary small" data-pkdsave="' + i + '">Зберегти</button><button type="button" class="link" data-pkdx>Скасувати</button></div>';
     return h;
   }
-  function pkTirRow(it, t, i) {
+  function pkTirRow(t) {
     const ed = pk.can && pk.can.edit, drv = /вод/i.test(t.where);
-    return '<div class="pk-d"><span>ТІР ' + esc(t.num) + '</span><span class="muted">' + esc(t.used ? 'використано ' + t.used : '') + '</span>' + pkChip(t, t.until ? 'до ' + pkD(t.until) : 'без терміну') +
-      '<span class="pk-act">' + (ed ? '<select data-pktir="' + i + '" aria-label="Де карнет"><option value="у машині">у машині</option>' + pk.drivers.map(w => '<option value="' + esc(w.id) + '"' + (drv && t.worker === w.id ? ' selected' : '') + '>у водія ' + esc(w.name) + '</option>').join('') + '</select>' : esc(drv ? 'у водія ' + (t.workerName || '') : 'у машині')) + '</span></div>';
+    const who = drv ? 'у водія ' + (t.workerName || '—') + (t.truck ? ' · ' + t.truck : '') : 'у машині' + (t.truck ? ' ' + t.truck : '');
+    return '<div class="pk-t"><span class="pk-who"><b>ТІР ' + esc(t.num) + '</b><span class="pk-sm">карнет</span></span><span>' + (t.used ? esc(t.used) : '<span class="pk-sm">—</span>') + '</span>' +
+      '<span>' + (t.until ? (t.lvl ? pkChip(t.lvl, 'до ' + pkDs(t.until) + ' · ' + pkWhen(t)) : '<span class="pk-sm">до ' + esc(pkD(t.until)) + '</span>') : '<span class="pk-sm">без терміну</span>') + '</span>' +
+      (ed ? '<span></span>' : '<span>' + esc(who) + '</span>') + '<span class="pk-act">' + (ed ? '<select data-pktir="' + esc(t.num) + '" aria-label="Де карнет ' + esc(t.num) + '"><option value="у машині"' + (drv ? '' : ' selected') + '>у машині</option>' + pk.drivers.map(w => '<option value="' + esc(w.id) + '"' + (drv && t.worker === w.id ? ' selected' : '') + '>у водія ' + esc(w.name) + '</option>').join('') + '</select>' : '') + '</span></div>';
   }
-  const pkFind = id => (pkMode === 'drivers' ? pk.drivers : pkKind === 'trailers' ? pk.trailers : pk.trucks).find(x => x.id === id);
+  const pkFind = id => pkList().find(x => pkIdOf(x) === id);
   const pkB64 = file => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1] || ''); r.onerror = () => no(new Error('Не вдалося прочитати файл')); r.readAsDataURL(file); });
+  const pkCopy = (txt, what) => (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject(new Error('Копіювання недоступне на цьому пристрої'))).then(() => toast('✔ Скопійовано' + (what ? ': ' + esc(what) : '')), er => toast(esc(er.message), 'err'));
   async function pkSaveRow(sheet, row, msg) {
     busy(true); try { await api('save', { sheet, row }); toast(msg || '✔ Збережено'); await pkLoad(true); } catch (e) { toast(esc(e.message), 'err'); } finally { busy(false); }
   }
@@ -3873,7 +3903,6 @@
     } catch (e) { toast(esc(e.message), 'err'); } finally { busy(false); }
   }
   async function pkFile(id, label) {
-    const share = f => navigator.share({ files: [f], title: label });
     try {
       let f = pkFiles[id];
       if (!f) {
@@ -3883,26 +3912,28 @@
         f = pkFiles[id] = new File([u], r.name || label, { type: r.mime || 'application/octet-stream' });
       }
       if (hPhone() && navigator.canShare && navigator.canShare({ files: [f] })) {
-        try { await share(f); } catch (e) { if (e.name === 'NotAllowedError') toast('Файл готовий — натисніть «Файл» ще раз, щоб надіслати'); else if (e.name !== 'AbortError') throw e; }
+        try { await navigator.share({ files: [f], title: label }); } catch (e) { if (e.name === 'NotAllowedError') toast('Файл готовий — натисніть «Файл» ще раз, щоб надіслати'); else if (e.name !== 'AbortError') throw e; }
         return;
       }
       const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 5000);
     } catch (e) { toast(esc(e.message), 'err'); }
   }
   $('park').addEventListener('click', e => {
-    const t = e.target.closest('[data-pkk],[data-pkf],[data-pko],[data-pksave],[data-pkcopy],[data-pkfile],[data-pked],[data-pkdx],[data-pkdsave],[data-pkeu]'); if (!t) return;
+    const t = e.target.closest('[data-pkk],[data-pko],[data-pkx],[data-pkback],[data-pkre],[data-pkall],[data-pkcp],[data-pkcd],[data-pkfile],[data-pked],[data-pkdx],[data-pkdsave],[data-pkeu],[data-pkchar],[data-pkmore],[data-pktirgo]'); if (!t) return;
     const d = t.dataset, it = pkOpen && pk ? pkFind(pkOpen) : null;
-    if (d.pkk) { pkKind = d.pkk; pkOpen = ''; pkEd = ''; pkDraw(); }
-    else if (d.pkf) { pkFltV = d.pkf; pkDraw(); }
-    else if (d.pko) { pkOpen = pkOpen === d.pko ? '' : d.pko; pkEd = ''; pkDraw(); }
-    else if (d.pksave && it) {
-      const row = {}, box = t.closest('.pk-card');
-      box.querySelectorAll('[data-pkfield]').forEach(i => { row[i.dataset.pkfield] = i.type === 'checkbox' ? i.checked : i.value.trim(); });
-      row[d.pksave === 'Авто' ? 'Авто ID' : 'Причіп ID'] = it.id; pkSaveRow(d.pksave, row, '✔ ' + esc(pkLabel(it)) + ': характеристики збережено');
-    }
-    else if (d.pkcopy && it) {
-      const x = it.docs[+d.pkcopy], txt = pkLabel(it) + ' · ' + x.type + (x.num ? ': № ' + x.num : '') + (x.until ? ', діє до ' + pkD(x.until) : '');
-      (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject(new Error('Копіювання недоступне'))).then(() => toast('✔ Скопійовано: ' + esc(txt)), er => toast(esc(er.message), 'err'));
+    if (d.pkk) { pkKind = d.pkk; pkOpen = ''; pkEd = ''; pkChar = false; pkMore = false; pkDraw(); }
+    else if (d.pko) { pkOpen = pkOpen === d.pko && pkWide() ? '' : d.pko; pkEd = ''; pkChar = false; pkMore = false; pkDraw(); if (!pkWide()) window.scrollTo(0, 0); }
+    else if ('pkx' in d || 'pkback' in d) { const was = pkOpen; pkOpen = ''; pkEd = ''; pkChar = false; pkDraw(); const r = $('pkList').querySelector('[data-pko="' + was + '"]'); if (r) r.focus(); }
+    else if ('pkre' in d) openPark(pkMode, true);
+    else if ('pkchar' in d) { pkChar = !pkChar; pkDraw(); }
+    else if ('pkmore' in d) { pkMore = !pkMore; pkDraw(); }
+    else if ('pktirgo' in d) { pkMode = 'park'; SCR_NAV.park = 'park'; pkKind = 'tir'; pkOpen = ''; if ($('park').hidden) show('park'); $('pkH').textContent = 'Парк'; navMark('park'); pkDraw(); }
+    else if (d.pkcp) pkCopy(d.pkcp, d.pkcp);
+    else if (d.pkcd && it) { const x = it.docs[+d.pkcd]; pkCopy(pkDocTxt(it, x), x.type); }
+    else if ('pkall' in d && it) {
+      const lines = [pkMode === 'drivers' ? it.name + (it.truck ? ' (на ' + it.truck + ')' : '') : pkKind === 'trailers' ? 'Причіп ' + (it.plate || it.id) + (pkDims(it) ? ', ' + pkDims(it) : '') : 'Тягач ' + it.id + (it.plate ? ' (' + it.plate + ')' : '') + (it.model ? ', ' + it.model : '') + (it.year ? ' ' + it.year : '') + (it.vin ? ', VIN ' + it.vin : '')]
+        .concat((it.docs || []).filter(x => !x.missing).map(x => x.type + (x.num ? ': № ' + x.num : '') + (x.until ? ', діє до ' + pkD(x.until) : '')));
+      pkCopy(lines.join('\n'), 'усі дані ' + pkLabel(it));
     }
     else if (d.pkfile) pkFile(d.pkfile, d.pkn || 'документ');
     else if (d.pked && it) { pkEd = it.id + '|' + d.pked; pkDraw(); const n = $('pkEdNum'); if (n) n.focus(); }
@@ -3911,13 +3942,16 @@
     else if ('pkeu' in d && it) pkSaveRow('Працівники', { 'Працівник ID': it.id, 'Посвідка ЄС': t.checked }, t.checked ? '✔ ' + esc(it.name) + ': дні за кордоном не рахуємо' : '✔ ' + esc(it.name) + ': дні за кордоном рахуємо');
   });
   $('park').addEventListener('change', e => {
-    const s = e.target.closest('[data-pktir]'); if (!s || !pk) return;
-    const it = pkFind(pkOpen), t = it && it.tir[+s.dataset.pktir]; if (!t) return;
-    const inCar = s.value === 'у машині';
-    pkSaveRow('ТІР карнети', { 'Карнет': t.num, 'Де': inCar ? 'у машині' : 'у водія', 'Водій ID': inCar ? '' : s.value }, '✔ ТІР ' + esc(t.num) + ': ' + (inCar ? 'у машині' : 'у водія'));
+    const s = e.target.closest('[data-pktir]'), f = e.target.closest('[data-pkfield]');
+    if (s && pk) { const inCar = s.value === 'у машині';
+      pkSaveRow('ТІР карнети', { 'Карнет': s.dataset.pktir, 'Де': inCar ? 'у машині' : 'у водія', 'Водій ID': inCar ? '' : s.value }, '✔ ТІР ' + esc(s.dataset.pktir) + ': ' + (inCar ? 'у машині' : 'у водія')); }
+    else if (f && pk && pkOpen) {   // принцип 14: збереження автоматичне — кожне поле окремо
+      const it = pkFind(pkOpen), sheet = f.closest('[data-pksheet]').dataset.pksheet, row = { [sheet === 'Авто' ? 'Авто ID' : 'Причіп ID']: it.id, [f.dataset.pkfield]: f.type === 'checkbox' ? f.checked : f.value.trim() };
+      busy(true); api('save', { sheet, row }).then(() => { toast('✔ ' + esc(f.dataset.pkfield) + ' збережено'); return pkLoad(true); }).catch(er => toast(esc(er.message), 'err')).finally(() => busy(false));
+    }
   });
   $('pkSearch').addEventListener('input', () => pk && pkDraw());
-  $('pkRefresh').onclick = () => openPark(pkMode, true);
+  window.addEventListener('resize', () => { if (pk && pkOpen && !$('park').hidden) { const w = pkWide(); if (w !== pkDraw._w) { pkDraw._w = w; pkDraw(); } } });
   async function openDocs(force) {
     show('docs'); if (!docs || force) $('dList').innerHTML = '<p class="muted">Завантаження…</p>';
     const can = new Set(sheets.map(s => s.name));
