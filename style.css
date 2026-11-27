@@ -2514,3 +2514,8 @@ body.nav-on #bChips .chip, body.nav-on .bs, body.nav-on #board .btn { border-rad
 .m51 .m51-plan .flow button { border: 1px solid var(--line-2, #D3D9DF); background: var(--card); min-height: 28px; padding: 0 10px; color: var(--ink); }
 .m51 .m51-plan .flow { gap: 6px; }
 .m51 .m51-ord { align-self: center; font-size: 13px; color: var(--muted); }
+.wg-d { font-style: normal; font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 6px; white-space: nowrap; }
+.wg-d.up { color: var(--warn-fg); } .wg-d.dn { color: var(--ok-fg); }
+.m51 .wg-fx .wg-d { display: block; margin: 2px 0 0; }
+.ech-sp { display: none; }
+.m51 .wg-fx .wg-d.up, .m51 .wg-fx .wg-d.dn { color: var(--ink-2); }   /* курс: зміна — довідка, не тривога */

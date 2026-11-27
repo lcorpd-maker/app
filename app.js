@@ -1980,13 +1980,15 @@
   /* ── v52 · крок 3: віджети внизу на всю ширину (рішення 27.11): черги на виїзд, курс НБУ, RMPD ── */
   let nbuR = null, nbuTry = 0;
   function nbuFetch() { if (nbuR || Date.now() - nbuTry < 10 * 60000) return; nbuTry = Date.now();
-    api('calc.init').then(r => { if (r && r.rates) { nbuR = r.rates; if (mOn()) mDraw(); } }).catch(() => {}); }
+    api('nbu').then(r => { if (r && r.rates) { nbuR = r.rates; if (mOn()) mDraw(); } }).catch(() => {}); }
   function mWgHtml(rows) {
     const T = board ? board.trucks.filter(kOk) : [];
     const card = (cls, h) => '<section class="card wg ' + cls + '">' + h + '</section>';
     const q = card('wg-q', echQueueHtml(T).replace('Черги зараз', 'Черги на виїзд'));
     const n = nbuR ? card('wg-nbu', '<h3 class="hw-h3">Курс НБУ <span class="ech-upd">' + esc(nbuR.date ? 'на ' + nbuR.date.slice(0, 5) : '') + (nbuR.src && nbuR.src !== 'НБУ' ? ' · з параметрів' : '') + '</span></h3><div class="wg-fx">' +
-      ['EUR', 'PLN', 'USD'].filter(k => nbuR[k]).map(k => '<div><span>' + k + '</span><b class="tnum">' + Number(nbuR[k]).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + '</b></div>').join('') + '</div>') : card('wg-nbu', '<h3 class="hw-h3">Курс НБУ</h3>' + hSk(3));
+      ['EUR', 'PLN', 'USD'].filter(k => nbuR[k]).map(k => { const p = nbuR.prev && nbuR.prev[k], d = p ? Math.round((nbuR[k] - p) * 100) / 100 : null;
+        return '<div><span>' + k + '</span><b class="tnum">' + Number(nbuR[k]).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + '</b>' +
+          (d ? '<i class="wg-d ' + (d > 0 ? 'up' : 'dn') + '">' + (d > 0 ? '↑ ' : '↓ ') + Math.abs(d).toLocaleString('uk-UA', { minimumFractionDigits: 2 }) + '</i>' : d === 0 ? '<i class="wg-d">без змін</i>' : '') + '</div>'; }).join('') + '</div>') : card('wg-nbu', '<h3 class="hw-h3">Курс НБУ</h3>' + hSk(3));
     const A = rows.filter(r => r.t && !r.t.order && r.k === 'i' && kOk(r.x)), c = s => A.filter(r => s.indexOf(r.t.rmpd || '') >= 0);
     const ok = c(['ok']), wt = c(['wait', 'ai']), wr = c(['warn']), no = c(['none']).filter(r => r.nearB || r.x.ech);
     const todo = wr.map(r => [r, 'RMPD ≠ CMR', 'Звірити']).concat(no.map(r => [r, 'виклик на кордон, RMPD немає', 'Відкрити']));
@@ -2718,7 +2720,7 @@
     const truckLi = x => '<li class="ech-tr"><button type="button" class="hrow" data-htruck="' + esc(x.id) + '"><span class="plate ua">' + esc(x.id) + '</span><span class="hl-t">' + (x.ech.state === 'готуйтесь' ? 'готуйтесь' : 'чекає ' + esc(hrs(x.ech.waited))) + (x.ech.eta ? ' · в\'їзд ≈ ' + esc(x.ech.eta) : '') + '</span></button></li>';
     const typ = t => t ? '<span class="ech-us">наші: зазвичай ' + esc(hrs(t.med)) + '</span>' : '';
     const rowH = r => '<li class="ech-r' + (r.ours ? ' ours' : '') + '"><div class="ech-l"><b>' + esc(r.name) + '</b>' + (r.queue ? '<small>' + esc(r.queue) + '</small>' : '') + '</div>' +
-      '<div class="ech-m"><span class="ech-w tnum" title="Час очікування">' + esc(minTxt(r.waitMin)) + '</span><span class="ech-c tnum">' + (r.cars == null ? '' : esc(r.cars) + ' авто') + '</span>' + typ(r.typical) + '</div>' +
+      '<div class="ech-m"><span class="ech-w tnum" title="Час очікування">' + esc(minTxt(r.waitMin)) + '</span>' + (r.d24 != null && Math.abs(r.d24) >= 30 ? '<i class="wg-d ' + (r.d24 > 0 ? 'up' : 'dn') + '" title="зміна за добу">' + (r.d24 > 0 ? '↑ +' : '↓ −') + esc(minTxt(Math.abs(r.d24))) + ' за добу</i>' : r.d24 != null ? '<i class="wg-d" title="зміна за добу">без змін</i>' : '') + '<span class="ech-sp"></span><span class="ech-c tnum">' + (r.cars == null ? '' : esc(r.cars) + ' авто') + '</span>' + typ(r.typical) + '</div>' +
       ((m => m.length ? '<ul class="hl ech-trs">' + m.map(truckLi).join('') + '</ul>' : '')(mine(r))) + '</li>';
     const rows = (w.rows || []), top = rows.filter(r => r.ours).concat(rows.filter(r => !r.ours)).slice(0, Math.max(4, rows.filter(r => r.ours).length));
     const miss = (w.missing || []).slice(0, 2).map(m => '<li class="ech-r ours none"><div class="ech-l"><b>' + esc(m.name) + '</b><small>немає в знімку</small></div><div class="ech-m">' + typ(m.typical) + '</div>' + ((q => q.length ? '<ul class="hl ech-trs">' + q.map(truckLi).join('') + '</ul>' : '')(mine(m))) + '</li>').join('');
