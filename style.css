@@ -2730,3 +2730,9 @@ body.bpanel-on .bcompact col.w-prob { width: 200px; }
 body.bpanel-on .bcompact col.w-pos { width: 0; }
 body.bpanel-on .bcompact td.c-pos, body.bpanel-on .bcompact thead th:nth-child(5), body.bpanel-on .bcompact col.w-pos { display: none; }
 body.bpanel-on .bcompact td.c-st { overflow: hidden; } body.bpanel-on .bcompact td.c-st .badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* v56.5: вузьке вікно (768–1100) — так само, як із відкритою панеллю: «Чого бракує» читабельне, «Де зараз» — у панелі */
+@media (max-width: 1100px) {
+  .bcompact col.w-prob { width: 190px; }
+  .bcompact td.c-pos, .bcompact thead th:nth-child(5), .bcompact col.w-pos { display: none; }
+  .bcompact td.c-st { overflow: hidden; } .bcompact td.c-st .badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
