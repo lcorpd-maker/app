@@ -1139,7 +1139,7 @@
     $('bReset').hidden = !q && bFilter === 'all';
     const tb = $('bRows'); tb.innerHTML = ''; const cards = $('bCards'); cards.innerHTML = '';
     list.forEach(x => {
-      const t = x.trip || x.last, s = x.trip && x.trip.st, nd = daysFrom(x.since), pr = bProbs(x), mv = bMove(x);
+      const t = x.trip || x.last, s = x.trip && x.trip.st, nd = daysFrom(x.since), pr = bProbs(x), mv = bMove(x), R = mRow(x);   // v54: та сама логіка рядка, що й на головній
       const drv = x.drivers.length ? x.drivers.map(d => '<b>' + esc(d.name) + '</b>' + (d.fromTrip ? ' <span class="muted">(за рейсом)</span>' : '') + (d.fromApp ? ' <span class="ok-mark">✓ прийняв' + (d.since ? ' ' + dd(d.since) : '') + '</span>' : '')).join(', ') : '<span class="muted">водія не вказано</span>';
       const flags = pr.map(p => flag(p.k, p.t, p.urgent, p.old)).join('');
       const route = t ? '<div class="broute">' + tripText(t) + '</div><div class="bsub">' + esc(t.id) + (t.client ? ' · ' + esc(t.client) : '') + (x.trip ? '' : ' · останній') + '</div>' : '<span class="muted">немає рейсу</span>';
@@ -1150,16 +1150,14 @@
       tr.innerHTML = '<td class="c-car"><button type="button" class="bopen" aria-expanded="false" aria-label="Машина ' + esc(x.id) + (dName ? ', ' + esc(dName) : '') + ': деталі"><span class="plate ua">' + esc(x.id) + '</span></button></td>' +
         '<td class="c-drv" title="' + esc((dName || 'водія не вказано') + (x.trailer ? ' · причіп ' + x.trailer : '')) + '">' + (x.trailer ? '<span class="t1">' : '') + (dName ? esc(dName) : '<span class="muted">—</span>') + (x.drivers.some(d => d.fromApp) ? ' <span class="ok-mark" title="прийняв машину в програмі">✓</span>' : '') +
           (x.trailer ? '</span><span class="t2 trl2">П ' + esc(trlShort(x.trailer)) + '</span>' : '') + '</td>' +   // v51: причіп під водієм — як у макеті («П 4417»)
-        '<td class="c-trip" title="' + esc(t ? (t.from || '?') + ' → ' + (t.to || '?') + ' · ' + t.id + (t.client ? ' · ' + t.client : '') + (x.trip ? '' : ' · останній') + (mv && !mv.stale ? ' · ' + mv.text : '') : 'немає рейсу') + '">' + (t ? '<span class="t1">' + tripText(t) + '</span><span class="t2">' + esc(t.id) + (x.trip ? '' : ' · ост.') + (mv && !mv.stale ? ' · ' + esc(mv.text) : '') + '</span>' : '<span class="muted">—</span>') + '</td>' +
-        '<td class="c-st"' + (x.ech ? ' title="' + esc(echShort(x.ech)) + '"' : '') + '>' + bStateHtml(x) + (x.ech ? ' <span class="echmark" aria-label="' + esc(echShort(x.ech)) + '">Ч</span>' : '') + '</td>' +
-        '<td class="c-unl">' + (x.trip ? (x.trip.unload ? '<b class="tnum">' + dd(x.trip.unload) + '</b>' : '<span class="muted">не вказ.</span>') : '<span class="muted">—</span>') + '</td>' +
-        '<td class="c-next">' + (x.next ? '<span class="bnext" title="' + esc(dd(x.next.load) + ' ' + (x.next.from || '?') + ' → ' + (x.next.to || '?') + (x.next.order ? ' · заявка ' + x.next.id + (x.next.status ? ' (' + x.next.status + ')' : '') : ' · ' + x.next.id)) + '">' + dd(x.next.load) + ' ' + tripText(x.next) + '</span>' : '<span class="muted">—</span>') + '</td>' +
-        '<td class="c-pos">' + bPosText(x) + '</td>' +
-        '<td class="c-prob"><span class="pis">' + bIcons(x) + '</span></td>';
+        '<td class="c-trip">' + (t ? '<div class="broute">' + tripText(t) + '</div><div class="bsub">' + esc(t.id) + (t.dir && t.dir.v ? ' · ' + esc(t.dir.v) : '') + (x.trip ? ' · розвант. ' + (x.trip.unload ? dd(x.trip.unload) : '<span class="bpr">не вказано</span>') : ' · останній') + '</div>' : '<span class="muted">немає рейсу</span>') + '</td>' +
+        '<td class="c-st">' + badgeOf(x) + (R.t ? bProg(R) : '') + '<div class="bsub bstep">' + (x.trip ? (s && s.event ? 'водій: ' + esc(s.event) + (s.at ? ' · ' + esc(durTxt(STEP_AGE(x) * 60)) + ' тому' : '') : '<span class="bpr">кроків від водія немає</span>') : esc(stSub || '')) + '</div></td>' +
+        '<td class="c-pos"><div class="bpos1">' + bPosText(x) + '</div>' + (x.drive && bPosHas(x) ? driveHtml(x) : '') + (x.drive && x.drive.worker ? '<button type="button" class="bday" data-bday="' + esc(x.id) + '" aria-expanded="false">рух і стоянки <span aria-hidden="true">▾</span></button>' : '') + '</td>' +
+        '<td class="c-prob">' + (R.miss.length ? R.miss.slice(0, 3).map(q => '<span class="flag ' + (q.lv === 'bad' ? 'b' : 'w') + '"><span>' + esc(q.tx) + '</span></span>').join('') + (R.miss.length > 3 ? '<span class="muted small">+' + (R.miss.length - 3) + '</span>' : '') : '') + '</td>';
       const det = tb.insertRow(); det.className = 'bdet'; det.hidden = true;
-      det.innerHTML = '<td colspan="8">' + detail(x) + '</td>';
+      det.innerHTML = '<td colspan="6"><div class="bdaybox" data-bdaybox="' + esc(x.id) + '"></div></td>';   // v54: розгортка «рух і стоянки» (lt.png)
       const ob = tr.querySelector('.bopen');
-      tr.onclick = e => { if (e.target.closest('a')) return; bPanelOpen(x, ob); };   // v50: ≥ 1200 — панель у сітці; вужче — на весь екран із «‹ Дошка»
+      tr.onclick = e => { if (e.target.closest('a')) return; const dy = e.target.closest('[data-bday]'); if (dy) { e.stopPropagation(); bDayToggle(x, tr, det, dy); return; } bPanelOpen(x, ob); };   // v50: ≥ 1200 — панель у сітці; вужче — на весь екран із «‹ Дошка»
       const c = document.createElement('details'); c.className = 'bcard';
       c.innerHTML = '<summary><div class="bc1"><span class="plate ua">' + esc(x.id) + '</span><span class="bwho">' + drv + '</span>' + badgeOf(x) + '</div>' +
         route + (x.trip && x.trip.unload ? '<div class="bsub">розвантаження ' + dd(x.trip.unload) + '</div>' : '') + (stSub ? '<div class="bsub">' + esc(stSub) + '</div>' : '') +
@@ -1183,6 +1181,49 @@
     const w = b.waiting || []; $('bWait').hidden = !w.length; $('bWaitN').textContent = w.length;
     $('bWaitList').innerHTML = w.map(z => '<button type="button" class="wrow wbtn" data-zord="' + esc(z.id) + '"><b>' + tripText(z) + '</b> <span class="muted">' + (z.load ? 'завантаження ' + dd(z.load) : '') + (z.client ? ' · ' + esc(z.client) : '') + ' · ' + esc(z.status || 'нова') + '</span>' + (canTrip() ? '<span class="wgo">Створити рейс ›</span>' : '') + '</button>').join('');
     $('bWaitList').querySelectorAll('[data-zord]').forEach(bt => bt.onclick = () => orderToTrip(bt.dataset.zord));
+  }
+  /** v54: прогрес етапу лінією з точками, як у прототипі дошки (l.png). */
+  function bProg(r) {
+    const st = r.k === 'i' ? ['load', 'tob', 'brd', 'tou', 'unl'] : ['load', 'dmov', 'unl'], ci = Math.max(0, st.indexOf(r.st)), p = Math.round(ci / (st.length - 1) * 100);
+    return '<span class="bprog' + (r.lvl ? ' ' + r.lvl : '') + '" role="img" aria-label="етап ' + (ci + 1) + ' з ' + st.length + ': ' + esc(M_STN[r.st] || '') + '"><i style="width:' + p + '%"></i><b style="left:' + p + '%"></b></span>';
+  }
+  const bPosHas = x => { const P = board && board.pos; return !!(P && P.trucks && P.trucks[x.id]); };   // місце є окремо — тоді час водія блоком під ним
+  /** v54: розгортка рядка «рух і стоянки» за сьогодні + 4 картки (прототип «логіст — час водія»). Один розгорнутий рядок за раз. */
+  async function bDayToggle(x, tr, det, btn) {
+    const open = det.hidden;
+    document.querySelectorAll('#bRows tr.bdet').forEach(r => { r.hidden = true; }); document.querySelectorAll('#bRows [data-bday]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+    document.querySelectorAll('#bRows tr.brow.dayon').forEach(r => r.classList.remove('dayon'));
+    if (!open) return;
+    det.hidden = false; tr.classList.add('dayon'); btn.setAttribute('aria-expanded', 'true');
+    const box = det.querySelector('.bdaybox'); box.innerHTML = '<p class="muted">Завантажую рух і стоянки…</p>';
+    try {
+      const r = await api('tacho', { workerId: x.drive.worker, truck: x.id });
+      box.innerHTML = bDayHtml(r, x);
+    } catch (e) { box.innerHTML = '<p class="msg">' + esc(e.message) + '</p>'; }
+  }
+  function bDayHtml(T, x) {
+    if (!window.DRV) return '<p class="msg">Оновіть програму.</p>';
+    const now = Date.now(), cur = T.cur ? Object.assign({}, T.cur, { stale: T.cur.stale || now - T.now > 40 * 60000 }) : null;
+    const R = DRV.driverTime({ now, recs: T.log || [], rows: T.rows || [], cur, dailyMovingSec: T.daily || {} }), ev = R.ev, tx = DRV.shortText(ev, now, 'logist');
+    const d0 = new Date(now); d0.setHours(0, 0, 0, 0); const a = d0.getTime(), b = a + 864e5, pct = t => ((Math.min(Math.max(t, a), b) - a) / 864e3).toFixed(2);
+    const segs = R.gps.filter(g => g.end > a && g.start < b);
+    const cls = g => g.type === 'drive' ? 'dr' : g.type === 'gap' ? 'gp' : (g.end - g.start) >= 45 * 60000 && (g.end - g.start) < 3 * 3600e3 ? 'br' : (g.end - g.start) >= 3 * 3600e3 ? 'rs' : 'st';
+    const canAt = ev.canStart && !ev.canStartNow ? ev.canStart : null;
+    const bar = '<div class="bdbar">' + segs.map(g => '<i class="' + cls(g) + '" style="left:' + pct(g.start) + '%;width:' + Math.max(0.3, pct(g.end) - pct(g.start)) + '%"></i>').join('') +
+      (canAt && canAt < b ? '<i class="nd" style="left:' + pct(now) + '%;width:' + Math.max(0.3, pct(canAt) - pct(now)) + '%"></i><u class="st" style="left:' + pct(canAt) + '%"><span>старт ≈ ' + esc(hm(canAt)) + '</span></u>' : '') +
+      '<u class="now" style="left:' + pct(now) + '%"><span>зараз ' + esc(hm(now)) + '</span></u></div>' +
+      '<div class="bdhrs"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>' +
+      '<div class="bdleg"><span><i class="dr"></i>їхав</span><span><i class="br"></i>перерва</span><span><i class="st"></i>коротка зупинка</span><span><i class="rs"></i>відпочинок</span><span><i class="nd"></i>ще треба відпочити</span><span><i class="gp"></i>немає даних</span></div>';
+    const list = segs.filter(g => g.type !== 'gap').slice(-8).map(g => '<li>' + esc(hm(g.start)) + ' – ' + (g.end >= now - 60000 ? 'зараз' : esc(hm(g.end))) + ' · ' + (g.type === 'drive' ? 'їхав ' + esc(durTxt((g.end - g.start) / 60000)) + (g.km ? ' (' + Math.round(g.km) + ' км)' : '') : 'стоїть ' + esc(durTxt((g.end - g.start) / 60000)) + (g.place ? ' · ' + esc(g.place) : '')) + '</li>').join('');
+    const card = (h, big, sub, prog) => '<div class="bdc"><span>' + h + '</span><b>' + big + '</b>' + (prog != null ? '<div class="bdp"><i style="width:' + Math.min(100, Math.round(prog * 100)) + '%"></i></div>' : '') + (sub ? '<small>' + sub + '</small>' : '') + '</div>';
+    const dl = ev.dayLimit > 540 ? 600 : 540;
+    return '<div class="bday-in"><div><h3>Сьогодні, ' + esc(dd(new Date(now).toISOString().slice(0, 10))) + ' — рух і стоянки</h3>' + bar +
+      (list ? '<details class="bdlist"><summary>Список руху і стоянок</summary><ol>' + list + '</ol></details>' : '') + '</div>' +
+      '<div class="bdcards">' + card('Може їхати', esc(tx.main), esc(tx.sub || '')) +
+        card('За кермом за зміну', esc(durTxt(ev.day || 0)) + ' <small>з ' + (dl / 60) + '</small>', '10 год можна 2 рази на тиждень', (ev.day || 0) / dl) +
+        card('За кермом цього тижня', esc(durTxt(ev.week || 0)) + ' <small>з 56</small>', 'за 2 тижні: ' + esc(durTxt(ev.twoWeek || 0)) + ' з 90', (ev.week || 0) / 3360) +
+        card('Довгий відпочинок (45 год)', ev.weeklyRestDue ? 'до ' + esc(new Date(ev.weeklyRestDue).toLocaleDateString('uk-UA', { weekday: 'short', day: '2-digit', month: '2-digit' })) : '—', '') + '</div></div>' +
+      '<p class="bdnote muted small">Приблизно: стоянка не завжди відпочинок (може бути склад чи ремонт); GPS оновлюється раз на 15 хв. Орієнтовно за GPS — остаточно за тахографом водія. <button type="button" class="linkbtn tdrv" data-tdrv="' + esc(x.drive.worker) + '" data-truck="' + esc(x.id) + '" data-name="' + esc((x.drivers[0] || {}).name || '') + '">Аркуш доби докладно</button></p>';
   }
   /** v51: коротко причіп для рядка дошки: «АО4417ХР» → «4417»; без 3–5 цифр — як є. */
   const trlShort = v => { const m = String(v || '').replace(/\s+/g, '').match(/\d{3,5}/); return m ? m[0] : String(v || ''); };
@@ -1254,13 +1295,13 @@
   const OFF = ['адмін', 'керівник', 'логіст', 'бухгалтер', 'механік'], LKA = ['адмін', 'керівник', 'логіст'], KA = ['адмін', 'керівник'];
   const NAV = [
     { id: 'home', t: 'Головна', ico: 'home', roles: OFF },
-    { id: 'board', t: 'Дошка машин', g: 0, ico: 'board', roles: ['адмін', 'керівник', 'механік'] },   // v52: у логіста дошка = головна «Машини зараз» (рішення власниці 27.11)
+    { id: 'board', t: 'Дошка машин', g: 0, ico: 'board', roles: ['адмін', 'керівник', 'механік', 'логіст'] },   // v54: дошка повертається логісту за прототипом (рішення 27.11)   // v52: у логіста дошка = головна «Машини зараз» (рішення власниці 27.11)
     { id: 'sheet:Заявки', t: 'Заявки', g: 0, sheet: 'Заявки', ico: 'inbox', roles: LKA },
     { id: 'sheet:Рейси', t: 'Рейси', g: 0, sheet: 'Рейси', ico: 'route', roles: ['адмін', 'керівник', 'логіст', 'бухгалтер'] },
     { id: 'sheet:Кругорейси', t: 'Кругорейси', g: 0, sheet: 'Кругорейси', ico: 'loop', roles: KA },   // v53: у логіста кругорейс — у рейсі (автономер), окремої вкладки немає
     { id: 'calc', t: 'Калькулятор', g: 0, ico: 'calc', roles: LKA },
     { id: 'probs', t: 'Проблеми водіїв', g: 1, ico: 'alert', roles: LKA },
-    { id: 'exp', t: 'Витрати водіїв', g: 1, ico: 'receipt', roles: ['адмін', 'керівник', 'логіст', 'бухгалтер'] },
+    { id: 'exp', t: 'Витрати водіїв', g: 1, ico: 'receipt', roles: ['адмін', 'керівник', 'бухгалтер'] },   // v54: у логіста поки сховано (рішення 28.11)
     { id: 'drivers', t: 'Водії', g: 1, ico: 'user', roles: ['адмін', 'керівник', 'логіст', 'механік'] },   // v53: документи водіїв, дні за кордоном 90/180
     { id: 'sheet:Водій на авто', t: 'Водій на авто', g: 1, sheet: 'Водій на авто', ico: 'user', roles: ['логіст'] },
     { id: 'debts', t: 'Боржники', g: 2, sub: 'c', ico: 'money', roles: ['адмін', 'керівник', 'логіст', 'бухгалтер'] },
@@ -1527,7 +1568,7 @@
   BF.rmpd = ['RMPD не перевірено', x => logRmpd.has(x.id)];
   const STEP_AGE = x => { const t = x.trip; if (!t) return 0; const at = t.st && t.st.at ? new Date(t.st.at).getTime() : (t.load ? new Date(t.load + 'T08:00:00').getTime() : 0); return at ? Math.max(0, (Date.now() - at) / 36e5) : 0; };
   BF.stale = ['Немає відмітки водія > 12 год', x => x.status === 'trip' && !!x.trip && !x.trip.order && STEP_AGE(x) > 12];
-  const openBoardF = k => { if (mOn()) { M.bf = k === 'all' ? '' : k; M.stage = ''; m51Close(); mDraw(); const l = $('m51List'); if (l) l.scrollIntoView({ behavior: smooth(), block: 'start' }); return; } bFilter = k; store.set('bFilter', k); $('bSearch').value = ''; openBoard(); };   // v53.2: у логіста дошки немає — фільтр на головній
+  const openBoardF = k => { bFilter = k; store.set('bFilter', k); $('bSearch').value = ''; openBoard(); };   // v53.2: у логіста дошки немає — фільтр на головній
   const hPhone = () => window.innerWidth < 768;
   const hRole = () => !!me && (me.role === 'логіст' || KA.indexOf(me.role) >= 0);
   const hKindC = (type, cross) => /україн|контейнер/i.test(type || '') || /україн|контейнер|переїзд|ставка/i.test(cross || '') ? 'd' : (/між/i.test(type || '') || String(cross || '').trim()) ? 'i' : 'd';   // v53.2: без типу й пункту — по Україні (8233 Мостиська → Львів), а не міжнародний
@@ -2384,6 +2425,7 @@
     const P = bProbs(x);
     if (P.some(q => q.k === 'addr')) out.push(c('bad', '✕', 'адрес немає', 'Рейс без адрес для водія'));
     if (!t.unload) out.push(c('warn', '✕', 'дата розвантаження'));
+    if (bpUnloaded(t) && !t.handoff && !t.order) out.push(c('warn', '!', 'не передано в бухгалтерію'));
     const dn = P.filter(q => q.k === 'doc' || q.k === 'tir'); if (dn.length) out.push(c(dn.some(q => q.urgent) ? 'bad' : 'warn', '!', 'документи ' + dn.length, dn.map(q => q.t).join('; ')));
     return '<div class="bp-strip">' + out.join('') + '</div>';
   }
@@ -2412,6 +2454,14 @@
       '<label>Черга<select id="bpQSt"' + dis + '><option value="">не зареєстровано</option><option value="зареєстровано"' + (reg ? ' selected' : '') + '>зареєстровано</option></select></label>' +
       '<label id="bpQAtL"' + (reg ? '' : ' hidden') + '>Дата реєстрації<input type="date" id="bpQAt" value="' + esc(t.qAt || '') + '"' + dis + '></label>' +
       (wr ? '<button type="button" class="btn small" id="bpQSave">Зберегти</button>' : '') + '</div>', '', esc(h.text), true);
+  }
+  /** v54: «Передати в бухгалтерію» (команда, 27.11: у першій версії) — після розвантаження; хто і коли — у рейсі, скасувати можна. */
+  const bpUnloaded = t => !!t && (/розвантажено/i.test((t.st && t.st.event) || '') || (t.unload && t.unload < new Date().toISOString().slice(0, 10)));
+  function bpHandoff(t, tid) {
+    if (!t || t.order || !canTrip()) return '';
+    if (t.handoff) return '<section class="bp-sec bp-ho ok"><span>✓ Передано в бухгалтерію ' + esc(tkTime(t.handoff)) + (t.handoffBy ? ' · ' + esc(t.handoffBy) : '') + '</span>' + (me.viewAs ? '' : '<button type="button" class="linkbtn" data-bpho="">Скасувати</button>') + '</section>';
+    if (!bpUnloaded(t)) return '';
+    return '<section class="bp-sec bp-ho"><span>Рейс розвантажено — передайте бухгалтеру для акту й рахунку</span>' + (me.viewAs ? '' : '<button type="button" class="btn small primary" data-bpho="1">Передати в бухгалтерію</button>') + '</section>';
   }
   async function bpTripSave(tid, row, okMsg) {
     try { busy(true); await api('save', { sheet: 'Рейси', row: Object.assign({ 'Рейс ID': tid }, row) }); toast(okMsg || '✔ Збережено');
@@ -2477,7 +2527,7 @@
       bpSecC('st', 'Статуси водія', '<ol class="bp-tl2" id="bpSteps"></ol><div id="bpMark"></div>', '', esc(t.st && t.st.event ? cap(t.st.event) + ' · ' + durTxt(STEP_AGE(x) * 60) + ' тому' : 'кроків ще немає'), false) + nextH +
       '<section class="bp-sec"><details class="bp-fold" id="bpMore"><summary>Документи · RMPD · адреси · історія змін</summary><h4 class="bp-h">Перед кордоном</h4><ul class="bp-list" id="bpBorder"><li class="muted"><span class="bp-m">…</span><span>Перевіряю RMPD і адреси…</span></li>' + docH + echH + '</ul>' +
         '<h4 class="bp-h">Історія змін</h4><div id="bpJrn"><button type="button" class="btn small" id="bpJrnB">Хто і що змінював</button></div></details></section>' +
-      ((office && echIntl(t.type, t.cross)) || drvBtn ? '<section class="bp-sec bp-more">' + (office && echIntl(t.type, t.cross) ? '<button type="button" class="btn small" id="bpEch">Підготувати реєстрацію в єЧергу</button>' : '') + (drvBtn ? drvBtn.replace('class="btn tdrv"', 'class="btn small tdrv"') : '') + '</section>' : '') +
+      bpHandoff(t, tid) + ((office && echIntl(t.type, t.cross)) || drvBtn ? '<section class="bp-sec bp-more">' + (office && echIntl(t.type, t.cross) ? '<button type="button" class="btn small" id="bpEch">Підготувати реєстрацію в єЧергу</button>' : '') + (drvBtn ? drvBtn.replace('class="btn tdrv"', 'class="btn small tdrv"') : '') + '</section>' : '') +
       '<div class="bp-act">' + (ct ? '<button type="button" class="btn" id="bpEdit">' + svgI('M4 20h4L19 9l-4-4L4 16zM14 6l4 4') + 'Виправити</button>' : '') + '<button type="button" class="primary" id="bpFull">' + svgI('M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5') + 'Повна картка</button>' +
 '</div>';
     bindPanel(x, tid); p.scrollTop = 0; p.focus({ preventScroll: onHome });   // v51: на головній сторінка не стрибає
@@ -2575,6 +2625,8 @@
   function bindPanel(x, tid) {
     { const p = $('bPanel');   // v52: напрям при розбіжності; «Черга на експорт»
       p.querySelectorAll('[data-bpdir]').forEach(b => b.onclick = () => bpTripSave(tid, { 'Напрям': b.dataset.bpdir }, '✔ Напрям: ' + b.dataset.bpdir));
+      p.querySelectorAll('[data-bpho]').forEach(b => b.onclick = () => b.dataset.bpho ? bpTripSave(tid, { 'Передано в бухгалтерію': new Date().toISOString(), 'Передав у бухгалтерію': me.name }, '✔ Рейс ' + esc(tid) + ' передано в бухгалтерію')
+        : bpTripSave(tid, { 'Передано в бухгалтерію': '', 'Передав у бухгалтерію': '' }, 'Передачу скасовано'));
       const ce = p.querySelector('#bpCircEd'); if (ce) ce.onclick = () => { const f = p.querySelector('.bp-circf'); f.hidden = !f.hidden; if (!f.hidden) p.querySelector('#bpCirc').focus(); };
       const cs = p.querySelector('#bpCircSave'); if (cs) cs.onclick = () => { const v = p.querySelector('#bpCirc').value.trim(); bpTripSave(tid, { 'Кругорейс ID': v }, v ? '✔ Кругорейс: ' + v : '✔ Кругорейс прибрано'); };
       if ($('bpQSt')) $('bpQSt').onchange = () => { $('bpQAtL').hidden = !$('bpQSt').value; if ($('bpQSt').value && !$('bpQAt').value) $('bpQAt').value = isoDay(new Date()); };
