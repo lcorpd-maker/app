@@ -2709,3 +2709,18 @@ details.bp-col[open] > summary { margin-bottom: 8px; }
 .pkql { list-style: none; margin: 0; padding: 0; } .pkql li { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); } .pkql li:first-child { border-top: 0; } .pkql li.warn b { color: var(--warn-fg); }
 .pks li { min-width: 0; font-size: 11px; }
 .bp-pack .pka .btn { width: auto; min-height: 36px; }
+
+/* v56: три рівні сигналів (рішення 28.11) — Термінове · Звернути увагу · Інформація */
+.sg { display: inline-flex; align-items: flex-start; gap: 5px; margin: 0 4px 4px 0; padding: 2px 9px 2px 6px; border-radius: 8px; font-size: 13px; line-height: 1.35; border: 1.5px solid; max-width: 100%; }
+.sg > span { min-width: 0; }
+.sg-b { background: var(--bad-fg); border-color: var(--bad-fg); color: #fff; font-weight: 600; }
+.sg-b i, .sgx { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; margin-top: 1px; border-radius: 50%; background: #fff; color: var(--bad-fg); font: 700 11px/1 'Inter Tight', system-ui, sans-serif; font-style: normal; }
+.sgx { background: var(--bad-fg); color: #fff; margin-right: 6px; vertical-align: -2px; }
+.sg-w { background: transparent; border-color: var(--warn-fg); color: var(--warn-fg); padding-left: 9px; }
+.sg-i { display: flex; align-items: baseline; gap: 5px; margin: 1px 0 3px; color: var(--muted); font-size: 13px; line-height: 1.35; }
+.sg-i i { flex: none; display: inline-grid; place-items: center; width: 14px; height: 14px; border: 1px solid currentColor; border-radius: 50%; font: italic 600 10px/1 Georgia, serif; position: relative; top: 1px; }
+.sg-n { display: inline-block; margin: 0 4px 4px 0; padding: 2px 7px; border-radius: 999px; background: var(--line); color: var(--ink); font-size: 12px; font-weight: 600; cursor: help; }
+.sgs { margin: 6px 0 2px; }
+.sgl .sg, .sgl .sg-i { margin-bottom: 0; }
+ol.first li.f-bad { border-left: 3px solid var(--bad-fg); padding-left: 8px; }
+ol.first li.f-warn { border-left: 3px solid var(--warn-fg); padding-left: 8px; }
