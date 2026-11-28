@@ -1568,7 +1568,7 @@
   let logRmpd = new Set(), logDups = null, homeL = null, homeLErr = '', hKind = store.get('hKind') || 'all', hOpen = {}, hHome = false, hPhoneWas = null, boardAt = 0, homeLAt = 0;
   BF.rmpd = ['RMPD не перевірено', x => logRmpd.has(x.id)];
   const STEP_AGE = x => { const t = x.trip; if (!t) return 0; const at = t.st && t.st.at ? new Date(t.st.at).getTime() : (t.load ? new Date(t.load + 'T08:00:00').getTime() : 0); return at ? Math.max(0, (Date.now() - at) / 36e5) : 0; };
-  BF.stale = ['Немає відмітки водія > 12 год', x => x.status === 'trip' && !!x.trip && !x.trip.order && STEP_AGE(x) > 12];
+  BF.stale = ['Немає відмітки водія > 12 год', x => x.status === 'trip' && !!x.trip && !x.trip.order && !!(x.trip.st && x.trip.st.at) && STEP_AGE(x) > 12];
   const openBoardF = k => { bFilter = k; store.set('bFilter', k); $('bSearch').value = ''; openBoard(); };   // v53.2: у логіста дошки немає — фільтр на головній
   const hPhone = () => window.innerWidth < 768;
   const hRole = () => !!me && (me.role === 'логіст' || KA.indexOf(me.role) >= 0);
@@ -1920,13 +1920,14 @@
     // v56 (рішення 28.11): три рівні — 'bad' Термінове · 'warn' Звернути увагу · 'info' Інформація (у lvl не рахується)
     const miss = [], add = (lv, tx, act, key) => miss.push({ lv, tx, act: act || 'Відкрити', key: key || '' });
     const passed = t && M_AFTER.indexOf(ev) >= 0, nearB = st === 'brd' || !!(x.ech && /черз|готуйт|виклик/.test(x.ech.state || '')) || !!(x.gpsHint && /кордон/.test(x.gpsHint.step || ''));
-    const echCall = !!(x.ech && /черз|готуйт|виклик/.test(x.ech.state || '')), imp = !!(t && t.dir && t.dir.v === 'імпорт'), loaded = !!ev && ev !== 'на завантаженні';
+    const echCall = !!(x.ech && /готуйт|виклик/.test(x.ech.state || '')), inQ = !!(x.ech && /черз/.test(x.ech.state || '')), imp = !!(t && t.dir && t.dir.v === 'імпорт'), loaded = !!ev && ev !== 'на завантаженні';
     if (t && t.order) { const d = t.load ? daysFrom(t.load) : -9; add(d >= -1 ? 'bad' : 'warn', d >= -1 ? 'Створити рейс — завантаження ' + (d >= 0 ? 'сьогодні' : 'завтра') : 'Заявка без рейсу', 'Відкрити'); }
-    if (real && k === 'i' && !passed && t.rmpd === 'none' && (echCall || (imp && loaded))) add('bad', echCall ? 'Немає RMPD — виклик на кордон' : 'Немає RMPD — імпорт завантажено', 'Відкрити', 'rmpd');
-    if (real && k === 'i' && !passed && t.rmpd === 'warn') add(echCall || nearB ? 'bad' : 'warn', 'RMPD ≠ CMR', 'Звірити', 'rmpd');
+    if (real && k === 'i' && !passed && t.rmpd === 'none' && (echCall || inQ || (imp && loaded))) add('bad', echCall ? 'Немає RMPD — виклик на кордон' : inQ ? 'Немає RMPD — машина в черзі на кордон' : 'Немає RMPD — імпорт завантажено', 'Відкрити', 'rmpd');
+    if (real && k === 'i' && !passed && t.rmpd === 'warn') add(echCall || inQ || nearB ? 'bad' : 'warn', 'RMPD ≠ CMR', 'Звірити', 'rmpd');
     if (real && t.qh && t.qh.lvl) add(t.qh.lvl === 'bad' ? 'bad' : 'warn', t.qh.text, 'Відкрити', 'q');
     x.problems.filter(p => p.k === 'drv').forEach(p => add(p.urgent ? 'bad' : 'warn', p.urgent ? 'Нова проблема водія' : 'Проблема водія в роботі', 'Відкрити'));
-    if (real) { const h = STEP_AGE(x); if (h > 12) add(h > 24 ? 'bad' : 'warn', 'Без кроку водія ' + (h >= 48 ? Math.floor(h / 24) + ' дн' : h >= 24 ? '1 дн ' + Math.round(h - 24) + ' год' : Math.round(h) + ' год'), 'Відкрити'); }
+    if (real && t.st && t.st.at) { const h = STEP_AGE(x); if (h > 12)   // v56.3: лише коли водій уже веде кроки в цьому рейсі; без жодного кроку — це видно в «Статусі», не тривога
+      add(h > 24 ? 'bad' : 'warn', 'Без кроку водія ' + (h >= 48 ? Math.floor(h / 24) + ' дн' : h >= 24 ? '1 дн ' + Math.round(h - 24) + ' год' : Math.round(h) + ' год'), 'Відкрити'); }
     x.problems.filter(p => p.k === 'addr').forEach(p => add(p.urgent ? 'bad' : 'warn', p.urgent ? 'Вписати адреси — завантаження скоро' : 'Бракує адрес водію', 'Вписати'));
     x.problems.filter(p => p.k === 'doc' || p.k === 'tir').forEach(p => add(p.urgent ? 'bad' : 'warn', String(p.t).replace(' — прострочено з ', ' прострочено з ').replace(' — до ', ' до ').replace(/(\d\d\.\d\d)\.\d{4}/, '$1'), 'Відкрити'));
     if (t && !x.next && t.unload) { const d = daysFrom(t.unload); if (d >= -2) add(d >= -1 ? 'bad' : 'warn', 'Немає наступного рейсу · ' + (d > 0 || ev === 'розвантажено' ? 'вільна з ' + dd(t.unload) : 'звільняється ' + (d === 0 ? 'сьогодні' : d === -1 ? 'завтра' : dd(t.unload))), 'Відкрити', 'next'); }
@@ -4553,6 +4554,11 @@
         const o = document.createElement('option'); o.value = r['Працівник ID'] + ' — ' + r['Прізвище']; $('workers').appendChild(o);
       });
     } catch (e) { /* список не обов'язковий — можна вписати вручну */ }
+    try {   // v56.3: офісні працівники (логісти, бухгалтер, керівник) — код за поштою; сервер це вміє з v4x, тепер видно у списку
+      const u = await api('list', { sheet: 'Користувачі' });
+      (u.rows || []).forEach(r => { const em = String(Object.values(r).find(v => /@/.test(String(v))) || '').trim(); if (!em) return;
+        const o = document.createElement('option'); o.value = em; o.label = [r['Імʼя'] || r["Ім'я"] || r['Прізвище'] || '', r['Роль'] || ''].filter(Boolean).join(' · '); $('workers').appendChild(o); });
+    } catch (e) { /* немає доступу до користувачів — пошту можна вписати вручну */ }
   }
 
   async function issue() {
