@@ -2724,3 +2724,9 @@ details.bp-col[open] > summary { margin-bottom: 8px; }
 .sgl .sg, .sgl .sg-i { margin-bottom: 0; }
 ol.first li.f-bad { border-left: 3px solid var(--bad-fg); padding-left: 8px; }
 ol.first li.f-warn { border-left: 3px solid var(--warn-fg); padding-left: 8px; }
+.m51-r .cd .l2.sgl { white-space: normal; }
+/* v56.2: коли відкрита панель — «Чого бракує» лишається читабельним: колонка ширша, «Де зараз» вужчий, водій під машиною */
+body.bpanel-on .bcompact col.w-prob { width: 200px; }
+body.bpanel-on .bcompact col.w-pos { width: 0; }
+body.bpanel-on .bcompact td.c-pos, body.bpanel-on .bcompact thead th:nth-child(5), body.bpanel-on .bcompact col.w-pos { display: none; }
+body.bpanel-on .bcompact td.c-st { overflow: hidden; } body.bpanel-on .bcompact td.c-st .badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
