@@ -384,10 +384,10 @@
     }
     if (me.role === 'бухгалтер' || me.role === 'механік') {
       const items = navItems(), pins = navPins().map(id => items.find(n => n.id === id)).filter(Boolean);
-      w.innerHTML = (me.role === 'бухгалтер' ? '<div id="buhBox"></div>' : '') + '<section class="hw hquick" aria-labelledby="hqT"><div class="hw-h"><h2 id="hqT">Закріплене</h2><span class="hw-meta">змінюється зірочкою в меню</span></div><div class="hq">' +
+      w.innerHTML = (me.role === 'бухгалтер' ? '<div id="buhBox"></div><div id="packBox"></div>' : '') + '<section class="hw hquick" aria-labelledby="hqT"><div class="hw-h"><h2 id="hqT">Закріплене</h2><span class="hw-meta">змінюється зірочкою в меню</span></div><div class="hq">' +
         pins.map(n => '<a class="hq-a" href="' + navHref(n.id) + '" data-nav="' + esc(n.id) + '">' + ico(n.ico) + '<span>' + esc(n.t) + '</span>' + navBadgeHtml(n.id) + '</a>').join('') + '</div></section>';
       w.onclick = e => { const a = e.target.closest('a[data-nav]'); if (a && !(e.ctrlKey || e.metaKey || e.shiftKey)) { e.preventDefault(); navGo(a.dataset.nav); } };
-      if (me.role === 'бухгалтер') buhLoad();
+      if (me.role === 'бухгалтер') { buhLoad(); packBoxLoad(); }
     }
   }
   /** Вихід / водій: прибрати меню, пошук, ім'я ▾. */
@@ -2338,6 +2338,20 @@
   }
 
   /* ── Головна бухгалтера (v48): невеликий дашборд з дій, що вже є для ролі (inv, debts, expense) — без нових прав ── */
+  /** v55: у бухгалтера — «Передано від логістів: зробити акт і рахунок». */
+  async function packBoxLoad() {
+    const box = $('packBox'); if (!box) return; const nav = navSeq;
+    box.innerHTML = '<section class="hw pkq"><div class="hw-h"><h2>Передано від логістів — акт і рахунок</h2></div><p class="muted small">Завантажую…</p></section>';
+    let r; try { r = await api('pack.list'); } catch (e) { box.innerHTML = '<section class="hw pkq"><div class="hw-h"><h2>Передано від логістів</h2></div><p class="msg">' + esc(e.message) + '</p></section>'; return; }
+    if (nav !== navSeq || $('home').hidden) return;
+    const L = r.list || [];
+    box.innerHTML = '<section class="hw pkq"><div class="hw-h"><h2>Передано від логістів — акт і рахунок <span class="count-pill">' + L.length + '</span></h2></div>' + (L.length ? '<ul class="pkql">' + L.map(t => '<li class="' + (t.lvl || '') + '"><div><b>' + esc(t.id) + '</b> ' + esc((t.from || '?') + ' → ' + (t.to || '?')) + '<div class="muted small">' + esc([t.client, t.unload ? 'розвантажено ' + dd(t.unload) : '', 'передав ' + (t.by || '—') + (t.since ? ' ' + dd(t.since) : '')].filter(Boolean).join(' · ')) + '</div>' +
+      (t.files.length ? '<div class="small">' + t.files.map(f => '<button type="button" class="pk-num" data-pkfl="' + esc(f.id) + '" data-pkt="' + esc(t.id) + '" data-pkn="' + esc(f.name) + '">' + esc(f.name) + '</button>').join(' · ') + '</div>' : '') + '</div>' +
+      '<div class="pka"><label class="btn small pkup">Прикріпити файл<input type="file" accept="application/pdf,image/*" data-pkup="' + esc(t.id) + '" hidden></label><button type="button" class="btn small primary" data-pkdone="' + esc(t.id) + '">Акт і рахунок готові</button></div></li>').join('') + '</ul>' : '<p class="hcalm">Усе зроблено — нових рейсів від логістів немає.</p>') + '</section>';
+    box.querySelectorAll('[data-pkup]').forEach(inp => inp.onchange = () => packFileUp(inp.dataset.pkup, inp.files[0], packBoxLoad));
+    box.querySelectorAll('[data-pkfl]').forEach(b => b.onclick = () => packFileGet(b.dataset.pkt, b.dataset.pkfl, b.dataset.pkn));
+    box.querySelectorAll('[data-pkdone]').forEach(b => b.onclick = async () => { busy(true); try { await api('save', { sheet: 'Рейси', row: { 'Рейс ID': b.dataset.pkdone, 'Акт і рахунок готові': new Date().toISOString(), 'Затвердив акт': me.name } }); toast('✔ Акт і рахунок готові — логіст бачить'); packBoxLoad(); } catch (e) { toast(esc(e.message), 'err'); } finally { busy(false); } });
+  }
   async function buhLoad() {
     const box = $('buhBox'); if (!box) return; const nav = navSeq;
     let c = null; try { c = JSON.parse(store.get('buh_' + me.login) || 'null'); } catch (e) {}
@@ -2425,7 +2439,8 @@
     const P = bProbs(x);
     if (P.some(q => q.k === 'addr')) out.push(c('bad', '✕', 'адрес немає', 'Рейс без адрес для водія'));
     if (!t.unload) out.push(c('warn', '✕', 'дата розвантаження'));
-    if (bpUnloaded(t) && !t.handoff && !t.order) out.push(c('warn', '!', 'не передано в бухгалтерію'));
+    if (bpUnloaded(t) && !t.pack && !t.handoff && !t.order) out.push(c('warn', '!', 'не передано в бухгалтерію'));
+    else if (t.pack && t.pack.step !== 'got') out.push(c(t.pack.lvl || 'neu', '▤', esc(t.pack.label.split(' — ')[0])));
     const dn = P.filter(q => q.k === 'doc' || q.k === 'tir'); if (dn.length) out.push(c(dn.some(q => q.urgent) ? 'bad' : 'warn', '!', 'документи ' + dn.length, dn.map(q => q.t).join('; ')));
     return '<div class="bp-strip">' + out.join('') + '</div>';
   }
@@ -2455,13 +2470,58 @@
       '<label id="bpQAtL"' + (reg ? '' : ' hidden') + '>Дата реєстрації<input type="date" id="bpQAt" value="' + esc(t.qAt || '') + '"' + dis + '></label>' +
       (wr ? '<button type="button" class="btn small" id="bpQSave">Зберегти</button>' : '') + '</div>', '', esc(h.text), true);
   }
-  /** v54: «Передати в бухгалтерію» (команда, 27.11: у першій версії) — після розвантаження; хто і коли — у рейсі, скасувати можна. */
+  /** v55: шлях рейсу після розвантаження — пакет документів (рішення 28.11): передано → акт і рахунок → [перевірка клієнтом] → надіслано (НП/email) → отримано (ТТН сама). */
   const bpUnloaded = t => !!t && (/розвантажено/i.test((t.st && t.st.event) || '') || (t.unload && t.unload < new Date().toISOString().slice(0, 10)));
+  const PK_STEPS = [['handed', 'Передано'], ['docs', 'Акт і рахунок'], ['review', 'Перевірка клієнтом'], ['sent', 'Надіслано'], ['got', 'Отримано']];
+  let bpSendOpen = false;
   function bpHandoff(t, tid) {
-    if (!t || t.order || !canTrip()) return '';
-    if (t.handoff) return '<section class="bp-sec bp-ho ok"><span>✓ Передано в бухгалтерію ' + esc(tkTime(t.handoff)) + (t.handoffBy ? ' · ' + esc(t.handoffBy) : '') + '</span>' + (me.viewAs ? '' : '<button type="button" class="linkbtn" data-bpho="">Скасувати</button>') + '</section>';
-    if (!bpUnloaded(t)) return '';
-    return '<section class="bp-sec bp-ho"><span>Рейс розвантажено — передайте бухгалтеру для акту й рахунку</span>' + (me.viewAs ? '' : '<button type="button" class="btn small primary" data-bpho="1">Передати в бухгалтерію</button>') + '</section>';
+    if (!t || t.order || !me) return '';
+    const P = t.pack || (t.handoff ? { step: 'handed', label: 'У бухгалтерії — акт і рахунок', since: String(t.handoff).slice(0, 10) } : null);
+    const lg = ['адмін', 'керівник', 'логіст'].indexOf(me.role) >= 0 && !me.viewAs, bh = ['адмін', 'керівник', 'бухгалтер'].indexOf(me.role) >= 0 && !me.viewAs;
+    if (!P) return bpUnloaded(t) && lg ? '<section class="bp-sec bp-ho"><span>Рейс розвантажено — передайте бухгалтеру для акту й рахунку</span><button type="button" class="btn small primary" data-pka="hand">Передати в бухгалтерію</button></section>' : '';
+    const ci = PK_STEPS.findIndex(x => x[0] === P.step);
+    const steps = '<ol class="pks">' + PK_STEPS.map((x, i) => '<li class="' + (i < ci || (P.step === 'sent' && x[0] === 'review') ? 'done' : i === ci ? 'cur' + (P.lvl ? ' ' + P.lvl : '') : '') + (x[0] === 'review' ? ' opt' : '') + '">' + esc(x[1]) + '</li>').join('') + '</ol>';
+    const files = (P.files || []).length ? '<p class="pkf">' + P.files.map(f => '<button type="button" class="pk-num" data-pkfl="' + esc(f.id) + '" data-pkn="' + esc(f.name) + '">' + esc(f.name) + '</button>').join(' · ') + '</p>' : '';
+    const A = [];
+    if (P.step === 'handed') { if (bh) A.push('<button type="button" class="btn small primary" data-pka="docs">Акт і рахунок готові</button>', '<label class="btn small pkup">Прикріпити файл<input type="file" accept="application/pdf,image/*" data-pkup hidden></label>'); if (lg) A.push('<button type="button" class="linkbtn" data-pka="unhand">Скасувати передачу</button>'); }
+    if (P.step === 'docs') { if (lg) A.push('<button type="button" class="btn small" data-pka="review">На перевірку клієнту</button>', '<button type="button" class="btn small primary" data-pka="send">Надіслано клієнту…</button>'); if (bh) A.push('<label class="btn small pkup">Прикріпити файл<input type="file" accept="application/pdf,image/*" data-pkup hidden></label>'); }
+    if (P.step === 'review' && lg) A.push('<button type="button" class="btn small primary" data-pka="send">Клієнт погодив — надіслано…</button>', '<button type="button" class="btn small" data-pka="fix">Правки — назад бухгалтеру</button>');
+    if (P.step === 'sent' && lg) A.push('<button type="button" class="btn small" data-pka="fix">Клієнт знайшов помилку</button>');
+    const send = bpSendOpen && (P.step === 'docs' || P.step === 'review') ? '<div class="pksend"><label><input type="radio" name="pkHow" value="Нова пошта" checked> Нова пошта</label><label><input type="radio" name="pkHow" value="email"> email</label>' +
+      '<label class="pkttn">ТТН<input id="pkTtn" inputmode="numeric" placeholder="20450000000000" maxlength="20"></label><button type="button" class="btn small primary" data-pka="sent">Зберегти</button><button type="button" class="linkbtn" data-pka="sendx">Скасувати</button></div>' : '';
+    const sub = P.step === 'sent' && P.np ? ' · НП: ' + esc(P.np) : P.since ? ' · з ' + esc(dd(P.since)) : '';
+    return '<section class="bp-sec bp-pack"><h3>Документи для оплати</h3>' + steps + '<p class="pkl' + (P.lvl ? ' ' + P.lvl : '') + '">' + esc(P.label) + sub + '</p>' + files + (A.length ? '<div class="pka">' + A.join('') + '</div>' : '') + send + '</section>';
+  }
+  async function packAct(tid, a, t) {
+    const now = new Date().toISOString(), F = {
+      hand: [{ 'Передано в бухгалтерію': now, 'Передав у бухгалтерію': me.name }, '✔ Рейс ' + tid + ' передано в бухгалтерію'],
+      unhand: [{ 'Передано в бухгалтерію': '', 'Передав у бухгалтерію': '' }, 'Передачу скасовано'],
+      docs: [{ 'Акт і рахунок готові': now, 'Затвердив акт': me.name }, '✔ Акт і рахунок готові — логіст бачить'],
+      review: [{ 'На перевірці в клієнта': now }, '✔ Позначено: на перевірці в клієнта'],
+      fix: [{ 'Акт і рахунок готові': '', 'Затвердив акт': '', 'На перевірці в клієнта': '', 'Пакет надіслано': '', 'Спосіб надсилання': '', 'ТТН НП': '', 'Статус ТТН': '' }, 'Повернуто бухгалтеру на правки']
+    };
+    if (a === 'send') { bpSendOpen = true; const x = bPanelX; if (x) bPanelOpen(x, null, tid); return; }
+    if (a === 'sendx') { bpSendOpen = false; const x = bPanelX; if (x) bPanelOpen(x, null, tid); return; }
+    if (a === 'sent') {
+      const how = (document.querySelector('input[name="pkHow"]:checked') || {}).value || 'Нова пошта', ttn = ($('pkTtn') ? $('pkTtn').value : '').replace(/\D/g, '');
+      if (how === 'Нова пошта' && !/^\d{14}$/.test(ttn)) return toast('ТТН Нової пошти — 14 цифр', 'err');
+      bpSendOpen = false; return bpTripSave(tid, { 'Пакет надіслано': now, 'Спосіб надсилання': how, 'ТТН НП': how === 'Нова пошта' ? ttn : '' }, '✔ Надіслано' + (ttn ? ' · ТТН ' + ttn + ' — статус підтягнеться сам' : ''));
+    }
+    if (F[a]) return bpTripSave(tid, F[a][0], F[a][1]);
+  }
+  async function packFileUp(tid, file, after) {
+    if (!file) return; if (file.size > 10 * 1024 * 1024) return toast('Файл завеликий — до 10 МБ', 'err');
+    busy(true); try { const data = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1] || ''); r.onerror = () => no(new Error('Не вдалося прочитати файл')); r.readAsDataURL(file); });
+      await api('pack.file.add', { tripId: tid, name: file.name, mime: file.type || 'application/pdf', data }); toast('✔ Файл «' + esc(file.name) + '» прикріплено'); if (after) after(); }
+    catch (e) { toast(esc(e.message), 'err'); } finally { busy(false); }
+  }
+  async function packFileGet(tid, fid, name) {
+    busy(true); try { const r = await api('pack.file', { tripId: tid, fileId: fid });
+      const bin = atob(r.data), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+      const f = new File([u], r.name || name, { type: r.mime || 'application/pdf' });
+      if (hPhone() && navigator.canShare && navigator.canShare({ files: [f] })) { busy(false); try { await navigator.share({ files: [f], title: name }); } catch (e) { if (e.name === 'NotAllowedError') toast('Файл готовий — натисніть ще раз, щоб надіслати'); } return; }
+      const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 5000);
+    } catch (e) { toast(esc(e.message), 'err'); } finally { busy(false); }
   }
   async function bpTripSave(tid, row, okMsg) {
     try { busy(true); await api('save', { sheet: 'Рейси', row: Object.assign({ 'Рейс ID': tid }, row) }); toast(okMsg || '✔ Збережено');
@@ -2484,6 +2544,7 @@
   }
   /** Сітка/панель: на ≥ 1200 — картка праворуч у сітці дошки; вужче — на весь екран із «‹ Дошка». */
   async function bPanelOpen(x, from) {
+    if (!bPanelX || bPanelX.id !== x.id) bpSendOpen = false;
     const p = $('bPanel'), seq = ++bPanelSeq; bPanelX = x; bPanelFrom = from || null;
     const onHome = !$('home').hidden && !!$('m51Side'), host = onHome ? $('m51Side') : document.querySelector('#board .bwork');   // v51: та сама панель — і на головній логіста
     if (host && p.parentNode !== host) host.appendChild(p);
@@ -2520,14 +2581,14 @@
       '<div class="bp-route">' + esc(t.from || '?') + ' — ' + esc(t.to || '?') + '</div>' + plates + bpStrip(x, t) +
       '<details class="bp-col bp-kvd" data-bpk="kv"' + (bpOpen('kv', false) ? ' open' : '') + '><summary><span class="bp-sum">' + esc([t.client ? String(t.client).split(',')[0] : '', 'завант. ' + (dd(t.load) || '?'), t.unload ? 'розвант. ' + dd(t.unload) : ''].filter(Boolean).join(' · ')) + '</span><span class="bp-more">деталі рейсу</span></summary>' +
       '<dl class="bp-kv">' + bpKv('Клієнт', esc(t.client || '')) + bpKv('Тип', esc([t.type, t.adr ? 'АДР' : ''].filter(Boolean).join(', '))) + bpKv('Перехід', esc(t.cross || '')) + bpDirKv(t, wr) + bpCircKv(t, wr, x.id) + bpKv('Фрахт', bFreight(t)) +
-        bpKv('Дати', 'завантаження ' + (dd(t.load) || '?') + ' · розвантаження ' + (t.unload ? dd(t.unload) : '<span class="bpr">не вказано</span>')) + '</dl></details>' + lgH + '</section>' +
+        bpKv('Дати', 'завантаження ' + (dd(t.load) || '?') + ' · розвантаження ' + (t.unload ? dd(t.unload) : '<span class="bpr">не вказано</span>')) + '</dl></details>' + lgH + '</section>' + bpHandoff(t, tid) +
       bpSecC('mv', 'Рух зараз' + (mv && mv.at ? ' <span class="bp-cap">GPS ' + esc(hhmm(mv.at)) + '</span>' : ''), '<div id="bpMoveNow">' + bpMoveHtml(x, mv) + '</div>' + drvH + '<details class="bp-fold" id="bpMv"><summary>Рух і зупинки · план до розвантаження</summary><div id="bpMvBody"><p class="muted small">Завантажую…</p></div></details>', ' id="bpMoveSec"', esc(mv ? (mv.moving ? 'їде' : 'стоїть') + (mv.min != null && mv.min >= 0 ? ' ' + durTxt(mv.min) : '') + (mv.place ? ' · ' + mv.place : '') : 'немає GPS'), false) +
       bpQueueSec(t, wr) +
       bpSecC('open', 'Що не закрито <span class="count-pill" id="bpOpenN">…</span>', '<ul class="bp-open" id="bpProb"><li class="muted"><span></span><span>Перевіряю RMPD, адреси, проблеми…</span></li></ul>', ' id="bpOpenSec"', '', true) +
       bpSecC('st', 'Статуси водія', '<ol class="bp-tl2" id="bpSteps"></ol><div id="bpMark"></div>', '', esc(t.st && t.st.event ? cap(t.st.event) + ' · ' + durTxt(STEP_AGE(x) * 60) + ' тому' : 'кроків ще немає'), false) + nextH +
       '<section class="bp-sec"><details class="bp-fold" id="bpMore"><summary>Документи · RMPD · адреси · історія змін</summary><h4 class="bp-h">Перед кордоном</h4><ul class="bp-list" id="bpBorder"><li class="muted"><span class="bp-m">…</span><span>Перевіряю RMPD і адреси…</span></li>' + docH + echH + '</ul>' +
         '<h4 class="bp-h">Історія змін</h4><div id="bpJrn"><button type="button" class="btn small" id="bpJrnB">Хто і що змінював</button></div></details></section>' +
-      bpHandoff(t, tid) + ((office && echIntl(t.type, t.cross)) || drvBtn ? '<section class="bp-sec bp-more">' + (office && echIntl(t.type, t.cross) ? '<button type="button" class="btn small" id="bpEch">Підготувати реєстрацію в єЧергу</button>' : '') + (drvBtn ? drvBtn.replace('class="btn tdrv"', 'class="btn small tdrv"') : '') + '</section>' : '') +
+      ((office && echIntl(t.type, t.cross)) || drvBtn ? '<section class="bp-sec bp-more">' + (office && echIntl(t.type, t.cross) ? '<button type="button" class="btn small" id="bpEch">Підготувати реєстрацію в єЧергу</button>' : '') + (drvBtn ? drvBtn.replace('class="btn tdrv"', 'class="btn small tdrv"') : '') + '</section>' : '') +
       '<div class="bp-act">' + (ct ? '<button type="button" class="btn" id="bpEdit">' + svgI('M4 20h4L19 9l-4-4L4 16zM14 6l4 4') + 'Виправити</button>' : '') + '<button type="button" class="primary" id="bpFull">' + svgI('M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5') + 'Повна картка</button>' +
 '</div>';
     bindPanel(x, tid); p.scrollTop = 0; p.focus({ preventScroll: onHome });   // v51: на головній сторінка не стрибає
@@ -2570,6 +2631,7 @@
     if (miss.length) row('bpw', BP_ICO.pin, 'Адреси: бракує ' + miss.length, esc(miss.map(k => ADDR_L[k].toLowerCase()).join(', ')), wr ? '<button type="button" class="btn small" data-bpo="addr">Вписати</button>' : '');
     if (!t.unload) row('bpw', BP_ICO.clock, 'Дата розвантаження не вказана', '', ct ? '<button type="button" class="btn small" data-bpo="unl">Поставити</button>' : '');
     $('bpOpenN').textContent = open.length; $('bpOpenN').className = 'count-pill' + (open.length ? ' bad' : ' ok');
+    { const sec = $('bpOpenSec'); if (sec) sec.hidden = !open.length; }   // v55: нуль мовчить (дизайнер, 2-й раунд)
     $('bpProb').innerHTML = open.length ? open.join('') : '<li class="bp-allok"><span class="bpg">' + svgI(BP_ICO.ok) + '</span><span>Усе закрито</span><span></span></li>';
     // v51: на телефоні червоне (RMPD біля кордону, проблема водія) — вище за «Рух зараз»
     if (window.innerWidth < 768 && open.some(h => h.indexOf('<span class="bpr">') === 4)) { const ms = $('bpMoveSec'), os = $('bpOpenSec'); if (ms && os) { ms.parentNode.insertBefore(os, ms); os.classList.add('bp-first'); } }
@@ -2625,8 +2687,9 @@
   function bindPanel(x, tid) {
     { const p = $('bPanel');   // v52: напрям при розбіжності; «Черга на експорт»
       p.querySelectorAll('[data-bpdir]').forEach(b => b.onclick = () => bpTripSave(tid, { 'Напрям': b.dataset.bpdir }, '✔ Напрям: ' + b.dataset.bpdir));
-      p.querySelectorAll('[data-bpho]').forEach(b => b.onclick = () => b.dataset.bpho ? bpTripSave(tid, { 'Передано в бухгалтерію': new Date().toISOString(), 'Передав у бухгалтерію': me.name }, '✔ Рейс ' + esc(tid) + ' передано в бухгалтерію')
-        : bpTripSave(tid, { 'Передано в бухгалтерію': '', 'Передав у бухгалтерію': '' }, 'Передачу скасовано'));
+      p.querySelectorAll('[data-pka]').forEach(b => b.onclick = () => packAct(tid, b.dataset.pka));   // v55: пакет документів
+      p.querySelectorAll('[data-pkup]').forEach(inp => inp.onchange = () => packFileUp(tid, inp.files[0], () => { if (mOn()) logLoad(true); else openBoard(true); }));
+      p.querySelectorAll('[data-pkfl]').forEach(b => b.onclick = () => packFileGet(tid, b.dataset.pkfl, b.dataset.pkn));
       const ce = p.querySelector('#bpCircEd'); if (ce) ce.onclick = () => { const f = p.querySelector('.bp-circf'); f.hidden = !f.hidden; if (!f.hidden) p.querySelector('#bpCirc').focus(); };
       const cs = p.querySelector('#bpCircSave'); if (cs) cs.onclick = () => { const v = p.querySelector('#bpCirc').value.trim(); bpTripSave(tid, { 'Кругорейс ID': v }, v ? '✔ Кругорейс: ' + v : '✔ Кругорейс прибрано'); };
       if ($('bpQSt')) $('bpQSt').onchange = () => { $('bpQAtL').hidden = !$('bpQSt').value; if ($('bpQSt').value && !$('bpQAt').value) $('bpQAt').value = isoDay(new Date()); };

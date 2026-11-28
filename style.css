@@ -2692,3 +2692,20 @@ details.bp-col[open] > summary { margin-bottom: 8px; }
 .bcompact .c-st .badge svg { width: 15px; height: 15px; }
 .bp-ho { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; font-size: 14px; }
 .bp-ho.ok span { color: #1F6E46; font-weight: 600; }
+/* v55: пакет документів після розвантаження */
+.bp-pack h3 { margin: 0 0 8px; }
+.pks { display: flex; gap: 4px; list-style: none; padding: 0; margin: 0 0 8px; counter-reset: pk; flex-wrap: wrap; }
+.pks li { flex: 1; min-width: 70px; font-size: 12px; color: var(--muted); padding-top: 8px; border-top: 4px solid var(--line); }
+.pks li.done { border-top-color: var(--ink); color: var(--ink); }
+.pks li.cur { border-top-color: #856FCA; color: var(--ink); font-weight: 700; }
+.pks li.cur.warn { border-top-color: #C77700; }
+.pks li.opt:not(.done):not(.cur) { border-top-style: dashed; }
+.pkl { margin: 0 0 6px; font-size: 14px; } .pkl.warn { color: var(--warn-fg); }
+.pkf { margin: 0 0 8px; font-size: 13px; }
+.pka { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pkup { cursor: pointer; } .pkup input { display: none; }
+.pksend { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 8px; font-size: 14px; }
+.pksend label { display: inline-flex; gap: 4px; align-items: center; } .pksend .pkttn { flex-direction: column; align-items: flex-start; font-size: 12px; } .pksend input[type="radio"] { width: 16px; height: 16px; min-height: 0; }
+.pkql { list-style: none; margin: 0; padding: 0; } .pkql li { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); } .pkql li:first-child { border-top: 0; } .pkql li.warn b { color: var(--warn-fg); }
+.pks li { min-width: 0; font-size: 11px; }
+.bp-pack .pka .btn { width: auto; min-height: 36px; }
