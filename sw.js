@@ -1,7 +1,7 @@
 // Офлайн-оболонка: екрани відкриваються навіть без зв'язку; дані завжди беруться з сервера.
-const VERSION = 'v56.3';   // змінюйте при кожному оновленні вигляду — телефони підхоплять нову версію
-const SHELL = ['./', 'index.html', 'app.js', 'drive.js', 'style.css', 'config.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
-self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL))); self.skipWaiting(); });
+const VERSION = 'v56.4';   // змінюйте при кожному оновленні вигляду — телефони підхоплять нову версію   // ⚠ разом з VERSION міняйте ?v= в SHELL нижче та в index.html
+const SHELL = ['./', 'index.html', 'app.js?v=56.4', 'drive.js?v=56.4', 'style.css?v=56.4', 'config.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
+self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' }))))   // v56.4: оминаємо кеш браузера (GitHub Pages тримає файли 10 хв) — інакше нова версія ставала зі старим app.js); self.skipWaiting(); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))));
   self.clients.claim();
